@@ -1,7 +1,6 @@
 inherited frmPrintLocation: TfrmPrintLocation
   Left = 293
   Top = 250
-  Width = 450
   Height = 472
   AutoScroll = True
   BorderIcons = []
@@ -10,11 +9,11 @@ inherited frmPrintLocation: TfrmPrintLocation
   OldCreateOrder = False
   Position = poMainFormCenter
   OnClose = FormClose
-  ExplicitWidth = 450
+  ExplicitWidth = 542
   ExplicitHeight = 472
   DesignSize = (
-    442
-    438)
+    427
+    434)
   PixelsPerInch = 96
   TextHeight = 13
   object lblEncounter: TLabel [0]
@@ -27,7 +26,7 @@ inherited frmPrintLocation: TfrmPrintLocation
   object pnlTop: TPanel [1]
     Left = 0
     Top = 0
-    Width = 442
+    Width = 517
     Height = 153
     Anchors = [akLeft, akTop, akRight]
     BevelOuter = bvNone
@@ -41,7 +40,7 @@ inherited frmPrintLocation: TfrmPrintLocation
     object orpnlTopBottom: TORAutoPanel
       Left = 0
       Top = 112
-      Width = 442
+      Width = 517
       Height = 41
       Align = alBottom
       BevelOuter = bvNone
@@ -81,6 +80,7 @@ inherited frmPrintLocation: TfrmPrintLocation
       ColCount = 3
       Constraints.MinWidth = 440
       DefaultRowHeight = 30
+      DefaultDrawing = False
       Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goRowSizing]
       ParentShowHint = False
       ShowHint = True
@@ -104,9 +104,10 @@ inherited frmPrintLocation: TfrmPrintLocation
       Height = 21
       Style = orcsDropDown
       AutoSelect = True
+      Caption = ''
       Color = clWindow
       DropDownCount = 8
-      ItemHeight = 13
+      ItemHeight = 16
       ItemTipColor = clWindow
       ItemTipEnable = True
       ListItemsOnly = False
@@ -116,6 +117,7 @@ inherited frmPrintLocation: TfrmPrintLocation
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 1
+      Text = ''
       Visible = False
       OnChange = cbolocationChange
       OnExit = cbolocationExit
@@ -144,10 +146,9 @@ inherited frmPrintLocation: TfrmPrintLocation
   object cboEncLoc: TComboBox [4]
     Left = 284
     Top = 375
-    Width = 104
+    Width = 179
     Height = 21
     Anchors = [akLeft, akTop, akRight, akBottom]
-    ItemHeight = 0
     TabOrder = 2
   end
   inherited amgrMain: TVA508AccessibilityManager

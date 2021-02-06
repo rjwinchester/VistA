@@ -26,6 +26,8 @@ Created on Jun 14, 2012
 @license http://www.apache.org/licenses/LICENSE-2.0
 '''
 
+from builtins import str
+from builtins import range
 from Actions import Actions
 import TestHelper
 import datetime
@@ -120,7 +122,12 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('RACE:')
         self.VistA.write('')
-        self.VistA.wait('COUNTRY:')
+        index = self.VistA.multiwait(['LANGUAGE DATE','COUNTRY:'])
+        if index==0:
+          self.VistA.write("N")
+          self.VistA.wait("PREFERRED LANGUAGE")
+          self.VistA.write("")
+          self.VistA.wait('COUNTRY')
         self.VistA.write('')
         self.VistA.wait('STREET ADDRESS')
         self.VistA.write('')
@@ -145,9 +152,6 @@ class SCActions (Actions):
             self.VistA.wait('NO OPEN SLOTS THEN')
             self.VistA.wait('DATE/TIME')
             self.VistA.write('')
-            self.VistA.wait('Select Action:')
-            self.VistA.write('Quit')
-            self.VistA.wait('')
         elif badtimeresp is 'overbook':
             self.VistA.wait('OVERBOOK')
             self.VistA.write('yes')
@@ -159,9 +163,6 @@ class SCActions (Actions):
             self.VistA.write('')
             self.VistA.wait('continue:')
             self.VistA.write('')
-            self.VistA.wait('Select Action:')
-            self.VistA.write('Quit')
-            self.VistA.wait('')
         else:
             self.VistA.wait('CORRECT')
             self.VistA.write('Yes')
@@ -171,9 +172,12 @@ class SCActions (Actions):
             self.VistA.write('')
             self.VistA.wait('continue:')
             self.VistA.write('')
-            self.VistA.wait('Select Action:')
-            self.VistA.write('Quit')
-            self.VistA.wait('')
+        index = self.VistA.multiwait(['Select Action:','APPOINTMENT LETTER'])
+        if index == 1:
+          self.VistA.write('No')
+          self.VistA.wait('Select Action')
+        self.VistA.write('Quit')
+        self.VistA.wait('')
 
     def makeapp_bypat(self, clinic, patient, datetime, loopnum=1, fresh=None, CLfirst=None, prevCO=None):
         '''Makes Appointment for specified user at specified time via Patient view'''
@@ -207,7 +211,12 @@ class SCActions (Actions):
             self.VistA.write('')
             self.VistA.wait('RACE:')
             self.VistA.write('')
-            self.VistA.wait('COUNTRY:')
+            index = self.VistA.multiwait(['LANGUAGE DATE','COUNTRY:'])
+            if index==0:
+              self.VistA.write("N")
+              self.VistA.wait("PREFERRED LANGUAGE")
+              self.VistA.write("")
+              self.VistA.wait('COUNTRY')
             self.VistA.write('')
             self.VistA.wait('STREET ADDRESS')
             self.VistA.write('')
@@ -232,8 +241,7 @@ class SCActions (Actions):
                 self.VistA.wait('Press RETURN to continue:')
                 self.VistA.write('')
             if prevCO is not None:
-                self.VistA.wait('A check out date has been entered for this appointment!')
-                self.VistA.wait('DATE/TIME:')
+                index = self.VistA.multiwait(['A check out date has been entered for this appointment!','PATIENT ALREADY HAS APPOINTMENT'])
                 self.VistA.write('')
             else:
                 self.VistA.wait('CORRECT')
@@ -244,15 +252,15 @@ class SCActions (Actions):
                 self.VistA.write('')
                 self.VistA.wait('continue:')
                 self.VistA.write('')
-            if CLfirst is not None:
-                self.VistA.wait('Select Action:')
+            while True:
+              index = self.VistA.multiwait(['Select Action:','Select CLINIC:','APPOINTMENT LETTER'])
+              if index == 0:
                 self.VistA.write('?\r')
-            else:
-                self.VistA.wait('Select CLINIC:')
+                break
+              elif index == 1:
                 self.VistA.write('')
-                self.VistA.wait('Select Action:')
-                self.VistA.write('?\r')
-        self.VistA.wait('Select Action:')
+              elif index == 2:
+                self.VistA.write('No')
         self.VistA.write('Quit')
         self.VistA.wait('')
 
@@ -279,7 +287,12 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('RACE:')
         self.VistA.write('')
-        self.VistA.wait('COUNTRY:')
+        index = self.VistA.multiwait(['LANGUAGE DATE','COUNTRY:'])
+        if index==0:
+          self.VistA.write("N")
+          self.VistA.wait("PREFERRED LANGUAGE")
+          self.VistA.write("")
+          self.VistA.wait('COUNTRY')
         self.VistA.write('')
         self.VistA.wait('STREET ADDRESS')
         self.VistA.write('')
@@ -305,11 +318,6 @@ class SCActions (Actions):
         if 't+122' in datetime:
             self.VistA.wait('Add to EWL')
             self.VistA.write('Yes')
-            self.VistA.wait('continue')
-            self.VistA.write('')
-            self.VistA.wait('Select Action:')
-            self.VistA.write('Quit')
-            self.VistA.wait('')
         else:
             self.VistA.wait('LENGTH OF APPOINTMENT')
             self.VistA.write('15')
@@ -322,11 +330,14 @@ class SCActions (Actions):
             self.VistA.write('No')
             self.VistA.wait('OTHER INFO:')
             self.VistA.write('')
-            self.VistA.wait('continue:')
-            self.VistA.write('')
-            self.VistA.wait('Select Action:')
-            self.VistA.write('Quit')
-            self.VistA.wait('')
+        self.VistA.wait('continue')
+        self.VistA.write('')
+        index = self.VistA.multiwait(['Select Action:','APPOINTMENT LETTER'])
+        if index == 1:
+          self.VistA.write('No')
+          self.VistA.wait('Select Action')
+        self.VistA.write('Quit')
+        self.VistA.wait('')
 
 
     def set_mademographics(self, clinic, patient, datetime, dgrph, CLfirst=None):
@@ -391,7 +402,7 @@ class SCActions (Actions):
             self.VistA.wait(wwset[0])
             self.VistA.write(wwset[1])
 
-    def set_demographics(self, clinic, patient, dgrph, CLfirst=None, patidx=None):
+    def set_demographics(self, clinic, patient, dgrph, emailAddress=None, CLfirst=None, patidx=None):
         '''
         This sets demographics via PD action and has an option to select the clinic
         before setting demographics for a patient via a patient index (patidx) argument.
@@ -413,13 +424,30 @@ class SCActions (Actions):
             self.VistA.wait('Select Action:')
             self.VistA.write('PD')
         for wwset in dgrph:
-            self.VistA.wait(wwset[0])
-            self.VistA.write(wwset[1])
+            if type(wwset[0]) is list:
+              index = self.VistA.multiwait(wwset[0])
+              self.VistA.write(wwset[1][index])
+            else:
+              self.VistA.wait(wwset[0])
+              self.VistA.write(wwset[1])
+        index = self.VistA.multiwait(['DOES THE PATIENT','EMAIL ADDRESS'])
+        if index == 0:
+          if emailAddress != None :
+            self.VistA.write('Y')
+            self.VistA.wait('EMAIL ADDRESS')
+            self.VistA.write(emailAddress)
+          else:
+            self.VistA.write('N')
+        else:
+          if emailAddress != None :
+            self.VistA.write(emailAddress)
+          else:
+            self.VistA.write('')
         self.VistA.wait('Select Action:')
         self.VistA.write('Quit')
         self.VistA.wait('')
 
-    def get_demographics(self, patient, vlist):
+    def get_demographics(self, patient, vlist, emailAddress=None):
         '''This gets the patient demographics via the PD action.'''
         self.VistA.wait('Clinic name:')
         self.VistA.write(patient)  # <--- by patient
@@ -428,9 +456,23 @@ class SCActions (Actions):
         self.VistA.wait('Select Action:')
         self.VistA.write('PD')
         for wwset in vlist:
-            self.VistA.wait(wwset[0])
-            self.VistA.write(wwset[1])
-        self.VistA.wait('Select Action:')
+            if type(wwset[0]) is list:
+              index = self.VistA.multiwait(wwset[0])
+              self.VistA.write(wwset[1][index])
+            else:
+              self.VistA.wait(wwset[0])
+              self.VistA.write(wwset[1])
+        index = self.VistA.multiwait(['DOES THE PATIENT','EMAIL ADDRESS'])
+        if index == 0:
+          if emailAddress != None:
+            self.VistA.write('Y')
+            self.VistA.wait(emailAddress)
+            self.VistA.write('')
+          else:
+            self.VistA.write('N')
+        else:
+          self.VistA.write('')
+        self.VistA.wait('Select Action')
         self.VistA.write('Quit')
         self.VistA.wait('')
 
@@ -610,7 +652,7 @@ class SCActions (Actions):
         # PC
         self.VistA.wait('Select Action:')
         self.VistA.write('PC')
-        self.VistA.wait('is locked')
+        self.VistA.multiwait(['to continue','is locked'])
         self.VistA.write('')
 
     def use_sbar(self, clinic, patient, fresh=None):
@@ -639,7 +681,12 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('RACE:')
         self.VistA.write('')
-        self.VistA.wait('COUNTRY:')
+        index = self.VistA.multiwait(['LANGUAGE DATE','COUNTRY:'])
+        if index==0:
+          self.VistA.write("N")
+          self.VistA.wait("PREFERRED LANGUAGE")
+          self.VistA.write("")
+          self.VistA.wait('COUNTRY')
         self.VistA.write('')
         self.VistA.wait('STREET ADDRESS')
         self.VistA.write('')
@@ -694,28 +741,26 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('continue:')
         self.VistA.write('')
-        if rebook is None:
-            self.VistA.wait('CANCELLED')
-            self.VistA.write('no')
-            self.VistA.wait('CANCELLED')
-            self.VistA.write('')
-        else:
-            self.VistA.wait('CANCELLED')
-            self.VistA.write('yes')
-            self.VistA.wait('OUTPUT REBOOKED APPT')
-            self.VistA.write('')
-            self.VistA.wait('TO BE REBOOKED:')
-            self.VistA.write('1')
-            self.VistA.wait('FROM WHAT DATE:')
-            self.VistA.write('')
-            self.VistA.wait('continue:')
-            self.VistA.write('')
-            self.VistA.wait('continue:')
-            self.VistA.write('')
-            self.VistA.wait('CONTINUE')
-            self.VistA.write('')
-            self.VistA.wait('PRINT LETTERS FOR THE CANCELLED APPOINTMENT')
-            self.VistA.write('')
+        index = self.VistA.multiwait(["TO REBOOK", "PRINT LETTERS"])
+        if index == 0:
+          if rebook is None:
+              self.VistA.write('no')
+          else:
+              self.VistA.write('yes')
+              self.VistA.wait('OUTPUT REBOOKED APPT')
+              self.VistA.write('')
+              self.VistA.wait('TO BE REBOOKED:')
+              self.VistA.write('1')
+              self.VistA.wait('FROM WHAT DATE:')
+              self.VistA.write('')
+              self.VistA.wait('continue:')
+              self.VistA.write('')
+              self.VistA.wait('continue:')
+              self.VistA.write('')
+              self.VistA.wait('CONTINUE')
+              self.VistA.write('')
+          self.VistA.wait('PRINT LETTERS FOR THE CANCELLED APPOINTMENT')
+        self.VistA.write('')
         self.VistA.wait('exit:')
         self.VistA.write('')
         self.VistA.wait('Select Action:')
@@ -739,9 +784,10 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('NOW')
         self.VistA.write('')
-        self.VistA.wait('NOW')
-        self.VistA.write('')
-        self.VistA.wait('exit:')
+        index = self.VistA.multiwait(['to continue', 'NOW'])
+        if index == 1:
+          self.VistA.write('')
+          self.VistA.wait('exit:')
         self.VistA.write('')
         self.VistA.wait('Select Action:')
         self.VistA.write('')
@@ -773,7 +819,7 @@ class SCActions (Actions):
         self.VistA.wait('Select Action:')
         self.VistA.write('')
 
-    def checkout(self, clinic, vlist1, vlist2, icd, mult=None):
+    def checkout(self, clinic, vlist1, vlist2, icd, icd10, mult=None):
         '''Checks a Patient out'''
         self.VistA.wait('Clinic name:')
         self.VistA.write(clinic)
@@ -806,7 +852,10 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('Diagnosis')
         self.VistA.write(icd)
-        self.VistA.wait('Ok')
+        index = self.VistA.multiwait(['No records','OK'])
+        if index == 0:
+          self.VistA.write(icd10)
+          self.VistA.wait('OK')
         self.VistA.write('Yes')
         self.VistA.wait('ENCOUNTER')
         self.VistA.write('Yes')
@@ -820,9 +869,10 @@ class SCActions (Actions):
         self.VistA.write('No')
         self.VistA.wait('PROCEDURE')
         self.VistA.write('')
-        self.VistA.wait('continue:')
-        self.VistA.write('')
-        self.VistA.wait('screen')
+        index = self.VistA.multiwait(['check out screen','continue:'])
+        if index == 1:
+          self.VistA.write('')
+          self.VistA.wait_re('screen')
         self.VistA.write('No')
         self.VistA.wait('Clinic:')
         self.VistA.write('')
@@ -847,7 +897,10 @@ class SCActions (Actions):
         self.VistA.write('Regular')
         self.VistA.wait('continue:')
         self.VistA.write('')
-        self.VistA.wait('Check Out:')
+        index = self.VistA.multiwait(['Check Out:','ROUTING SLIP'])
+        if index == 1:
+          self.VistA.write('N')
+          self.VistA.wait('Check Out')
         self.VistA.write('CI')
         self.VistA.wait_re('CHECKED')
         self.VistA.write('')
@@ -975,7 +1028,7 @@ class SCActions (Actions):
         self.VistA.wait('Select Action:')
         self.VistA.write('')
 
-    def addedit(self, clinic, name, icd):
+    def addedit(self, clinic, name, icd, icd10):
         '''
         Functional but not complete. Exercises the Add/Edit menu but doesn't make any changes
         Same problem as checkout with the CPT codes and the MPI
@@ -1010,7 +1063,10 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('Diagnosis')
         self.VistA.write(icd)
-        self.VistA.wait('Ok')
+        index = self.VistA.multiwait(['No records','Ok'])
+        if index == 0:
+          self.VistA.write(icd10)
+          self.VistA.wait('OK')
         self.VistA.write('Yes')
         self.VistA.wait('ENCOUNTER')
         self.VistA.write('Yes')
@@ -1062,7 +1118,15 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('SEX:')
         self.VistA.write('')
-        self.VistA.wait('INFORMATION')
+        index = self.VistA.multiwait(['LANGUAGE DATE','INFORMATION:'])
+        if index==0:
+          self.VistA.write("N")
+          quickIndex = self.VistA.multiwait(['LANGUAGE DATE',"PREFERRED LANGUAGE"])
+          if quickIndex==0:
+            self.VistA.write("")
+            self.VistA.wait("PREFERRED LANGUAGE")
+          self.VistA.write("")
+          self.VistA.wait('INFORMATION')
         self.VistA.write('N')
         self.VistA.wait('INFORMATION:')
         self.VistA.write('W')
@@ -1080,8 +1144,11 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('NUMBER')
         self.VistA.write('')
-        self.VistA.wait('ADDRESS:')
-        self.VistA.write('')
+        index = self.VistA.multiwait(['DOES THE','ADDRESS'])
+        if index == 0:
+          self.VistA.write('Y')
+          self.VistA.wait('EMAIL ADDRESS')
+        self.VistA.write('email3@example.org')
         self.VistA.wait('Select Action')
         self.VistA.write('')
 
@@ -1097,13 +1164,15 @@ class SCActions (Actions):
         self.VistA.write('t+1')
         self.VistA.wait('Select Action:')
         self.VistA.write('TI')
-        if patient is not None:
-            self.VistA.wait('Select Patient')
-            self.VistA.write(patient)
-        self.VistA.wait('Team Information')
-        self.VistA.wait('Select Action:')
-        self.VistA.write('')
-        self.VistA.wait('Select Action:')
+        index = self.VistA.multiwait(['Select Patient','Select Action'])
+        if index == 0:
+          if patient is not None:
+              self.VistA.write(patient)
+              self.VistA.wait('Team Information')
+              self.VistA.write('')
+          else:
+              self.VistA.write("")
+          self.VistA.wait('Select Action:')
         self.VistA.write('')
 
     def enroll(self, clinic, patient):
@@ -1203,12 +1272,13 @@ class SCActions (Actions):
             self.VistA.write(appnum)
         self.VistA.wait('check out')
         self.VistA.write('Yes')
-        self.VistA.wait('deleting')
-        self.VistA.wait('continue:')
-        self.VistA.write('')
-        self.VistA.wait('deleting check out')
-        self.VistA.wait('exit:')
-        self.VistA.write('')
+        while True:
+          index = self.VistA.multiwait(['deleting','continue[:]*','deleting check out','exit:'])
+          if index == 1:
+            self.VistA.write('')
+          if index == 3:
+            self.VistA.wait('')
+            break
         self.VistA.wait('Action:')
         self.VistA.write('')
 
@@ -1309,7 +1379,12 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('RACE:')
         self.VistA.write('')
-        self.VistA.wait('COUNTRY:')
+        index = self.VistA.multiwait(['LANGUAGE DATE','COUNTRY:'])
+        if index==0:
+          self.VistA.write("N")
+          self.VistA.wait("PREFERRED LANGUAGE")
+          self.VistA.write("")
+          self.VistA.wait('COUNTRY')
         self.VistA.write('')
         self.VistA.wait('STREET ADDRESS')
         self.VistA.write('')
@@ -1385,7 +1460,12 @@ class SCActions (Actions):
         self.VistA.write('')
         self.VistA.wait('RACE:')
         self.VistA.write('')
-        self.VistA.wait('COUNTRY:')
+        index = self.VistA.multiwait(['LANGUAGE DATE','COUNTRY:'])
+        if index==0:
+          self.VistA.write("N")
+          self.VistA.wait("PREFERRED LANGUAGE")
+          self.VistA.write("")
+          self.VistA.wait('COUNTRY')
         self.VistA.write('')
         self.VistA.wait('STREET ADDRESS')
         self.VistA.write('')

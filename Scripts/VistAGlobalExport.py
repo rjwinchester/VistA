@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,8 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import print_function
 from __future__ import with_statement
+from builtins import object
 import sys
 import os
 import argparse
@@ -26,11 +27,14 @@ class VistAGlobalExport(object):
     pass
 
   """ export all Globals using ZGO routine """
-  def exportAllGlobals(self, vistATestClient, outputDir, timeout=3600):
+  def exportAllGlobals(self, vistATestClient, outputDir,serialExport, timeout=3600):
     assert os.path.exists(outputDir)
     connection = vistATestClient.getConnection()
     nativeDir = os.path.normpath(outputDir)
     vistATestClient.waitForPrompt()
+    if serialExport:
+      connection.send("S ZGODEBUG=1\r")
+      vistATestClient.waitForPrompt()
     connection.send("D SAVEALL^ZGO(\"%s%s\")\r" % (nativeDir, os.sep))
     vistATestClient.waitForPrompt(timeout)
     connection.send('\r') # make sure the next one can expect prompt
@@ -51,7 +55,7 @@ def main():
   assert testClient
   with testClient as vistAClient:
     logFilename = getTempLogFile(DEFAULT_OUTPUT_LOG_FILE_NAME)
-    print "Log File is %s" % logFilename
+    print("Log File is %s" % logFilename)
     vistAClient.setLogFile(logFilename)
     vistAGlobalExport = VistAGlobalExport()
     vistAGlobalExport.exportAllGlobals(vistAClient, outputDir)

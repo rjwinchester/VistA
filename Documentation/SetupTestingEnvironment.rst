@@ -133,70 +133,129 @@ The TEST_VISTA_FRESH_M_DIR is not a required variable for setting up the XINDEX
 testing. The TEST_VISTA_XINDEX_WARNINGS_AS_FAILURES is an option which changes
 the failure condition of the XINDEX tests.  With this option off, the test will
 fail if the XINDEX report returns a fatal error, "F -" in the output.  This
-option will cause a warning in the output "W -" as a failure condition.  The
-GREP_EXECUTABLE is used to find and print the line position of a returned error
-or warning in the source file during the reporting of the error. It can be
-found among the advanced variables like PYTHON_EXECTUABLE. The these variables
-are set in the following manner:
+option will cause a warning in the output "W -" as a failure condition.
+
+Another non-required option is ``TEST_VISTA_XINDEX_IGNORE_EXCEPTIONS``.  This
+option will cause the reporting function to skip the checking of the errors
+against the XINDEXExceptions, thus reporting each found error to the test's
+result.
+
+The GREP_EXECUTABLE is used to find and print the line position of a returned
+error or warning in the source file during the reporting of the error. It can
+be found among the advanced variables like PYTHON_EXECTUABLE. The these
+variables are set in the following manner:
 
 =======================================   ===================================  ======================================
 Variable Name                                 Value for Testing in Caché          Value for Testing in GT.M
 =======================================   ===================================  ======================================
 TEST_VISTA_XINDEX                                    ON/OFF                                  ON/OFF
 TEST_VISTA_XINDEX_WARNINGS_AS_FAILURES               ON/OFF                                  ON/OFF
+TEST_VISTA_XINDEX_IGNORE_EXCEPTIONS                  ON/OFF                                  ON/OFF
 TEST_VISTA_OUTPUT_DIR                       Path to folder where log files        Path to folder where log files
                                             will be stored                        will be stored
 GREP_EXECUTABLE                             Path to Grep Executable               Path to Grep Executable
 =======================================   ===================================  ======================================
 
-
-
 TEST_VISTA_COVERAGE
 ```````````````````
 
-**This capability is only available on systems that have a CMake version that is 2.8.9 or higher.  This option will not show up with earlier versions of CMake.**
+**This capability is only available on systems that have a CMake version that
+is 2.8.9 or higher.  This option will not show up with earlier versions of CMake.**
 
 The TEST_VISTA_COVERAGE option is used to enable a coverage calculation using
 the OSEHRA tests.  It keeps track of the lines of code that are executed during
 the tests and writes files that can be parsed by the testing software and
 displayed on the dashboard after submission.  The coverage is available for
 three types of OSEHRA Testing: XINDEX, MUnit, and the Roll-and-Scroll (RAS)
-tests.
+tests.  The RAS tests currently execute coverage automatically, while the other
+types require the setting of a CMake option to start capturing information
+about the coverage of the test.
 
 
 .. figure:: http://code.osehra.org/content/named/SHA1/033ec97b-cmakeGUICoveragecallout.png
    :align: center
    :alt:  Highlighting the TEST_VISTA_COVERAGE option.
 
-While there are no more variables to set after selecting the
-TEST_VISTA_COVERAGE option, it does display warnings during the configuration.
-These messages warn that the tests will take longer and will create other files
-in addition to the standard log files.  There is a warning that is specific to
-Caché environments, it warns that an Advanced Memory variable may need to be
-changed have the monitor be used.  It give the variable to change and how to
-test it.  The GT.M users will only see the timing warning.
+There are two options which affect the OSEHRA Coverage capability.
+To turn on the coverage for the other types of testing, one should set the
+``TEST_VISTA_COVERAGE`` option to be ON.
+
+The second option to set is named ``TEST_VISTA_COVERAGE_READABLE``.
+It is set to ON by default and appears when the RAS tests have been selected.
+The format of output found in the coverage log file for the RAS tests depends
+on the value of ``TEST_VISTA_COVERAGE_READABLE``.  If set to ON, it will
+write out a human-readable coverage format.  If the option is turned to OFF,
+it will write out a comma separated (CSV) formatted file.
+
+In order to use the CTest parsing of the coverage files for an OSEHRA dashboard
+submission, it is necessary to turn the ``TEST_VISTA_COVERAGE_READABLE`` option
+to OFF. Only when it is set to OFF will this option create files in the
+top-level of the binary directory with the extension of .mcov (GT.M M Coverage)
+or .cmcov (Caché M coverage), which both triggers and contains the information
+needed by the CTest coverage parsing.
+
+========================================   ===================================  ======================================
+Variable Name                                  Human-readable Coverage                    CTest-parsed Coverage
+========================================   ===================================  ======================================
+TEST_VISTA_COVERAGE                                       ON                                     ON
+TEST_VISTA_COVERAGE_READABLE (RAS only)                   ON                                     OFF
+========================================   ===================================  ======================================
+
+Advanced Coverage Variables
+'''''''''''''''''''''''''''
+
+There is one additional variable which can be set when using the OSEHRA
+coverage functionality. ``TEST_VISTA_COVERAGE_SUBSET_DIR``, which can be found
+in the "advanced" section of available CMake variables, allows the focus of the
+coverage calculations to be narrowed.
+
+When this variable is set with the value of a path to a folder which contains
+any number of routine files (``*******.m``), CTest will search (recusively)
+through the directory for all .m files.  These found files will be the only
+routines that are used in the coverage calcuations.  If this variable is not
+used, CTest will calculate coverage over the entirety of the VistA-M routine
+content.
+
+This functionality is especially helpful when calculating the coverage level of
+a project that is going through the OSEHRA Certification process.
+
+=======================================   ===================================  ======================================
+Variable Name                                 Human Readable Coverage                    CTest-parsed Coverage
+=======================================   ===================================  ======================================
+TEST_VISTA_COVERAGE_SUBSET_DIR               Path to folder with .m files            Path to folder with .m files
+=======================================   ===================================  ======================================
+
+CMake Warnings during Configuration
+'''''''''''''''''''''''''''''''''''
+
+When the ``TEST_VISTA_COVERAGE`` option has been selected, CMake will show some
+warnings during the configure step.  These messages are in place to warn
+that the tests may take longer and will create other output files in addition
+to the standard test log files.
+
+Finally, there is a separate warning that is specific to Caché environments, it
+warns that an Advanced Memory variable may need to be changed in order for the
+monitor to be started.  It gives the variable to change and how to test it.
+GT.M users of ``TEST_VISTA_COVERAGE`` will only see the timing warning during
+the configure step.
 
 .. figure:: http://code.osehra.org/content/named/SHA1/32e5ac54-cmakeGUICoverageWarnings.png
    :align: center
    :alt:  After selecting the TEST_VISTA_COVERAGE options, warnings are displayed
           in the output with the Caché specific warning.
 
-This option will create files in the binary directory with the extension of
-.mcov (GT.M M Coverage) or .cmcov (Caché M coverage).
-
 TEST_VISTA_FRESH and TEST_VISTA_SETUP
 ``````````````````````````````````````
 
-There is an option that is not needed to run the testing but may become useful.
 The TEST_VISTA_FRESH option will show up during configuration of the VistA
-Testing.  It uses a series of Python scripts to clean the database of the VistA
-instance.   This would all be done during the build phase of a nightly
-dashboard submission.
+Testing.  When this option is selected, a series of Python scripts will be
+configured to clean the database of the VistA instance. These scripts would be
+executed during the build phase of a nightly dashboard submission.
 
-This combination can also configure the VistA instance and set up a fictional
-environment within VistA with fake patients, doctors and nurses, and a simple
-clinic. This information is required to be there for the functional tests to
-complete successfully.
+The TEST_VISTA_SETUP option can be used to configure the VistA instance and
+set up a fictional environment within VistA with fake patients, doctors and
+nurses, and a simple clinic. This information is required to be there for the
+functional tests to complete successfully.
 
 .. figure:: http://code.osehra.org/content/named/SHA1/6b856178-cmakeGUIFreshcallout.png
    :align: center
@@ -205,12 +264,15 @@ complete successfully.
 
 To utilize this option on Caché, the TEST_VISTA_FRESH checkbox must be checked
 to tell CMake to configure the correct files. You will also need to create a
-new cache.dat using the steps from earlier and set the
-TEST_VISTA_FRESH_CACHE_DAT_EMPTY to point to the location of that newly created
-cache.dat.  It will then shut down the Caché instance, copy the empty database
-in place of the old one, restart Caché, then collect and import the OSEHRA
-routines and globals.
+new (empty) cache.dat and set the TEST_VISTA_FRESH_CACHE_DAT_EMPTY to point to
+the location of that newly created cache.dat.  It will then shut down the Caché
+instance, copy the empty database in place of the old one, restart Caché, then
+collect and import the OSEHRA routines and globals.
 
+**For more help with the generation of the empty cache.dat file:**
+
+See the instructions found in the ``Configuring Caché`` section of the
+`Install Caché`_ document.
 
 .. figure:: http://code.osehra.org/content/named/SHA1/974956f3-cmakeGUIFreshcalloutconfigureCache.png
    :align: center
@@ -224,7 +286,7 @@ contains the VistA globals.  This file will be deleted and recreated
 automatically via the 'mupip' command.  The  TEST_VISTA_FRESH_GTM_ROUTINE_DIR
 is the path to the folder that contains the VistA routines.  This folder will
 be removed and recreated so that all routines within the GT.M instance will be
-from the latest import.  The other GT.M specific variable is th
+from the latest import.  The other GT.M specific variable is the
 TEST_VISTA_SETUP_UCI_NAME which is used during the configuring of the VistA
 instance.
 
@@ -244,6 +306,8 @@ TEST_VISTA_SETUP_SITE_NAME                   Name for VistA site                
 TEST_VISTA_SETUP_VOLUME_SET                  Volume set of Instance                      Volume set of VistA instance
 TEST_VISTA_GLOBAL_IMPORT_TIMEOUT             Length of Timeout for Global Import         Length of Timeout for Global Import
 TEST_VISTA_FRESH                                         ON                                        ON
+TEST_VISTA_FRESH_M_DIR                       Path to VistA-M directory                   Path to VistA-M directory
+                                             (or similar repository)                     (or similar repository)
 TEST_VISTA_FRESH_CACHE_DAT_EMPTY             Path to an empty CACHE.dat                            N/A
 TEST_VISTA_FRESH_CACHE_DAT_VISTA           Path to CACHE.dat that holds VistA                      N/A
 TEST_VISTA_FRESH_GTM_GLOBALS_DAT                          N/A                           Path to the database.dat with VistA
@@ -307,6 +371,9 @@ The number of test suites that utilize the RAS functionality: look for a
 \"Testing/RAS\" directory in the package directory to see the tests that will
 run.  This option does not require any other variables to be set.
 
+**Note**: The RAS tests will run and save the coverage results to a local file
+each time the test is run.
+
 TEST_VISTA_MUNIT
 `````````````````
 The OSEHRA Testing harness also contains the capability to run unit tests on
@@ -353,3 +420,4 @@ This lets you know that the tests are ready to be run from the command line.
 
 .. _`OSEHRA website`: http://www.osehra.org/document/guis-used-automatic-functional-testing
 .. _M-Tools: https://github.com/OSEHRA-Sandbox/M-Tools/
+.. _`Install Caché`: installCache.rst

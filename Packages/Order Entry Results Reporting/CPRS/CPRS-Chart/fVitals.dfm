@@ -35,9 +35,12 @@ inherited frmVitals: TfrmVitals
       Width = 419
       Height = 221
       AllowPanning = pmNone
-      AllowZoom = False
       BackWall.Brush.Color = clWhite
       BackWall.Brush.Style = bsClear
+      Legend.Alignment = laTop
+      Legend.Inverted = True
+      Legend.Shadow.HorizSize = 2
+      Legend.Shadow.VertSize = 2
       Title.Text.Strings = (
         'test name')
       Title.Visible = False
@@ -45,41 +48,47 @@ inherited frmVitals: TfrmVitals
       OnClickSeries = chtChartClickSeries
       OnUndoZoom = chtChartUndoZoom
       LeftAxis.Title.Caption = 'units'
-      Legend.Alignment = laTop
-      Legend.Inverted = True
-      Legend.ShadowSize = 2
       View3D = False
+      Zoom.Allow = False
       Align = alClient
       BevelOuter = bvNone
       PopupMenu = popChart
       TabOrder = 1
       OnMouseDown = chtChartMouseDown
+      ColorPaletteIndex = 13
       object serTestY: TLineSeries
-        Marks.ArrowLength = 8
+        Marks.Arrow.Visible = True
+        Marks.Callout.Brush.Color = clBlack
+        Marks.Callout.Arrow.Visible = True
         Marks.Visible = False
         SeriesColor = clBlue
         Title = 'Mean'
+        Brush.BackColor = clDefault
         Pointer.Brush.Color = clBlue
+        Pointer.Brush.Gradient.EndColor = clBlue
         Pointer.Draw3D = False
+        Pointer.Gradient.EndColor = clBlue
         Pointer.InflateMargins = True
         Pointer.Style = psDiamond
         Pointer.Visible = True
         XValues.DateTime = True
         XValues.Name = 'X'
-        XValues.Multiplier = 1.000000000000000000
         XValues.Order = loAscending
-        YValues.DateTime = False
         YValues.Name = 'Y'
-        YValues.Multiplier = 1.000000000000000000
         YValues.Order = loNone
       end
       object serTestX: TLineSeries
-        Marks.ArrowLength = 8
+        Marks.Arrow.Visible = True
+        Marks.Callout.Brush.Color = clBlack
+        Marks.Callout.Arrow.Visible = True
         Marks.Visible = False
         SeriesColor = clBlue
         Title = 'Dialstolic'
+        Brush.BackColor = clDefault
         Pointer.Brush.Color = clBlue
+        Pointer.Brush.Gradient.EndColor = clBlue
         Pointer.Draw3D = False
+        Pointer.Gradient.EndColor = clBlue
         Pointer.HorizSize = 3
         Pointer.InflateMargins = True
         Pointer.Style = psRectangle
@@ -87,49 +96,48 @@ inherited frmVitals: TfrmVitals
         Pointer.Visible = True
         XValues.DateTime = True
         XValues.Name = 'X'
-        XValues.Multiplier = 1.000000000000000000
         XValues.Order = loAscending
-        YValues.DateTime = False
         YValues.Name = 'Y'
-        YValues.Multiplier = 1.000000000000000000
         YValues.Order = loNone
       end
       object serTest: TLineSeries
-        Marks.ArrowLength = 8
+        Marks.Arrow.Visible = True
+        Marks.Callout.Brush.Color = clBlack
+        Marks.Callout.Arrow.Visible = True
         Marks.Visible = False
         SeriesColor = clBlue
         Title = 'Systolic'
+        Brush.BackColor = clDefault
+        Pointer.Brush.Gradient.EndColor = clBlue
+        Pointer.Gradient.EndColor = clBlue
         Pointer.InflateMargins = True
         Pointer.Style = psCircle
         Pointer.Visible = True
         XValues.DateTime = True
         XValues.Name = 'X'
-        XValues.Multiplier = 1.000000000000000000
         XValues.Order = loAscending
-        YValues.DateTime = False
         YValues.Name = 'Y'
-        YValues.Multiplier = 1.000000000000000000
         YValues.Order = loNone
       end
       object serTime: TPointSeries
-        Marks.ArrowLength = 8
+        Marks.Arrow.Visible = True
+        Marks.Callout.Brush.Color = clBlack
+        Marks.Callout.Arrow.Visible = True
+        Marks.Callout.Length = 8
         Marks.Visible = False
         SeriesColor = clSilver
         ShowInLegend = False
         Title = 'Time'
+        ClickableLine = False
         Pointer.Draw3D = False
         Pointer.HorizSize = 3
         Pointer.InflateMargins = True
         Pointer.Style = psCircle
         Pointer.VertSize = 3
         Pointer.Visible = False
-        XValues.DateTime = False
         XValues.Name = 'X'
-        XValues.Multiplier = 1.000000000000000000
         XValues.Order = loAscending
-        YValues.DateTime = False
         YValues.Name = 'Y'
-        YValues.Multiplier = 1.000000000000000000
         YValues.Order = loNone
       end
     end
@@ -243,7 +251,7 @@ inherited frmVitals: TfrmVitals
       RowCount = 8
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -11
+      Font.Height = -12
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goColSizing]
@@ -278,7 +286,6 @@ inherited frmVitals: TfrmVitals
         Height = 119
         Style = lbOwnerDrawFixed
         Anchors = [akLeft, akTop, akRight, akBottom]
-        ItemHeight = 16
         Items.Strings = (
           'Temperature'
           'Pulse'

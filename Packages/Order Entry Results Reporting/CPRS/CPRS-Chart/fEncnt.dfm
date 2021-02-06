@@ -15,8 +15,8 @@ inherited frmEncounter: TfrmEncounter
   OnDestroy = FormDestroy
   OnResize = FormResize
   OnShow = FormShow
-  ExplicitWidth = 470
-  ExplicitHeight = 457
+  ExplicitWidth = 478
+  ExplicitHeight = 461
   DesignSize = (
     462
     423)
@@ -73,6 +73,7 @@ inherited frmEncounter: TfrmEncounter
     Sorted = False
     SynonymChars = '<>'
     TabOrder = 0
+    Text = ''
     OnDblClick = cmdOKClick
     OnNeedData = cboPtProviderNeedData
     CharsNeedMatch = 1
@@ -81,7 +82,7 @@ inherited frmEncounter: TfrmEncounter
     Tag = 9
     Left = 266
     Top = 153
-    Width = 84
+    Width = 100
     Height = 25
     Anchors = [akLeft, akBottom]
     Caption = 'Date Range...'
@@ -108,7 +109,7 @@ inherited frmEncounter: TfrmEncounter
   object cmdCancel: TButton [6]
     Left = 341
     Top = 45
-    Width = 84
+    Width = 100
     Height = 23
     Anchors = [akTop, akRight]
     Cancel = True
@@ -121,7 +122,7 @@ inherited frmEncounter: TfrmEncounter
   object cmdOK: TButton [7]
     Left = 340
     Top = 20
-    Width = 84
+    Width = 100
     Height = 23
     Anchors = [akTop, akRight]
     Caption = 'OK'
@@ -147,7 +148,7 @@ inherited frmEncounter: TfrmEncounter
       Top = 5
       Width = 452
       Height = 232
-      ActivePage = tabNewVisit
+      ActivePage = tabClinic
       Anchors = [akLeft, akTop, akRight, akBottom]
       Constraints.MinHeight = 150
       RaggedRight = True
@@ -262,6 +263,7 @@ inherited frmEncounter: TfrmEncounter
           OnExit = calVisitDateExit
           DateOnly = False
           RequireTime = True
+          Caption = ''
         end
         object ckbHistorical: TORCheckBox
           Left = 220
@@ -272,6 +274,8 @@ inherited frmEncounter: TfrmEncounter
             'Historical Visit: a visit that occurred at some time in the past' +
             ' or at some other location (possibly non-VA) but is not used for' +
             ' workload credit.'
+          Color = clWindow
+          ParentColor = False
           ParentShowHint = False
           ShowHint = True
           TabOrder = 2
@@ -300,6 +304,7 @@ inherited frmEncounter: TfrmEncounter
           Sorted = False
           SynonymChars = '<>'
           TabOrder = 0
+          Text = ''
           OnChange = cboNewVisitChange
           OnDblClick = cmdOKClick
           OnNeedData = cboNewVisitNeedData
@@ -354,7 +359,7 @@ inherited frmEncounter: TfrmEncounter
         'Status = stsDefault')
       (
         'Component = calVisitDate'
-        'Text = Date/Time of Visit'
+        'Text = Date/Time of Visit. Press the enter key to access.'
         'Status = stsOK')
       (
         'Component = ckbHistorical'

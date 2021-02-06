@@ -22,8 +22,8 @@ inherited frmRemDlg: TfrmRemDlg
   TextHeight = 13
   object splTxtData: TSplitter [0]
     Left = 0
-    Top = 211
-    Width = 537
+    Top = 206
+    Width = 529
     Height = 3
     Cursor = crVSplit
     Align = alBottom
@@ -33,14 +33,14 @@ inherited frmRemDlg: TfrmRemDlg
   object sb1: TScrollBox [1]
     Left = 0
     Top = 0
-    Width = 537
-    Height = 211
+    Width = 529
+    Height = 206
     HorzScrollBar.Tracking = True
     VertScrollBar.Tracking = True
     Align = alClient
     Font.Charset = ANSI_CHARSET
     Font.Color = clWindowText
-    Font.Height = -11
+    Font.Height = -12
     Font.Name = 'Courier New'
     Font.Style = []
     ParentFont = False
@@ -51,14 +51,14 @@ inherited frmRemDlg: TfrmRemDlg
   object sb2: TScrollBox [2]
     Left = 0
     Top = 0
-    Width = 537
-    Height = 211
+    Width = 529
+    Height = 206
     HorzScrollBar.Tracking = True
     VertScrollBar.Tracking = True
     Align = alClient
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clWindowText
-    Font.Height = -11
+    Font.Height = -12
     Font.Name = 'Courier New'
     Font.Style = []
     ParentFont = False
@@ -67,8 +67,8 @@ inherited frmRemDlg: TfrmRemDlg
   end
   object pnlFrmBottom: TPanel [3]
     Left = 0
-    Top = 214
-    Width = 537
+    Top = 209
+    Width = 529
     Height = 159
     Align = alBottom
     BevelOuter = bvNone
@@ -76,7 +76,7 @@ inherited frmRemDlg: TfrmRemDlg
     object lblFootnotes: TLabel
       Left = 0
       Top = 144
-      Width = 537
+      Width = 529
       Height = 15
       Align = alBottom
       AutoSize = False
@@ -86,14 +86,14 @@ inherited frmRemDlg: TfrmRemDlg
     object pnlBottom: TPanel
       Left = 0
       Top = 0
-      Width = 537
+      Width = 529
       Height = 144
       Align = alClient
       TabOrder = 0
       object splText: TSplitter
         Left = 1
         Top = 94
-        Width = 535
+        Width = 527
         Height = 3
         Cursor = crVSplit
         Align = alBottom
@@ -102,20 +102,27 @@ inherited frmRemDlg: TfrmRemDlg
       object reData: TRichEdit
         Left = 1
         Top = 97
-        Width = 535
+        Width = 527
         Height = 46
         Align = alBottom
         Color = clCream
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -12
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
         Constraints.MinHeight = 30
+        ParentFont = False
         ReadOnly = True
         ScrollBars = ssVertical
         TabOrder = 1
         WantReturns = False
+        Zoom = 100
       end
       object reText: TRichEdit
         Left = 1
         Top = 25
-        Width = 535
+        Width = 527
         Height = 69
         Align = alClient
         Color = clCream
@@ -131,11 +138,12 @@ inherited frmRemDlg: TfrmRemDlg
         TabOrder = 0
         WantReturns = False
         WordWrap = False
+        Zoom = 100
       end
       object gpButtons: TGridPanel
         Left = 1
         Top = 1
-        Width = 535
+        Width = 527
         Height = 24
         Align = alTop
         ColumnCollection = <
@@ -204,7 +212,7 @@ inherited frmRemDlg: TfrmRemDlg
         object btnClear: TButton
           Left = 1
           Top = 1
-          Width = 66
+          Width = 65
           Height = 22
           Hint = 'Clear Reminder Resolutions for this Reminder'
           Align = alClient
@@ -213,9 +221,9 @@ inherited frmRemDlg: TfrmRemDlg
           OnClick = btnClearClick
         end
         object btnClinMaint: TButton
-          Left = 67
+          Left = 66
           Top = 1
-          Width = 110
+          Width = 108
           Height = 22
           Hint = 'View the Clinical Maintenance Component'
           Align = alClient
@@ -224,9 +232,9 @@ inherited frmRemDlg: TfrmRemDlg
           OnClick = btnClinMaintClick
         end
         object btnVisit: TButton
-          Left = 177
+          Left = 174
           Top = 1
-          Width = 67
+          Width = 66
           Height = 22
           Align = alClient
           Caption = '&Visit Info'
@@ -234,9 +242,9 @@ inherited frmRemDlg: TfrmRemDlg
           OnClick = btnVisitClick
         end
         object btnBack: TButton
-          Left = 244
+          Left = 240
           Top = 1
-          Width = 69
+          Width = 68
           Height = 22
           Hint = 'Go back to the Previous Reminder Dialog'
           Align = alClient
@@ -245,9 +253,9 @@ inherited frmRemDlg: TfrmRemDlg
           OnClick = btnBackClick
         end
         object btnNext: TButton
-          Left = 313
+          Left = 308
           Top = 1
-          Width = 71
+          Width = 70
           Height = 22
           Hint = 'Go on to the Next Reminder Dialog'
           Align = alClient
@@ -256,9 +264,9 @@ inherited frmRemDlg: TfrmRemDlg
           OnClick = btnNextClick
         end
         object btnFinish: TButton
-          Left = 384
+          Left = 378
           Top = 1
-          Width = 73
+          Width = 71
           Height = 22
           Hint = 'Finish Processing'
           Align = alClient
@@ -267,7 +275,7 @@ inherited frmRemDlg: TfrmRemDlg
           OnClick = btnFinishClick
         end
         object btnCancel: TButton
-          Left = 457
+          Left = 449
           Top = 1
           Width = 77
           Height = 22

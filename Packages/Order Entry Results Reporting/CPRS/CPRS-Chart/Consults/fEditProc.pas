@@ -39,9 +39,9 @@ type
     btnCmtCancel: TButton;
     btnCmtOther: TButton;
     cmdLexSearch: TButton;
-    lblEarliest: TStaticText;
+    lblClinicallyIndicated: TStaticText;
     lblLatest: TStaticText;
-    calEarliest: TORDateBox;
+    calClinicallyIndicated: TORDateBox;
     calLatest: TORDateBox;
     mnuPopProvDx: TPopupMenu;
     mnuPopProvDxDelete: TMenuItem;
@@ -80,16 +80,17 @@ type
     procedure memReasonKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
     procedure memReasonKeyPress(Sender: TObject; var Key: Char);
-    procedure calEarliestExit(Sender: TObject);
+    procedure calClinicallyIndicatedExit(Sender: TObject);
     procedure calLatestExit(Sender: TObject);
     procedure memCommentExit(Sender: TObject);
+    procedure FormResize(Sender: TObject);
   private
     FLastProcID: string;
     FChanged: boolean;
     FChanging: boolean;
     FEditCtrl: TCustomEdit;
     FNavigatingTab: boolean;
-    FEarliestDate: TFMDateTime;
+    FClinicallyIndicatedDate: TFMDateTime;
     procedure SetProvDiagPromptingMode;
     procedure SetUpCombatVet;
   protected
@@ -109,7 +110,7 @@ implementation
 {$R *.DFM}
 
 uses
-  rConsults, uCore, rCore, fConsults, rODBase, fRptBox, fPCELex, rPCE, ORClasses, clipbrd ;
+  rConsults, uCore, rCore, fConsults, rODBase, fRptBox, fPCELex, rPCE, ORClasses, clipbrd, VAUtils;
 
 var
   OldRec, NewRec: TEditResubmitRec;
@@ -128,8 +129,7 @@ const
   TX_INACTIVE_CODE   = 'The provisional diagnosis code is not active as of today''s date.' + #13#10 +
                        'Another code must be selected';
   TC_INACTIVE_CODE   = 'Inactive ICD Code';
-  TX_PAST_DATE       = 'Earliest appropriate date must be today or later.';
-  TX_BAD_DATES       = 'Latest appropriate date must be equal to or later than earliest date.';
+  TX_PAST_DATE       = 'Clinically indicated date must be today or later.';
 
 function EditResubmitProcedure(FontSize: Integer; ConsultIEN: integer): boolean;
 begin
@@ -213,8 +213,8 @@ begin
   cboPlace.SelectByID(OldRec.Place);
   with cboUrgency do for i := 0 to Items.Count-1 do
     if UpperCase(DisplayText[i]) = UpperCase(OldRec.UrgencyName) then ItemIndex := i;
-  calEarliest.FMDateTime := OldRec.EarliestDate;
-  FEarliestDate := OldRec.EarliestDate;
+  calClinicallyIndicated.FMDateTime := OldRec.ClinicallyIndicatedDate;
+  FClinicallyIndicatedDate := OldRec.ClinicallyIndicatedDate;
   txtProvDiag.Text := OldRec.ProvDiagnosis;
   ProvDx.Code := OldRec.ProvDxCode;
   if OldRec.ProvDxCodeInactive then
@@ -237,6 +237,7 @@ begin
       pnlCombatVet.SendToBack;
     end;
   FChanging := False;
+  ControlChange(Self);    //CQ20913
   StatusText('');
 end;
 
@@ -263,7 +264,7 @@ begin
     end;
   if OldRec.ProvDxCodeInactive and ProvDx.CodeInactive then
     SetError(TX_INACTIVE_CODE);
-  if calEarliest.FMDateTime < FMToday     then SetError(TX_PAST_DATE);
+  if calClinicallyIndicated.FMDateTime < FMToday     then SetError(TX_PAST_DATE);
 end;
 
 procedure TfrmEditProc.txtAttnNeedData(Sender: TObject;
@@ -273,10 +274,10 @@ begin
   txtAttn.ForDataUse(SubSetOfPersons(StartFrom, Direction));
 end;
 
-procedure TfrmEditProc.calEarliestExit(Sender: TObject);
+procedure TfrmEditProc.calClinicallyIndicatedExit(Sender: TObject);
 begin
   inherited;
-  FEarliestDate := calEarliest.FMDateTime;
+  FClinicallyIndicatedDate := calClinicallyIndicated.FMDateTime;
   ControlChange(Self);
 end;
 
@@ -363,12 +364,12 @@ begin
            UrgencyName := '';
          end;
 
-     if FEarliestDate > 0 then
+     if FClinicallyIndicatedDate > 0 then
      begin
-       if FEarliestDate <> OldRec.EarliestDate then
-         EarliestDate := FEarliestDate
+       if FClinicallyIndicatedDate <> OldRec.ClinicallyIndicatedDate then
+         ClinicallyIndicatedDate := FClinicallyIndicatedDate
        else
-         EarliestDate := 0;
+         ClinicallyIndicatedDate := 0;
      end;
 
      with cboPlace do if Length(ItemID) > 0 then
@@ -459,6 +460,15 @@ begin
   if FChanged then
     if InfoBox(TX_ACCEPT, TX_ACCEPT_CAP, MB_YESNO) = ID_YES then
       if not ValidSave then Action := caNone;
+end;
+
+procedure TfrmEditProc.FormResize(Sender: TObject);
+const
+  LEFT_MARGIN = 4;
+begin
+  inherited;
+  LimitEditWidth(memReason, MAX_PROGRESSNOTE_WIDTH-7); //puts memReason at 74 characters
+  Self.Constraints.MinWidth := TextWidthByFont(memReason.Font.Handle, StringOfChar('X', MAX_PROGRESSNOTE_WIDTH)) + (LEFT_MARGIN * 10) + ScrollBarWidth;
 end;
 
 function TfrmEditProc.ValidSave: Boolean;
@@ -585,9 +595,15 @@ procedure TfrmEditProc.cmdLexSearchClick(Sender: TObject);
 var
   Match: string;
   i: integer;
+  EncounterDate: TFMDateTime;
 begin
   inherited;
-  LexiconLookup(Match, LX_ICD);
+  if (Encounter.VisitCategory = 'A') or (Encounter.VisitCategory = 'I') then
+    EncounterDate := Encounter.DateTime
+  else
+    EncounterDate := FMNow;
+
+  LexiconLookup(Match, LX_ICD, EncounterDate);
   if Match = '' then Exit;
   ProvDx.Code := Piece(Match, U, 1);
   ProvDx.Text := Piece(Match, U, 2);

@@ -4,16 +4,15 @@ inherited frmOMSet: TfrmOMSet
   BorderIcons = []
   Caption = 'Selected Orders'
   ClientHeight = 202
-  ClientWidth = 105
+  ClientWidth = 116
   FormStyle = fsStayOnTop
   OnClose = FormClose
   OnCloseQuery = FormCloseQuery
   OnCreate = FormCreate
   OnDestroy = FormDestroy
-  ExplicitWidth = 113
-  ExplicitHeight = 229
+  ExplicitWidth = 132
   DesignSize = (
-    105
+    116
     202)
   PixelsPerInch = 96
   TextHeight = 13

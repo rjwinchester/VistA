@@ -1,71 +1,88 @@
 inherited frmOCSession: TfrmOCSession
   Left = 366
   Top = 222
-  Width = 714
-  Height = 530
-  HorzScrollBar.Visible = True
-  VertScrollBar.Visible = True
-  AutoScroll = True
   BorderIcons = []
   Caption = 'Order Checks'
-  Constraints.MinHeight = 500
-  Constraints.MinWidth = 500
+  ClientHeight = 580
+  ClientWidth = 816
+  Constraints.MinHeight = 625
+  Constraints.MinWidth = 750
   DefaultMonitor = dmMainForm
+  DoubleBuffered = True
   Position = poScreenCenter
   ShowHint = True
   OnClose = FormClose
   OnCreate = FormCreate
-  OnMouseWheelDown = FormMouseWheelDown
+  OnResize = FormResize
   OnShow = FormShow
-  ExplicitWidth = 714
-  ExplicitHeight = 530
-  PixelsPerInch = 96
-  TextHeight = 13
+  ExplicitWidth = 834
+  ExplicitHeight = 625
+  PixelsPerInch = 120
+  TextHeight = 16
   object pnlBottom: TPanel [0]
     Left = 0
-    Top = 352
-    Width = 706
-    Height = 146
-    Anchors = [akLeft, akTop, akBottom]
+    Top = 424
+    Width = 816
+    Height = 156
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    Align = alBottom
     BevelOuter = bvNone
+    DoubleBuffered = True
+    ParentDoubleBuffered = False
     TabOrder = 0
     DesignSize = (
-      706
-      146)
+      816
+      156)
     object lblJustify: TLabel
-      Left = 9
-      Top = 58
-      Width = 234
-      Height = 13
-      Anchors = [akLeft]
+      AlignWithMargins = True
+      Left = 6
+      Top = 62
+      Width = 806
+      Height = 16
+      Margins.Left = 6
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Align = alTop
       Caption = 'Enter reason for overriding order checks:'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
+      ExplicitWidth = 241
     end
     object memNote: TMemo
-      Left = 392
-      Top = 12
-      Width = 306
-      Height = 40
+      AlignWithMargins = True
+      Left = 400
+      Top = 4
+      Width = 406
+      Height = 50
+      Margins.Left = 400
+      Margins.Top = 4
+      Margins.Right = 10
+      Margins.Bottom = 4
+      Align = alTop
+      Alignment = taRightJustify
       BorderStyle = bsNone
       Color = clBtnFace
       Lines.Strings = (
-        'NOTE: The override reason is for tracking purposes and '
-        'does not change or place new order(s).')
+        'NOTE: The override reason is for tracking purposes'
+        'and does not change or place new order(s).')
       ReadOnly = True
       TabOrder = 0
       OnEnter = memNoteEnter
+      ExplicitWidth = 410
     end
     object txtJustify: TCaptionEdit
-      Left = 8
-      Top = 80
-      Width = 682
-      Height = 21
-      Anchors = [akLeft]
+      AlignWithMargins = True
+      Left = 6
+      Top = 86
+      Width = 804
+      Height = 27
+      Margins.Left = 6
+      Margins.Top = 4
+      Margins.Right = 6
+      Margins.Bottom = 4
+      Align = alTop
       AutoSize = False
       MaxLength = 80
       TabOrder = 3
@@ -73,59 +90,57 @@ inherited frmOCSession: TfrmOCSession
       Caption = 'Enter justification for overriding critical order checks -'
     end
     object cmdCancelOrder: TButton
-      Left = 9
-      Top = 17
-      Width = 168
-      Height = 21
+      Left = 4
+      Top = 1
+      Width = 219
+      Height = 32
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
       Caption = 'Cancel Checked Order(s)'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
       ModalResult = 4
-      ParentFont = False
       TabOrder = 1
       OnClick = cmdCancelOrderClick
     end
     object cmdContinue: TButton
-      Left = 219
-      Top = 112
-      Width = 127
-      Height = 23
-      Anchors = [akLeft, akTop, akRight, akBottom]
+      Left = 266
+      Top = 118
+      Width = 157
+      Height = 31
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Anchors = [akRight, akBottom]
       Caption = 'Accept Order(s)'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
       TabOrder = 4
       OnClick = cmdContinueClick
     end
     object btnReturn: TButton
-      Left = 352
-      Top = 112
-      Width = 122
-      Height = 23
-      Anchors = [akLeft, akTop, akRight, akBottom]
+      Left = 430
+      Top = 118
+      Width = 156
+      Height = 31
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Anchors = [akRight, akBottom]
       Cancel = True
       Caption = 'Return to Orders'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
       TabOrder = 5
       OnClick = btnReturnClick
     end
     object cmdMonograph: TButton
-      Left = 536
-      Top = 107
-      Width = 162
-      Height = 21
+      Left = 594
+      Top = 118
+      Width = 219
+      Height = 31
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
       Anchors = [akRight, akBottom]
       Caption = 'Drug Interaction Monograph'
       TabOrder = 6
@@ -135,31 +150,47 @@ inherited frmOCSession: TfrmOCSession
   object pnlTop: TORAutoPanel [1]
     Left = 0
     Top = 0
-    Width = 706
-    Height = 346
-    Align = alTop
+    Width = 816
+    Height = 424
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    Align = alClient
     BevelEdges = []
     BevelOuter = bvNone
+    DoubleBuffered = True
+    ParentDoubleBuffered = False
     TabOrder = 1
-    DesignSize = (
-      706
-      346)
     object lblHover: TLabel
-      Left = 16
-      Top = 32
-      Width = 445
-      Height = 13
+      AlignWithMargins = True
+      Left = 19
+      Top = 47
+      Width = 793
+      Height = 16
+      Margins.Left = 19
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Align = alTop
       Caption = 
         'If the order check description is cut short, hover over the text' +
         ' to view the complete description.'
+      WordWrap = True
+      ExplicitTop = 39
+      ExplicitWidth = 545
     end
     object grdchecks: TCaptionStringGrid
-      Left = 16
+      AlignWithMargins = True
+      Left = 4
       Top = 67
-      Width = 682
-      Height = 279
+      Width = 808
+      Height = 353
+      Margins.Left = 4
       Margins.Top = 0
-      Anchors = [akLeft, akBottom]
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Align = alClient
       ColCount = 3
       DefaultDrawing = False
       FixedColor = clBtnShadow
@@ -167,41 +198,40 @@ inherited frmOCSession: TfrmOCSession
       RowCount = 2
       Options = [goFixedVertLine, goFixedHorzLine, goVertLine, goHorzLine, goRangeSelect, goDrawFocusSelected, goRowMoving, goTabs]
       ScrollBars = ssVertical
-      TabOrder = 1
+      TabOrder = 0
       OnDrawCell = grdchecksDrawCell
       OnEnter = grdchecksEnter
       OnKeyDown = grdchecksKeyDown
       OnMouseDown = grdchecksMouseDown
       OnMouseMove = grdchecksMouseMove
-      OnMouseWheelDown = grdchecksMouseWheelDown
-      OnMouseWheelUp = grdchecksMouseWheelUp
       OnSelectCell = grdchecksSelectCell
+      Caption = ''
       JustToTab = True
+      ExplicitTop = 59
+      ExplicitHeight = 361
     end
-    object lblInstr: TVA508StaticText
-      Name = 'lblInstr'
-      Left = 0
-      Top = 12
-      Width = 641
-      Height = 15
-      Margins.Bottom = 0
+    object pnlInstr: TPanel
+      AlignWithMargins = True
+      Left = 4
+      Top = 4
+      Width = 808
+      Height = 35
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
+      Align = alTop
       Alignment = taLeftJustify
-      AutoSize = True
+      BevelOuter = bvNone
       Caption = 
         'To cancel an order select the order by checking the checkbox and' +
         ' press the "Cancel Checked Order(s)" button.'
-      Font.Charset = DEFAULT_CHARSET
-      Font.Color = clWindowText
-      Font.Height = -11
-      Font.Name = 'MS Sans Serif'
-      Font.Style = [fsBold]
-      ParentFont = False
-      TabOrder = 0
-      TabStop = True
-      ShowAccelChar = True
+      TabOrder = 1
     end
   end
   inherited amgrMain: TVA508AccessibilityManager
+    Left = 744
+    Top = 88
     Data = (
       (
         'Component = pnlBottom'
@@ -232,6 +262,9 @@ inherited frmOCSession: TfrmOCSession
         'Status = stsDefault')
       (
         'Component = pnlTop'
+        'Status = stsDefault')
+      (
+        'Component = pnlInstr'
         'Status = stsDefault'))
   end
 end

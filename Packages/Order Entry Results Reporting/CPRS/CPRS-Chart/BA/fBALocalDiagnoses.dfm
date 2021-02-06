@@ -44,7 +44,7 @@ inherited frmBALocalDiagnoses: TfrmBALocalDiagnoses
       Caption = 'PatientName'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -11
+      Font.Height = -12
       Font.Name = 'MS Sans Serif'
       Font.Style = [fsBold]
       ParentFont = False
@@ -78,7 +78,7 @@ inherited frmBALocalDiagnoses: TfrmBALocalDiagnoses
       Left = 9
       Top = 14
       Width = 238
-      Height = 199
+      Height = 173
       IntegralHeight = True
       ItemHeight = 13
       ParentShowHint = False
@@ -104,7 +104,7 @@ inherited frmBALocalDiagnoses: TfrmBALocalDiagnoses
       Left = 253
       Top = 16
       Width = 353
-      Height = 225
+      Height = 199
       IntegralHeight = True
       ItemHeight = 13
       ParentShowHint = False

@@ -3,49 +3,56 @@ inherited frmOMNavA: TfrmOMNavA
   Top = 354
   BorderIcons = []
   Caption = 'Order Menu'
-  ClientHeight = 278
-  ClientWidth = 483
+  ClientHeight = 348
+  ClientWidth = 604
   OldCreateOrder = True
   OnActivate = FormActivate
   OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
   OnResize = FormResize
-  ExplicitLeft = 212
-  ExplicitTop = 354
-  ExplicitWidth = 491
-  ExplicitHeight = 312
-  PixelsPerInch = 96
-  TextHeight = 13
+  ExplicitWidth = 622
+  ExplicitHeight = 393
+  PixelsPerInch = 120
+  TextHeight = 16
   object pnlTool: TPanel [0]
     Left = 0
     Top = 0
-    Width = 483
-    Height = 19
+    Width = 604
+    Height = 24
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     Align = alTop
     BevelOuter = bvLowered
     Caption = 'Menu or Dialog Name'
     Color = clHighlight
     Font.Charset = DEFAULT_CHARSET
     Font.Color = clHighlightText
-    Font.Height = -11
+    Font.Height = -15
     Font.Name = 'MS Sans Serif'
     Font.Style = [fsBold]
+    ParentBackground = False
     ParentFont = False
     TabOrder = 1
     OnMouseDown = pnlToolMouseDown
     OnMouseMove = pnlToolMouseMove
     OnMouseUp = pnlToolMouseUp
     object cmdDone: TORAlignButton
-      Left = 432
+      Left = 540
       Top = 1
-      Width = 50
-      Height = 17
+      Width = 63
+      Height = 22
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
       Align = alRight
       Caption = 'Done'
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clBtnText
-      Font.Height = -11
+      Font.Height = -15
       Font.Name = 'MS Sans Serif'
       Font.Style = []
       ParentFont = False
@@ -55,12 +62,14 @@ inherited frmOMNavA: TfrmOMNavA
     object cmdPrev: TBitBtn
       Left = 0
       Top = 1
-      Width = 20
-      Height = 17
+      Width = 25
+      Height = 22
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
       Caption = 'Back'
       Enabled = False
-      TabOrder = 1
-      OnClick = cmdPrevClick
       Glyph.Data = {
         06010000424D06010000000000007600000028000000180000000C0000000100
         0400000000009000000000000000000000001000000010000000000000000000
@@ -75,16 +84,20 @@ inherited frmOMNavA: TfrmOMNavA
       Margin = 0
       NumGlyphs = 2
       Spacing = 80
+      TabOrder = 1
+      OnClick = cmdPrevClick
     end
     object cmdNext: TBitBtn
-      Left = 20
+      Left = 25
       Top = 1
-      Width = 21
-      Height = 17
+      Width = 26
+      Height = 22
+      Margins.Left = 4
+      Margins.Top = 4
+      Margins.Right = 4
+      Margins.Bottom = 4
       Caption = 'Forward'
       Enabled = False
-      TabOrder = 2
-      OnClick = cmdNextClick
       Glyph.Data = {
         06010000424D06010000000000007600000028000000180000000C0000000100
         0400000000009000000000000000000000001000000010000000000000000000
@@ -99,13 +112,19 @@ inherited frmOMNavA: TfrmOMNavA
       Margin = 0
       NumGlyphs = 2
       Spacing = 80
+      TabOrder = 2
+      OnClick = cmdNextClick
     end
   end
   object grdMenu: TCaptionStringGrid [1]
     Left = 0
-    Top = 19
-    Width = 483
-    Height = 259
+    Top = 24
+    Width = 604
+    Height = 324
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     Align = alClient
     BorderStyle = bsNone
     Color = clBtnFace
@@ -113,6 +132,7 @@ inherited frmOMNavA: TfrmOMNavA
     DefaultColWidth = 160
     DefaultRowHeight = 15
     DefaultDrawing = False
+    DrawingStyle = gdsClassic
     FixedCols = 0
     FixedRows = 0
     Options = [goFixedVertLine, goFixedHorzLine]

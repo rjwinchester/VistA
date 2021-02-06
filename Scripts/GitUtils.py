@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2013 The Open Source Electronic Health Record Agent
+# Copyright 2013-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,11 +13,14 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from builtins import zip
+import codecs
 import os
 import sys
 import subprocess
 import re
 import argparse
+import difflib
 from LoggerManager import logger, initConsoleLogging
 
 """ Utilities Functions to wrap around git command functions via subprocess
@@ -59,7 +62,7 @@ def commitChange(commitMsgFile, gitRepoDir=None):
   logger.info(output)
   return result
 
-def addChangeSet(gitRepoDir=None, patternList=None):
+def addChangeSet(gitRepoDir=None, patternList=[]):
   """
     Utility function to add all the files changed to staging area
     @gitRepoDir: git repository directory, default is current directory.
@@ -68,12 +71,99 @@ def addChangeSet(gitRepoDir=None, patternList=None):
                   need to escape wildcard character '*'
     @return: return True if success, False otherwise
   """
-  git_command_list = ["git", "add", "-A", "--"]
-  if patternList and isinstance(patternList, list):
-    git_command_list.extend(patternList)
 
-  result, output = _runGitCommand(git_command_list, gitRepoDir)
+  patternIncludeList = ["*.m"]
+  for dir in os.listdir(gitRepoDir):
+    git_command_list = ["git", "diff","--", "*.zwr"]
+    result, output = _runGitCommand(git_command_list,os.path.join(gitRepoDir,dir))
+    if not result:
+      logger.error("Git DIFF command failed: " + output)
+      raise Exception("Git DIFF command failed: " + output)
+    test = output.split("\n")
+    outLineStack = []
+    results = []
+    """
+      Attempts to check each global file useful information in the diff.  It
+      checks through the diff of each ZWR file.  If it finds a pair of addition
+      and removal, it checks that the line change isn't just a date/time or
+      number change.  If a file consists entirely of date/time changes, it is
+      excluded from the added files.  A special case is made for the DEVICE file
+      to eliminate the count of times that each DEVICE was opened.
+
+      This assumes the script will be run in the "Packages" directory, which
+      necessitates the removal of the "Packages/" string from the filename
+    """
+    currentFile=None
+    skipNext=False
+    for index, line in enumerate(test):
+      if '.zwr' in line:
+        if ("OK" in results) or len(outLineStack):
+          patternIncludeList.append(currentFile)
+        outLineStack = []
+        currentFile = line[15:].strip()
+        results = []
+        continue
+      if line.startswith("-"):
+        outLineStack.append(line)
+      elif line.startswith("+"):
+        if len(outLineStack):
+          diffStack=[]
+          out = difflib.ndiff(line[1:].split("^"), outLineStack[0][1:].split("^"))
+          outList = '**'.join(out).split("**")
+          if len(outList) > 1:
+            for i,s in enumerate(outList):
+              if i == len(outList):
+                results.append("OK")
+                break
+              if s:
+                if s[0]=="-":
+                  diffStack.append(s[2:])
+                if s[0] == "+":
+                  if len(diffStack):
+                    if re.search("DIC\(9.8,",s[2:]):
+                      break
+                    if re.search("[0-9]{7}(\.[0-9]{4,6})*",s[2:]) or re.search("[0-9]{7}(\.[0-9]{4,6})*",diffStack[0]):
+                      results.append("DATE")
+                      break
+                    if re.search("[0-9]{2}\-[A-Z]{3}\-[0-9]{4}",s[2:]) or re.search("[0-9]{2}\:[0-9]{2}\:[0-9]{2}",diffStack[0]) :
+                      results.append("DATE")
+                      break
+                    if re.search("[0-9]{2}:[0-9]{2}:[0-9]{2}",s[2:]) or re.search("[0-9]{2}\:[0-9]{2}\:[0-9]{2}",diffStack[0]) :
+                      results.append("DATE")
+                      break
+                    # Removes a specific global entry in DEVICE file which maintains a count of the times the device was opened
+                    if re.search("%ZIS\([0-9]+,[0-9]+,5",s[2:]):
+                      break
+                    diffStack.pop(0)
+            outLineStack.pop(0)
+        else:
+          results.append("OK")
+    # Ensure that the last object is captured, if necessary
+    if ("OK" in results) or len(outLineStack):
+      patternIncludeList.append(currentFile)
+  """ Now add everything that can be found or was called for"""
+  git_command_list = ["git", "add", "--"]
+  totalIncludeList = patternList + patternIncludeList
+  for file in totalIncludeList:
+    git_command = git_command_list + [file]
+    result, output = _runGitCommand(git_command, gitRepoDir)
+    if not result:
+      logger.error("Git add command failed: " + output)
+      raise Exception("Git add command failed: " + output)
   logger.info(output)
+  """ Add the untracked files through checking for "other" files and
+  then add the list
+  """
+  git_command = ["git","ls-files","-o","--exclude-standard"]
+  result, lsFilesOutput = _runGitCommand(git_command, gitRepoDir)
+  git_command_list = ["git","add"]
+  for file in lsFilesOutput.split("\n"):
+    if len(file):
+      git_command = git_command_list + [file]
+      result, output = _runGitCommand(git_command, gitRepoDir)
+      if not result:
+        logger.error("Git ls-files command failed: " + output)
+        raise Exception("Git ls-files command failed: " + output)
   return result
 
 def switchBranch(branchName, gitRepoDir=None):
@@ -119,14 +209,14 @@ def getCommitInfo(gitRepoDir=None, revision='HEAD'):
   git_command_list.extend([fmtStr, "-n1", revision])
   result, output = _runGitCommand(git_command_list, gitRepoDir)
   if result:
-    return dict(zip(outfmtLst, output.strip('\r\n').split(delim)))
+    return dict(list(zip(outfmtLst, output.strip('\r\n').split(delim))))
   return None
 
 def _runGitCommand(gitCmdList, workingDir):
   """
     Private Utility function to run git command in subprocess
     @gitCmdList: a list of git commands to run
-    @workingDir: the workding directory of the child process
+    @workingDir: the working directory of the child process
     @return: return a tuple of (True, output) if success,
              (False, output) otherwise
   """
@@ -137,11 +227,11 @@ def _runGitCommand(gitCmdList, workingDir):
                              stdout=subprocess.PIPE)
     output = popen.communicate()[0]
     if popen.returncode != 0: # command error
-      return (False, output)
-    return (True, output)
+      return (False, codecs.decode(output,'utf-8','ignore'))
+    return (True, codecs.decode(output, 'utf-8', 'ignore'))
   except OSError as ex:
     logger.error(ex)
-  return (False, output)
+  return (False, codecs.decode(output, 'utf-8', 'ignore'))
 
 def main():
   initConsoleLogging()

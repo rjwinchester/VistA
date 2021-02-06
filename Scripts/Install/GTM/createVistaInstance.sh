@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 #---------------------------------------------------------------------------
-# Copyright 2011-2012 The Open Source Electronic Health Record Agent
+# Copyright 2011-2017 The Open Source Electronic Health Record Agent
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -18,6 +18,7 @@
 # Create directories for instance Routines, Objects, Globals, Journals,
 # Temp Files
 # This utility requires root privliges
+#set -x
 
 # Make sure we are root
 if [[ $EUID -ne 0 ]]; then
@@ -38,27 +39,42 @@ usage()
 
     OPTIONS:
       -h    Show this message
+      -f    Skip setting firewall rules
       -i    Instance name
+      -y    Use YottaDB
 EOF
 }
 
-while getopts ":hi:" option
+while getopts ":hfi:y" option
 do
     case $option in
         h)
             usage
             exit 1
             ;;
+        f)
+            firewall=false
+            ;;
         i)
             instance=$(echo $OPTARG |tr '[:upper:]' '[:lower:]')
+            ;;
+        y)
+            installYottaDB=true
             ;;
     esac
 done
 
-if [[ -z $instance ]]
-then
+if [[ -z $instance ]]; then
     usage
     exit 1
+fi
+
+if [[ -z $firewall ]]; then
+    firewall=true
+fi
+
+if [ -z $installYottaDB ]; then
+    installYottaDB=false
 fi
 
 echo "Creating $instance..."
@@ -83,16 +99,23 @@ fi
 # list directory contents (1 per line) | count lines | strip leading and
 #                                                      trailing whitespace
 
-gtm_dirs=$(ls -1 /opt/lsb-gtm/ | wc -l | sed 's/^[ \t]*//;s/[ \t]*$//')
+if $installYottaDB; then
+    checkDir="/opt/yottadb/"
+else
+    checkDir="/opt/lsb-gtm/"
+fi
+
+gtm_dirs=$(ls -1 $checkDir | wc -l | sed 's/^[ \t]*//;s/[ \t]*$//')
 if [ $gtm_dirs -gt 1 ]; then
-    echo "More than one version of GT.M installed!"
-    echo "Can't determine what version of GT.M to use"
+    echo "More than one version of GT.M/YottaDB installed!"
+    echo "Can't determine what version of GT.M/YottaDB to use"
     exit 1
 fi
 
 # Only one GT.M version found
-gtm_dist=/opt/lsb-gtm/$(ls -1 /opt/lsb-gtm/)
-gtmver=$(ls -1 /opt/lsb-gtm/)
+gtm_dist=$checkDir$(ls -1 $checkDir)
+gtmver=$(ls -1 $checkDir)
+
 
 # TODO: implement argument for basedir
 # $basedir is the base directory for the instance
@@ -103,6 +126,7 @@ basedir=/home/$instance
 # $instance user is a programmer user
 # $instance group is for permissions to other users
 # $instance group is auto created by adduser script
+echo "Running useradd"
 useradd -c "$instance instance owner" -m -U $instance -s /bin/bash
 useradd -c "Tied user account for $instance" -M -N -g $instance -s /home/$instance/bin/tied.sh -d /home/$instance ${instance}tied
 useradd -c "Programmer user account for $instance" -M -N -g $instance -s /home/$instance/bin/prog.sh -d /home/$instance ${instance}prog
@@ -153,6 +177,7 @@ echo "export gtm_prompt=\"${instance^^}>\""     >> $basedir/etc/env
 echo "export gtmgbldir=$basedir/g/$instance.gld" >> $basedir/etc/env
 echo "export gtm_zinterrupt='I \$\$JOBEXAM^ZU(\$ZPOSITION)'" >> $basedir/etc/env
 echo "export gtm_lvnullsubs=2"                  >> $basedir/etc/env
+echo "export gtm_zquit_anyway=1"                >> $basedir/etc/env
 echo "export PATH=\$PATH:\$gtm_dist"            >> $basedir/etc/env
 echo "export basedir=$basedir"                  >> $basedir/etc/env
 echo "export gtm_arch=$gtm_arch"                >> $basedir/etc/env
@@ -167,13 +192,7 @@ echo "source $basedir/etc/env" >> $basedir/.bashrc
 
 # Setup base gtmroutines
 gtmroutines="\$basedir/r/\$gtmver(\$basedir/r)"
-
-# 64bit GT.M can use a shared library instead of $gtm_dist
-if [ $gtm_arch == "x86_64" ]; then
-    echo "export gtmroutines=\"$gtmroutines $basedir/lib/gtm/libgtmutil.so $basedir/lib/gtm\"" >> $basedir/etc/env
-else
-    echo "export gtmroutines=\"$gtmroutines $basedir/lib/gtm\"" >> $basedir/etc/env
-fi
+echo "export gtmroutines=\"$gtmroutines $basedir/lib/gtm/libgtmutil.so\"" >> $basedir/etc/env
 
 # prog.sh - priviliged (programmer) user access
 # Allow access to ZSY
@@ -235,10 +254,12 @@ chown -R $instance:$instance $basedir
 chmod -R g+rw $basedir
 
 # Add firewall rules
-if [[ $RHEL || -z $ubuntu ]]; then
-    sudo iptables -I INPUT 1 -p tcp --dport 9430 -j ACCEPT # RPC Broker
-    sudo iptables -I INPUT 1 -p tcp --dport 8001 -j ACCEPT # VistALink
-    sudo service iptables save
+if $firewall; then
+    if [[ $RHEL || -z $ubuntu ]]; then
+        firewall-cmd --zone=public --add-port=9430/tcp --permanent # RPC Broker
+        firewall-cmd --zone=public --add-port=8001/tcp --permanent # VistALink
+        firewall-cmd --reload
+    fi
 fi
 
 echo "VistA instance $instance created!"

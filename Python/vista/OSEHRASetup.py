@@ -16,7 +16,38 @@
 import sys
 import os
 import time
+import datetime
+import TestHelper
+import re
+from tempfile import gettempdir
 from OSEHRAHelper import PROMPT
+
+introText = """**************************************************
+  *  Welcome to VistA
+  **************************************************
+  *
+  * Use the following credentials for Robert Alexander
+  *   Access:  fakedoc1
+  *   Verify:  1Doc!@#$
+  *   Electronic Signature: ROBA123
+  *
+  * Use the following credentials for Mary Smith (Nurse)
+  *   Access:  fakenurse1
+  *   Verify:  1Nur!@#$
+  *   Electronic Signature: MARYS123
+  *
+  * Use the following credentials for Joe Clerk (Clerk)
+  *   Access:  fakeclerk1
+  *   Verify:  1Cle!@#$
+  *   Electronic Signature: CLERKJ123
+  *
+  *
+  * This instance was built from a VistA-M repository from
+  * %s built on %s
+  *
+  * If you have any issue, please email your question to admin@osehra.org
+  **************************************************
+"""
 
 def startFileman(VistA):
   # Start FileMan as the programmer user and set XUMF to 1 which lets the user
@@ -80,9 +111,10 @@ def setupPrimaryHFSDir(VistA,hfs_dir):
   # Kernel System Parameters file
   #
   # "@" to remove or set a new file path.
+  if (hfs_dir=="@" or hfs_dir=='') : hfs_dir = gettempdir()
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('KERNEL SYSTEM PARAMETERS')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('PRIMARY HFS DIRECTORY')
@@ -109,13 +141,108 @@ def setupPrimaryHFSDir(VistA,hfs_dir):
   VistA.wait('Select OPTION:')
   VistA.write('')
 
+def removeResourceUsageLogging(VistA):
+  # By default, prevent logging of Resource Usage
+  startFileman(VistA)
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('VOLUME SET')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write("LINK ACCESS")
+  VistA.wait('THEN EDIT FIELD')
+  VistA.write('')
+  VistA.wait('VOLUME SET')
+  # `1 is the notation to grab the entry with a number of 1
+  VistA.write('`1')
+  VistA.wait('LINK ACCESS')
+  VistA.write("NO")
+  VistA.wait('VOLUME SET')
+  VistA.write('')
+  VistA.wait('Select OPTION:')
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('KERNEL SYSTEM PARAMETERS')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('LOG RESOURCE USAGE')
+  VistA.wait('THEN EDIT FIELD')
+  VistA.write('')
+  VistA.wait('DOMAIN NAME')
+  # `1 is the notation to grab the entry with a number of 1
+  VistA.write('`1')
+  VistA.wait('LOG RESOURCE USAGE')
+  VistA.write('NO')
+  VistA.wait('DOMAIN NAME')
+  VistA.write('')
+  VistA.wait('Select OPTION:')
+  VistA.write('')
+
+def addMPILocalNumber(VistA):
+  VistA.wait(PROMPT)
+  VistA.write("W $$SITE^VASITE($$DT^XLFDT)")
+  VistA.wait(PROMPT)
+  localNum = re.search("\^([0-9]+)\W", VistA.lastconnection).groups()[0]
+  VistA.write("")
+  startFileman(VistA)
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('MASTER PATIENT INDEX (LOCAL')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('')
+  VistA.wait('MASTER PATIENT INDEX (LOCAL')
+  VistA.write('`1')
+  VistA.wait('SITE ID NUMBER')
+  VistA.write(localNum)
+  VistA.wait('LAST NUMBER')
+  VistA.write('^')
+  VistA.wait('MASTER PATIENT INDEX (LOCAL')
+  VistA.write('')
+  VistA.wait('Select OPTION:')
+  VistA.write('')
+
+def setupIntroText(VistA, introTextSHA):
+  # Set up the introduction text for the VistA system
+  #
+  # Normally, is displayed on CPRS and other GUIs
+  startFileman(VistA)
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('KERNEL SYSTEM PARAMETERS')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('INTRO MESSAGE')
+  VistA.wait('THEN EDIT FIELD')
+  VistA.write('')
+  VistA.wait('DOMAIN NAME')
+  # `1 is the notation to grab the entry with a number of 1
+  VistA.write('`1')
+  index = VistA.multiwait(['EDIT Option','1>$'])
+  if index == 0:
+    VistA.write("D")
+    VistA.wait('Delete from line')
+    VistA.write("1")
+    VistA.wait('thru')
+    VistA.write("")
+    VistA.wait('OK TO REMOVE')
+    VistA.write("Y")
+    VistA.wait('ARE YOU SURE')
+    VistA.write("Y")
+    VistA.wait('EDIT Option')
+    VistA.write("A")
+    VistA.wait('Add lines')
+  VistA.write((introText % (introTextSHA, datetime.date.today() )) +'\r')
+  VistA.wait("EDIT Option")
+  VistA.write("")
+  VistA.wait("DOMAIN NAME")
+  VistA.write('')
+  VistA.wait('Select OPTION:')
+  VistA.write('')
+
 def configureNULLDevice(VistA):
   # Ensure that the null device is correctly configured by adding
   # a $I for the correct platform rather than VMS and removing
   # sign-on capabilities
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('DEVICE')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('$I\rSIGN-ON/SYSTEM DEVICE\r')
@@ -130,11 +257,71 @@ def configureNULLDevice(VistA):
   VistA.wait("Select OPTION")
   VistA.write("")
 
+def configureConsoleDevice(VistA):
+  # Ensure that the console device is correctly configured by adding
+  # sign-on capabilities
+  startFileman(VistA)
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('DEVICE')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('$I\rSIGN-ON/SYSTEM DEVICE\r')
+  VistA.wait('NAME:')
+  VistA.write('/dev/tty')
+  VistA.wait('//')
+  if sys.platform == 'cygwin':
+    VistA.write('/dev/pty')
+  else:
+    VistA.write('')
+  VistA.wait('SYSTEM DEVICE')
+  VistA.write('Y')
+  index = VistA.multiwait(['SYSTEM DEVICE', 'DEVICE NAME'])
+  if index == 0:
+      VistA.write('^')
+      VistA.wait("Select DEVICE")
+  VistA.write('')
+  VistA.wait("Select OPTION")
+  VistA.write("")
+
+def configureHFSDevice(VistA):
+  # Ensure that the console device is correctly configured by adding
+  # sign-on capabilities
+  startFileman(VistA)
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('DEVICE')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('OPEN PARAMETERS')
+  VistA.wait_re("then edit field")
+  VistA.write('ASK PARAMETERS')
+  VistA.wait_re("then edit field")
+  VistA.write('SUBTYPE')
+  VistA.wait_re("then edit field")
+  VistA.write('')
+  VistA.wait('NAME:')
+  VistA.write('HFS')
+  VistA.wait('OPEN PARAMETERS')
+  if VistA.type=='cache':
+    VistA.write('"NWS"')
+  else:
+    VistA.write('"nowrap:stream:newversion"')
+  VistA.wait("ASK PARAMETERS")
+  VistA.write("1")
+  VistA.wait("SUBTYPE")
+  VistA.write("P-OTHER")
+  index= VistA.multiwait(['CHOOSE', 'DEVICE NAME'])
+  if index == 0:
+    VistA.write('1')
+    VistA.wait("Select DEVICE")
+  VistA.write('')
+  VistA.wait("Select OPTION")
+  VistA.write("")
+
 def setupVistADomain(VistA,site_name):
   # Enter the site name into the DOMAIN file via FileMan
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('DOMAIN\r')
   VistA.wait('Select DOMAIN NAME')
   VistA.write(site_name)
@@ -171,17 +358,28 @@ def setupVistADomain(VistA,site_name):
   VistA.wait(PROMPT,60)
   VistA.write('S $P(^XWB(8994.1,1,0),"^")=' + VistA.IENumber)
   VistA.write('S $P(^XTV(8989.3,1,0),"^")=' + VistA.IENumber)
+  reindexFile(VistA, "8989.3")
+  reindexFile(VistA, "8994.1")
+
+def reindexFile(VistA, fileNo):
   # Then, re-index both files with the FileMan Utility.
   startFileman(VistA)
   VistA.write('UTILITY')
   VistA.wait('UTILITY OPTION')
   VistA.write('RE')
-  VistA.wait('MODIFY WHAT FILE')
-  VistA.write('8989.3\rNO\rY\rY')
-  VistA.wait('UTILITY OPTION')
-  VistA.write('RE')
-  VistA.wait('MODIFY WHAT FILE')
-  VistA.write('8994.1\rNO\rY\rY\r')
+  VistA.wait_re('MODIFY WHAT FILE')
+  VistA.write(fileNo)
+  VistA.wait("PARTICULAR INDEX")
+  VistA.write('NO')
+  VistA.wait("EXISTING")
+  VistA.write('Y')
+  VistA.wait("RE-CROSS-REFERENCE")
+  VistA.write('Y')
+  index = VistA.multiwait(['UTILITY OPTION', "Start Time"])
+  if index == 1:
+    VistA.write('')
+    VistA.wait('UTILITY OPTION')
+  VistA.write("")
   VistA.wait('Select OPTION')
   VistA.write("")
 
@@ -192,16 +390,22 @@ def setupBoxVolPair(VistA,volume_set,site_name,tcp_port):
   #  to match what was queried above
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('14.7')
   VistA.wait('ALL//')
+  VistA.write('BOX-VOLUME')
+  VistA.wait_re("Then edit field")
+  VistA.write('Manager Startup Delay')
+  VistA.wait_re("Then edit field")
   VistA.write('')
   VistA.wait('Select TASKMAN SITE PARAMETERS BOX-VOLUME PAIR:')
   VistA.write('`1')
-  VistA.wait('//')
+  VistA.wait('PAIR')
   VistA.write(VistA.boxvol)
-  VistA.wait('RESERVED')
-  VistA.write('^\r')
+  VistA.wait('Manager Startup')
+  VistA.write('1')
+  VistA.wait('Select TASKMAN SITE PARAMETERS BOX-VOLUME PAIR:')
+  VistA.write('')
   #time.sleep(5)
   # Add the Box-volume pair to the RPC Broker parameters for the local domain
   # Also adds the information for the new style RPC Broker Listener on the supplied TCP port
@@ -210,7 +414,7 @@ def setupBoxVolPair(VistA,volume_set,site_name,tcp_port):
   # if a GT.M system, will create the information but not start it.
   VistA.wait('Select OPTION')
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('8994.1')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('LISTENER')
@@ -223,15 +427,15 @@ def setupBoxVolPair(VistA,volume_set,site_name,tcp_port):
   VistA.wait("OK")
   VistA.write("Y")
   VistA.wait("BOX-VOLUME PAIR")
-  VistA.write(VistA.boxvol + '\r')
-  VistA.wait("BOX-VOLUME PAIR")
-  VistA.write("")
-  VistA.wait("Select PORT")
+  VistA.write(VistA.boxvol)
+  VistA.wait("OK")
+  VistA.write("Y")
+  index = VistA.multiwait(["BOX-VOLUME","Select PORT"])
+  if index == 0:
+    VistA.write("")
+    VistA.wait("Select PORT")
   VistA.write(tcp_port + '\rY')
-  if VistA.type=='cache':
-    VistA.write('1\r1\r1\r')
-  else:
-    VistA.write('1\r\r\r')
+  VistA.write('1\r1\r1\r')
   VistA.wait("Select OPTION")
   VistA.write("")
 
@@ -240,7 +444,7 @@ def setupVolumeSet(VistA,site_name,volume_set,namespace=""):
   # the CMake value of TEST_VISTA_SETUP_VOLUME_SET.
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('14.5\r')
   VistA.wait('Select VOLUME SET')
   VistA.write('`1')
@@ -254,7 +458,7 @@ def setupVolumeSet(VistA,site_name,volume_set,namespace=""):
   # Add the Volume set information to the Kernel System Parameters File
   VistA.wait('Select OPTION')
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('KERNEL SYSTEM PARAMETERS\rVOLUME SET\r\r')
   VistA.wait('Select KERNEL SYSTEM PARAMETERS DOMAIN NAME:')
   VistA.write(site_name + '\r')
@@ -273,7 +477,7 @@ def setupVolumeSet(VistA,site_name,volume_set,namespace=""):
   VistA.wait('VOLUME SET')
   VistA.write('\r\r')
 
-def scheduleOption(VistA,optionName):
+def scheduleOption(VistA,optionName, scheduleValue, scheduleTime="0030"):
   # If using Cache as the M environment, Schedule a task to start the
   # XWB Listener Starter on the start up of TaskMan
   VistA.wait(PROMPT)
@@ -287,7 +491,15 @@ def scheduleOption(VistA,optionName):
   VistA.wait('reschedule:')
   VistA.write(optionName + '\rY')
   VistA.wait('COMMAND:')
-  VistA.write('\r^SPECIAL QUEUEING\rSTARTUP\rS\rE\r')
+  if scheduleValue == 'STARTUP':
+    VistA.write('\r^SPECIAL QUEUEING\rSTARTUP')
+  else:
+    VistA.write('^RESCHEDULING FREQUENCY\r%s' % scheduleValue)
+    VistA.write('^QUEUED TO RUN AT WHAT TIME\rT+1@%s' % scheduleTime)
+    VistA.write('^')
+  VistA.write('S\rE')
+  VistA.wait('reschedule:')
+  VistA.write('')
   VistA.wait('Select Taskman Management')
   VistA.write('')
   VistA.wait('Systems Manager Menu')
@@ -295,29 +507,10 @@ def scheduleOption(VistA,optionName):
   VistA.wait('Do you really want to halt')
   VistA.write('Y')
 
-def restartTaskMan(VistA):
-  # Restarts the TaskMan instance via the Taskman Management Utilities Menu.
-
+def startTaskMan(VistA):
+  # Starts the TaskMan instance via cold boot entry point ^ZTMB
   VistA.wait(PROMPT)
-  VistA.write('S DUZ=1 D ^XUP')
-  VistA.wait('Select OPTION NAME')
-  VistA.write('EVE\r1')
-  VistA.wait('Systems Manager Menu')
-  VistA.write('Taskman Management')
-  VistA.wait('Select Taskman Management')
-  VistA.write('Taskman Management Utilities')
-  VistA.wait('Select Taskman Management Utilities')
-  VistA.write('Restart Task Manager\rY')
-  VistA.wait('Select Taskman Management Utilities')
-  VistA.write('')
-  VistA.wait('Select Taskman Management')
-  VistA.write('')
-  VistA.wait('Select Systems Manager Menu')
-  VistA.write('')
-  VistA.wait('Do you really want to halt')
-  VistA.write('Y')
-  VistA.wait(PROMPT)
-  VistA.write('K')
+  VistA.write('DO ^ZTMB')
 
 def addSystemManager(VistA):
   # Add the super user System Manager via the User Management Menu
@@ -350,7 +543,7 @@ def addSystemManager(VistA):
   #                 XPAR MENU TOOLS,DG REGISTER PATIENT
   # Access Code:    SM1234
   # Verify Code:    SM1234!!
-  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rEVE\r1\r^Want to edit ACCESS CODE\rY\rSM1234\rSM1234\r^Want to edit VERIFY CODE\rY\rSM1234!!\rSM1234!!\r^SECONDARY MENU OPTIONS\rOR PARAM COORDINATOR MENU\rY\r\r\r\rTIU IRM MAINTENANCE MENU\rY\r\r\r\rXPAR MENU TOOLS\rY\r\r\r\rDG REGISTER PATIENT\rY\r\r\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^SERVICE/SECTION\rIRM\r^\rY')
+  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rEVE\r1\r^Want to edit ACCESS CODE\rY\rSM1234\rSM1234\r^Want to edit VERIFY CODE\rY\rSM1234!!\rSM1234!!\r^SECONDARY MENU OPTIONS\rOR PARAM COORDINATOR MENU\rY\r\r\r\rTIU IRM MAINTENANCE MENU\rY\r\r\r\rXPAR MENU TOOLS\rY\r\r\r\rDG REGISTER PATIENT\rY\r\r\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^SERVICE/SECTION\rIRM\rS\rE')
   # Exiting the ScreenMan form, Allocate Security Keys
   # For Kernel Access:     XUMGR, XUPROG, XUPROGMODE
   # and Scheduling Access: SD SUPERVISOR, SDWL PARAMETER, SDWL MENU
@@ -395,7 +588,7 @@ def addInstitution(VistA,inst_name,station_number):
   # multiple additions.
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE:')
+  VistA.wait_re('INPUT TO WHAT FILE:')
   VistA.write('4')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('STATION NUMBER')
@@ -419,7 +612,7 @@ def addDivision(VistA,div_name, facility_number,station_number):
   # points back to the recently created Institution
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE:')
+  VistA.wait_re('INPUT TO WHAT FILE:')
   VistA.write('40.8')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('FACILITY NUMBER')
@@ -443,6 +636,243 @@ def addDivision(VistA,div_name, facility_number,station_number):
   VistA.wait('Select OPTION')
   VistA.write('')
 
+def setupWard(VistA, division, institution, ward_name, clinic_name, order, specialty='Cardiac Surgery', bed_array = [["1-A","testBed1"]] ):
+  # Set up an inpatient ward for lodging of users and inpatient medication prescription
+  # taken from the ADTActions script of Registration Roll-And-Scroll testing
+  VistA.wait(PROMPT)
+  VistA.write('S DUZ=1 D ^XUP')
+  VistA.wait('OPTION NAME:')
+  # DEFINE THE WARD
+  VistA.write('WARD DEFINITION ENTRY')
+  VistA.wait('NAME:')
+  VistA.write(ward_name)
+  VistA.wait('No//')
+  VistA.write('YES')
+  VistA.wait('POINTER:')
+  VistA.write(clinic_name)
+  VistA.wait('ORDER:')
+  VistA.write(order)
+  VistA.wait(ward_name)
+  VistA.write('')
+  VistA.wait('WRISTBAND:')
+  VistA.write('YES')
+  VistA.wait('DIVISION:')
+  VistA.write(division)
+  VistA.wait('INSTITUTION:')
+  VistA.write(institution)
+  VistA.wait('6100')
+  VistA.write('')
+  VistA.wait('BEDSECTION:')
+  VistA.write('bedselect')
+  VistA.wait('SPECIALTY:')
+  VistA.write(specialty)
+  VistA.wait('SERVICE:')
+  VistA.write('S')
+  VistA.wait('LOCATION:')
+  VistA.write('north')
+  VistA.wait('WARD:')
+  VistA.write('1')
+  VistA.wait('DATE:')
+  VistA.write('T')
+  VistA.wait('No//')
+  VistA.write('YES')
+  VistA.wait('BEDS:')
+  VistA.write('20')
+  VistA.wait('ILL:')
+  VistA.write('1')
+  VistA.wait('SYNONYM:')
+  VistA.write('')
+  VistA.wait('G&L ORDER:')
+  VistA.write('')
+  VistA.wait('TOTALS:')
+  VistA.write('')
+  VistA.wait('NAME:')
+  VistA.write('')
+  addBedsToWard(VistA, ward_name, bed_array)
+
+def addBedsToWard(VistA, ward_name, bed_array):
+  VistA.wait(PROMPT)
+  VistA.write('S DUZ=1 D ^XUP')
+  # SETUP BEDS
+  VistA.wait('OPTION NAME:')
+  VistA.write('ADT SYSTEM')
+  VistA.wait('Option:')
+  VistA.write('ADD')
+  for sitem in bed_array:
+     VistA.wait('NAME:')
+     VistA.write(sitem[0])
+     VistA.wait('No//')
+     VistA.write('yes')
+     VistA.wait('NAME:')
+     VistA.write('')
+     VistA.wait('DESCRIPTION:')
+     VistA.write(sitem[1])
+     VistA.wait('No//')
+     VistA.write('yes')
+     VistA.wait('ASSIGN:')
+     VistA.write(ward_name)
+     VistA.wait('No//')
+     VistA.write('yes')
+     VistA.wait('ASSIGN:')
+     VistA.write('')
+  VistA.wait('NAME:')
+  VistA.write('')
+  VistA.wait('Option:')
+  VistA.write('')
+  VistA.wait('YES//')
+  VistA.write('')
+
+def modifyDVBParams(VistA):
+  VistA.wait(PROMPT)
+  VistA.write('D ^XUP')
+  # ADD ENTRY TO FILE 395 DVB PARAMETERS
+  VistA.wait('NAME:')
+  VistA.write('ZZFILEMAN')
+  VistA.wait('OPTION:')
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE')
+  VistA.write('395')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('ALL')
+  VistA.wait('Select DVB PARAMETERS ONE:')
+  VistA.write('1')
+  VistA.wait('No//')
+  VistA.write('yes')
+  VistA.wait('SCREENS?:')
+  VistA.write('NO')
+  VistA.wait('DAY:')
+  VistA.write('^NEW IDCU INTERFACE')
+  VistA.wait('INTERFACE:')
+  VistA.write('0')
+  VistA.wait('Difference:')
+  VistA.write('')
+  VistA.wait('DIVISION:')
+  VistA.write('YES')
+  VistA.wait('GROUP:')
+  VistA.write('^')
+  VistA.wait('Select DVB PARAMETERS ONE:')
+  VistA.write('')
+  VistA.wait('OPTION:')
+  VistA.write('')
+
+def addtoMASParameter(VistA, institution, medical_center):
+  # ADD ENTRY TO MAS PARAMETER
+  VistA.wait(PROMPT)
+  VistA.write('D ^XUP')
+  VistA.write('1')
+  VistA.wait('Select OPTION NAME')
+  VistA.write('ADT SYSTEM')
+  VistA.wait('ADT System Definition Menu')
+  VistA.write('MAS Parameter Entry')
+  VistA.wait('Enter 1-3 to EDIT, or RETURN to QUIT')
+  VistA.write('1')
+  VistA.wait('MEDICAL CENTER NAME')
+  VistA.write(medical_center)
+  VistA.wait('AFFILIATED')
+  VistA.write('NO')
+  VistA.wait('MULTIDIVISION MED CENTER')
+  VistA.write('NO')
+  VistA.wait('NURSING HOME WARDS')
+  VistA.write('')
+  VistA.wait('DOMICILIARY WARDS')
+  VistA.write('')
+  VistA.wait('SYSTEM TIMEOUT')
+  VistA.write('30')
+  VistA.wait('AUTOMATIC PTF MESSAGES')
+  VistA.write('')
+  VistA.wait('PRINT PTF MESSAGES')
+  VistA.write('')
+  VistA.wait('DEFAULT PTF MESSAGE PRINTER')
+  VistA.write('')
+  VistA.wait('SHOW STATUS SCREEN')
+  VistA.write('YES')
+  VistA.wait('USE HIGH INTENSITY ON SCREENS')
+  VistA.write('^^')
+  VistA.wait('Enter 1-3 to EDIT, or RETURN to QUIT')
+  VistA.write('2')
+  VistA.wait('DAYS TO UPDATE MEDICAID')
+  VistA.write('365')
+  VistA.wait('DAYS TO MAINTAIN G&L CORR')
+  VistA.write('30')
+  VistA.wait('TIME FOR LATE DISPOSITION')
+  VistA.write('30')
+  VistA.wait('SUPPLEMENTAL 10/10')
+  VistA.write('0')
+  VistA.wait(':')
+  VistA.write('^ASK DEVICE IN REGISTRATION')
+  VistA.wait('ASK DEVICE IN REGISTRATION')
+  VistA.write('YES')
+  VistA.wait('DAYS TO MAINTAIN SENSITIVITY')
+  VistA.write('30')
+  VistA.wait(':')
+  VistA.write('^^')
+  VistA.wait('Enter 1-3 to EDIT, or RETURN to QUIT')
+  VistA.write('3')
+  VistA.wait(':')
+  VistA.write('^INSTITUTION FILE POINTER')
+  VistA.wait('INSTITUTION FILE POINTER')
+  VistA.write(institution)
+  VistA.wait(':')
+  VistA.write('^^')
+  VistA.wait('Enter 1-3 to EDIT, or RETURN to QUIT')
+  VistA.write('')
+  VistA.wait('ADT System Definition Menu')
+  VistA.write('')
+  VistA.wait('YES//')
+  VistA.write('')
+  VistA.wait(PROMPT)
+  VistA.write('')
+
+
+def setupNursLocation(VistA, unit_name):
+  # Set up a NURS LOCATION entity so that BCMA can connect to the system.
+  startFileman(VistA)
+  VistA.write('1')
+  VistA.wait_re('INPUT TO WHAT FILE:')
+  VistA.write('NURS LOCATION')
+  VistA.wait('EDIT WHICH FIELD')
+  VistA.write('')
+  VistA.wait('NURSING UNIT NAME')
+  VistA.write(unit_name)
+  VistA.wait('Are you adding')
+  VistA.write('Y')
+  VistA.wait('Are you adding')
+  VistA.write('Y')
+  VistA.wait('PRODUCT LINE')
+  VistA.write('NURSING')
+  VistA.wait('CARE SETTING')
+  VistA.write("INPATIENT")
+  VistA.wait('UNIT TYPE')
+  VistA.write("CLINICAL")
+  VistA.wait('INPATIENT DSS DEPARTMENT')
+  VistA.write('')
+  VistA.wait('PATIENT CARE FLAG')
+  VistA.write('A')
+  VistA.wait('INACTIVE FLAG')
+  VistA.write('A')
+  VistA.wait('MAS WARD')
+  VistA.write('')
+  VistA.wait('AMIS BED SECTION')
+  VistA.write('')
+  VistA.wait('PROFESSIONAL PERCENTAGE')
+  VistA.write('')
+  VistA.wait('UNIT EXPERIENCE')
+  VistA.write('')
+  VistA.wait('POC DATA ENTRY PERSONNEL')
+  VistA.write('')
+  VistA.wait('POC DATA APPROVAL PERSONNEL')
+  VistA.write('')
+  VistA.wait('SERVICE DATE')
+  VistA.write('')
+  VistA.wait('SERVICE DATE')
+  VistA.write('')
+  VistA.wait('STATUS')
+  VistA.write('')
+  VistA.wait('NURSING UNIT NAME')
+  VistA.write('')
+  VistA.wait('Select OPTION')
+  VistA.write('')
+
 def setupStrepTest(VistA):
   # The Sikuli test for CPRS orders a Streptozyme test for the patient
   # This information ensures the test can be ordered at the VistA Health care
@@ -453,7 +883,7 @@ def setupStrepTest(VistA):
   # area at an Institution.
   startFileman(VistA)
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('ACCESSION\r1')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('.4\r')
@@ -466,7 +896,7 @@ def setupStrepTest(VistA):
   # area at the Vista Health Care institution
   VistA.wait('OPTION')
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('LABORATORY TEST')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('ACCESSION AREA\r\r')
@@ -482,7 +912,7 @@ def setupStrepTest(VistA):
   # used by the Laboratory
   VistA.wait('OPTION')
   VistA.write('1')
-  VistA.wait('INPUT TO WHAT FILE')
+  VistA.wait_re('INPUT TO WHAT FILE')
   VistA.write('ADMINISTRATION SCHEDULE')
   VistA.wait('EDIT WHICH FIELD')
   VistA.write('PACKAGE PREFIX\r')
@@ -561,17 +991,21 @@ def registerVitalsCPRS(VistA):
   # that will be used during testing.
   # Files can be downloaded: http://www.osehra.org/document/guis-used-automatic-functional-testing
   VistA.wait(PROMPT,60)
-  VistA.write('S GMVDLL=\"GMV_VITALSVIEWENTER.DLL:v. 08/11/09 15:00\"')
+  VistA.write('S GMVDLL=\"5.0.38.3\"')
   VistA.wait(PROMPT,60)
   VistA.write('D EN^XPAR(\"SYS\",\"GMV DLL VERSION\",GMVDLL,1)')
   VistA.wait(PROMPT,60)
-  VistA.write('S GMVDLL=\"GMV_VITALSVIEWENTER.DLL:v. 01/21/11 12:52\"')
-  VistA.wait(PROMPT,60)
-  VistA.write('D EN^XPAR(\"SYS\",\"GMV DLL VERSION\",GMVDLL,1)')
-  VistA.wait(PROMPT,60)
-  VistA.write('S GMVGUI=\"VITALSMANAGER.EXE:5.0.26.1\"')
+  VistA.write('S GMVGUI=\"VITALSMANAGER.EXE:5.0.38.3\"')
   VistA.wait(PROMPT,60)
   VistA.write('D EN^XPAR(\"SYS\",\"GMV GUI VERSION\",GMVGUI,1)')
+  VistA.wait(PROMPT,60)
+  VistA.write('S GMVGUI=\"VITALS.EXE:5.0.38.3\"')
+  VistA.wait(PROMPT,60)
+  VistA.write('D EN^XPAR(\"SYS\",\"GMV GUI VERSION\",GMVGUI,1)')
+
+def removeCAPRILogin(VistA):
+  VistA.wait(PROMPT,60)
+  VistA.write('D EN^XPAR(\"SYS\",\"XU522\",1,\"Y\")')
 
 def addDoctor(VistA,name,init,SSN,sex,AC,VC1):
   # Adds a Doctor user into the system via the User Management Menu as
@@ -594,14 +1028,14 @@ def addDoctor(VistA,name,init,SSN,sex,AC,VC1):
   VistA.wait('NAME COMPONENTS')
   # A ScreenMan form opens at this point, and the following information is set:
   # Primary Menu:   XUCORE
-  # Secondary Menu: GMPL MGT MENU, OR CPRS GUI CHART, GMV V/M GUI
+  # Secondary Menu: PSB GUI CONTEXT, GMPL MGT MENU, OR CPRS GUI CHART, GMV V/M GUI,
   # Access Code:    <passed as argument>
   # Verify Code:    <passed as argument>
   # No restriction on Patient Selection
   # Allowed multiple sign-ons
   # Allopathic and Osteopathic Physicians as the Person Class
   # Core CPRS Tab access
-  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rXUCOR\r^SECONDARY MENU OPTIONS\rGMPL MGT MENU\rY\r\r\r\rOR CPRS GUI CHART\rY\r\r\r\rGMV V/M GUI\rY\r\r\r\r^Want to edit ACCESS CODE\rY\r'+AC+'\r'+AC+'\r^Want to edit VERIFY CODE\rY\r'+VC1+'\r'+VC1+'\rVISTA HEALTH CARE\rY\r\r\r\r\r^SERVICE/SECTION\rIRM\r^Language\r\r767\rY\rY\rT-1\r\r^RESTRICT PATIENT SELECTION\r0\r\rCOR\rY\rT-1\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^\rE\rY')
+  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rXUCOR\r^SECONDARY MENU OPTIONS\rPSB GUI CONTEXT\rY\r\r\r\rGMPL MGT MENU\rY\r\r\r\rOR CPRS GUI CHART\rY\r\r\r\rGMV V/M GUI\rY\r\r\r\r^Want to edit ACCESS CODE\rY\r'+AC+'\r'+AC+'\r^Want to edit VERIFY CODE\rY\r'+VC1+'\r'+VC1+'\rVISTA HEALTH CARE\rY\r\r\r\r\r^SERVICE/SECTION\rIRM\r^Language\r\r767\rY\rY\rT-1\r\r^RESTRICT PATIENT SELECTION\r0\r\rCOR\rY\rT-1\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^\rS\rE')
   # Exiting the ScreenMan form, Allocate Security Keys
   # PROVIDER,GMV MANAGER,LRLAB,LRVERIFY,ORES,SD SUPERVISOR,SDWL PARAMETER,SDWL MENU,
   VistA.wait('User Account Access Letter')
@@ -624,6 +1058,8 @@ def addDoctor(VistA,name,init,SSN,sex,AC,VC1):
   VistA.write('SDWL PARAMETER')
   VistA.wait('Another key')
   VistA.write('SDWL MENU')
+  VistA.wait('Another key')
+  VistA.write('PSB MANAGER')
   VistA.wait('Another key')
   VistA.write('')
   VistA.wait('Another holder')
@@ -657,14 +1093,14 @@ def addNurse(VistA,name,init,SSN,sex,AC,VC1):
   VistA.wait('NAME COMPONENTS')
   # A ScreenMan form opens at this point, and the following information is set:
   # Primary Menu:   XUCORE
-  # Secondary Menu: GMPL MGT MENU, OR CPRS GUI CHART, GMV V/M GUI
+  # Secondary Menu: PSB GUI CONTEXT, GMPL MGT MENU, OR CPRS GUI CHART, GMV V/M GUI,
   # Access Code:    <passed as argument>
   # Verify Code:    <passed as argument>
   # No restriction on Patient Selection
   # Allowed multiple sign-ons
   # Nursing Service Provider as the Person Class
   # Core CPRS Tab access
-  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rXUCOR\r^SECONDARY MENU OPTIONS\rGMPL MGT MENU\rY\r\r\r\rOR CPRS GUI CHART\rY\r\r\r\rGMV V/M GUI\rY\r\r\r\r^Want to edit ACCESS CODE\rY\r'+AC+'\r'+AC+'\r^Want to edit VERIFY CODE\rY\r'+VC1+'\r'+VC1+'\rVISTA HEALTH CARE\rY\r\r\r\r\r^SERVICE/SECTION\rIRM\r^Language\r\r289\rY\rY\rT-1\r\r^RESTRICT PATIENT SELECTION\r0\r\rCOR\rY\rT-1\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^\rE\rY')
+  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rXUCOR\r^SECONDARY MENU OPTIONS\rPSB GUI CONTEXT\rY\r\r\r\rGMPL MGT MENU\rY\r\r\r\rOR CPRS GUI CHART\rY\r\r\r\rGMV V/M GUI\rY\r\r\r\r^Want to edit ACCESS CODE\rY\r'+AC+'\r'+AC+'\r^Want to edit VERIFY CODE\rY\r'+VC1+'\r'+VC1+'\rVISTA HEALTH CARE\rY\r\r\r\r\r^SERVICE/SECTION\rIRM\r^Language\r\r289\rY\rY\rT-1\r\r^RESTRICT PATIENT SELECTION\r0\r\rCOR\rY\rT-1\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^\rS\rE')
   # Exiting the ScreenMan form, Allocate Security Keys
   # PROVIDER,ORELSE
   VistA.wait('User Account Access Letter')
@@ -672,6 +1108,8 @@ def addNurse(VistA,name,init,SSN,sex,AC,VC1):
   VistA.wait('wish to allocate security keys?')
   VistA.write('Y')
   VistA.wait('Allocate key')
+  VistA.write('PSB MANAGER')
+  VistA.wait('Another key')
   VistA.write('PROVIDER\r1')
   VistA.wait('Another key')
   VistA.write('ORELSE\r')
@@ -712,7 +1150,7 @@ def addClerk(VistA,name,init,SSN,sex,AC,VC1):
   # No restriction on Patient Selection
   # Allowed multiple sign-ons
   # Core CPRS Tab access
-  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rXUCOR\r^SECONDARY MENU OPTIONS\rGMPL DATA ENTRY\rY\r\r\r\rOR CPRS GUI CHART\rY\r\r\r\rGMV V/M GUI\rY\r\r\r\r^Want to edit ACCESS CODE\rY\r'+AC+'\r'+AC+'\r^Want to edit VERIFY CODE\rY\r'+VC1+'\r'+VC1+'\rVISTA HEALTH CARE\rY\r\r\r\r\r^SERVICE/SECTION\rIRM\r^RESTRICT PATIENT SELECTION\r0\r\rCOR\rY\rT-1\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^\rE\rY')
+  VistA.write('\r\r\r\r\r^PRIMARY MENU OPTION\rXUCOR\r^SECONDARY MENU OPTIONS\rGMPL DATA ENTRY\rY\r\r\r\rOR CPRS GUI CHART\rY\r\r\r\rGMV V/M GUI\rY\r\r\r\r^Want to edit ACCESS CODE\rY\r'+AC+'\r'+AC+'\r^Want to edit VERIFY CODE\rY\r'+VC1+'\r'+VC1+'\rVISTA HEALTH CARE\rY\r\r\r\r\r^SERVICE/SECTION\rIRM\r^RESTRICT PATIENT SELECTION\r0\r\rCOR\rY\rT-1\r\r^MULTIPLE SIGN-ON\r1\r1\r99\r^\rS\rE')
   # Exiting the ScreenMan form, Allocate Security Key
   # ORELSE
   VistA.wait('User Account Access Letter')
@@ -986,6 +1424,25 @@ def addTemplatePermission(VistA,init):
   VistA.wait('Option')
   VistA.write('\r')
 
+def setNonExpiringCodes(VistA, nameArray):
+  startFileman(VistA)
+  VistA.write('ENTER')
+  VistA.wait('Input to what File')
+  VistA.write('NEW PERSON')
+  VistA.wait_re('EDIT WHICH FIELD')
+  VistA.write('7.2')
+  VistA.wait('THEN EDIT')
+  VistA.write('')
+  for name in nameArray:
+    VistA.wait("NEW PERSON NAME")
+    VistA.write(name)
+    VistA.wait('VERIFY CODE never expires')
+    VistA.write('Y')
+  VistA.wait("NEW PERSON NAME")
+  VistA.write('')
+  VistA.wait_re('Select OPTION')
+  VistA.write('')
+
 def createClinic(VistA,name,abbrv,service):
   # Add clinic via the XUP menu to allow scheduling
   # Clinic Information:
@@ -1000,15 +1457,13 @@ def createClinic(VistA,name,abbrv,service):
   #   Length of Appointment:            30
   #   Variable Length Appointments?:    Y
   #   Display increments per hour:      2
-  VistA.wait('Systems Manager Menu')
-  VistA.write('Core Applications')
-  VistA.wait('Core Applications')
-  VistA.write('Scheduling Manager')
-  VistA.wait('Scheduling Manager\'s Menu')
-  VistA.write('Supervisor Menu')
-  VistA.wait('Supervisor Menu')
-  VistA.write('Set up a Clinic')
-  VistA.wait('Select CLINIC NAME')
+  VistA.wait(PROMPT)
+  VistA.write('W $$NOSEND^VAFHUTL')
+  VistA.wait('0')
+  VistA.write('S DUZ=1 D ^XUP')
+  VistA.wait('OPTION NAME:')
+  VistA.write('SDBUILD')
+  VistA.wait('CLINIC NAME:')
   VistA.write(name)
   VistA.wait('Are you adding')
   VistA.write('Y')
@@ -1016,9 +1471,14 @@ def createClinic(VistA,name,abbrv,service):
   VistA.write('')
   VistA.wait('ABBREVIATION')
   VistA.write(abbrv)
-  VistA.wait('CLINIC MEETS')
-  VistA.write('Y')
-  VistA.wait('SERVICE')
+  while True:
+    index = VistA.multiwait(['SERVICE','CLINIC MEETS','PATIENT FRIENDLY NAME','ALLOW DIRECT PATIENT','DISPLAY CLIN APPT'])
+    if index == 0:
+      break;
+    if index == 2:
+      VistA.write('')
+    else:
+      VistA.write('Y')
   VistA.write(service)
   VistA.wait('NON-COUNT CLINIC')
   VistA.write('N')
@@ -1026,7 +1486,10 @@ def createClinic(VistA,name,abbrv,service):
   VistA.write('301\r\r')
   VistA.wait('TELEPHONE')
   VistA.write('555-555-1414\r\r\r\r\r\r\r\r\r\r\r')
-  VistA.wait('ALLOWABLE CONSECUTIVE NO-SHOWS')
+  index = VistA.multiwait(['ALLOWABLE CONSECUTIVE NO-SHOWS','WORKLOAD VALIDATION'])
+  if index == 1:
+    VistA.write('')
+    VistA.wait('ALLOWABLE CONSECUTIVE NO-SHOWS')
   VistA.write('0')
   VistA.wait('FUTURE BOOKING')
   VistA.write('90')
@@ -1058,9 +1521,9 @@ def createClinic(VistA,name,abbrv,service):
     VistA.wait('PATTERN OK')
     VistA.write('Yes')
   VistA.wait('AVAILABILITY DATE')
-  VistA.write('\r\r\r\r\r')
-  VistA.wait('Do you really want to halt?')
-  VistA.write('Y')
+  VistA.write('')
+  VistA.wait('CLINIC NAME:')
+  VistA.write('')
 
 def setupElectronicSignature(VistA,AC,VC1,VC2,sigcode):
   # Signs a created user into the ZU Menu system to add a signature code for
@@ -1097,84 +1560,160 @@ def setupElectronicSignature(VistA,AC,VC1,VC2,sigcode):
   VistA.wait('Toolbox')
   VistA.write('\r\r\r')
 
-# Add patient through the
-# Function arguments:
-# VistA, Patient Name, Patient Sex,Patient DOB, Patient SSN, Patient Veteran?
-def addPatient(VistA,name,sex,DOB,SSN,vet):
-  VistA.wait("Core Applications")
-  VistA.write("ADT Manager Menu")
-  index = VistA.multiwait(['to continue','Select ADT Manager Menu'])
-  if index == 0:
-    VistA.write('')
-    VistA.wait('ADT Manager Menu')
-  VistA.write("Registration Menu")
-  VistA.wait("Registration Menu")
-  VistA.write('Register a Patient')
-  index = VistA.multiwait(['PATIENT NAME',"Select 1010 printer"])
-  if index == 1:
-    VistA.write("NULL")
-    VistA.wait('PATIENT NAME')
-  VistA.write(name +'\rY')
-  VistA.wait('SEX')
-  VistA.write(sex)
-  VistA.wait('DATE OF BIRTH')
-  VistA.write(DOB)
-  VistA.wait('SOCIAL SECURITY NUMBER')
-  VistA.write(SSN)
-  VistA.wait('TYPE')
-  VistA.write('NON-VETERAN')
-  VistA.wait('PATIENT VETERAN')
-  VistA.write(vet)
-  VistA.wait('SERVICE CONNECTED')
-  VistA.write('NO')
-  VistA.wait('MULTIPLE BIRTH INDICATOR')
-  VistA.write('')
-  VistA.wait('//')
-  VistA.write('^\r')
-  VistA.wait('MAIDEN NAME:')
-  VistA.write('')
-  VistA.wait('[CITY]')
-  VistA.write('Santa Monica')
-  VistA.wait('[STATE]')
-  VistA.write('California')
-  VistA.wait('ALIAS')
-  VistA.write('')
-  if VistA.type=='cache':
-    # Enter in more information about the patient.
-    VistA.wait('exit:')
-    VistA.write('\r')
-    VistA.wait('Patient Data')
-    VistA.write('Y')
-    VistA.wait('QUIT')
-    VistA.write('4')
-    VistA.wait('COUNTRY')
-    VistA.write('')
-    VistA.wait('STREET ADDRESS')
-    VistA.write('834 Ocean Vista Avenue\r')
-    VistA.wait('ZIP')
-    VistA.write('90401')
-    VistA.wait('CITY')
-    VistA.write('1')
-    VistA.wait('PHONE NUMBER')
-    VistA.write('310-555-2233\r\r')
-    VistA.wait('changes')
-    VistA.write('Y\r')
-    VistA.wait('QUIT')
-    VistA.write('\r\r')
-    VistA.wait('QUIT')
-    VistA.write('1')
-    VistA.wait('PRIMARY NOK')
-    VistA.write('Carter,David J Sr')
-    VistA.wait('RELATIONSHIP')
-    VistA.write('FATHER')
-    VistA.wait('ADDRESS')
-    VistA.write('Y')
-    VistA.wait('WORK PHONE')
-    VistA.write('310-555-9876\r^')
-    VistA.wait('condition')
-    VistA.write('N')
-    VistA.wait('today')
-    VistA.write('Y')
-    VistA.wait('Registration login')
-    VistA.write('NOW')
-    VistA.wait(PROMPT)
+  # Add patient through the
+  # Function arguments:
+  # VistA, Patient Name, Patient Sex, Patient DOB, Patient SSN, Patient Veteran?
+def addPatient(VistA, pfile):
+    '''Add ALL patients from specified CSV '''
+    preader = TestHelper.CSVFileReader()
+    prec = preader.getfiledata(pfile)
+    for key in sorted(prec):
+      patient_data = prec[key]
+      VistA.write('L  S DUZ=1 D ^XUP')
+      VistA.wait('Select OPTION NAME')
+      VistA.write('Core Applications\r')
+      VistA.wait("Select Core Applications")
+      VistA.write("ADT Manager Menu")
+      while True:
+        index = VistA.multiwait(['to continue','Select ADT Manager Menu',"Select Registration Menu"])
+        if index == 0:
+          VistA.write('')
+        elif index == 1:
+          VistA.write("Registration Menu")
+        elif index == 2:
+          VistA.write('Register a Patient')
+          break
+      index = VistA.multiwait(['PATIENT NAME',"Select 1010 printer"])
+      if index == 1:
+        VistA.write("NULL")
+        VistA.wait('PATIENT NAME')
+      VistA.write(patient_data['fullname'].strip())
+      index = VistA.multiwait(['ARE YOU ADDING','Enterprise Search'])
+      VistA.write('Y')
+      if index == 1:
+        while True:
+          index = VistA.multiwait(['FAMILY','GIVEN','MIDDLE NAME','PREFIX','SUFFIX',
+                                   'DEGREE','SOCIAL SECURITY','DATE OF BIRTH','SEX',
+                                   'MAIDEN NAME','CITY','STATE', 'MULTIPLE BIRTH',
+                                   'PHONE NUMBER','ARE YOU ADDING'])
+          if index == 14:
+            VistA.write('Y')
+            break
+          elif index == 6:
+            VistA.write(patient_data['ssn'])
+          elif index == 7:
+            VistA.write(patient_data['dob'].strip())
+          elif index == 8:
+            VistA.write(patient_data['sex'].strip())
+          else:
+            VistA.write('')
+        VistA.wait('to continue')
+        VistA.write('')
+        VistA.wait('MULTIPLE BIRTH INDICATOR')
+        VistA.write('')
+        VistA.wait('MAIDEN NAME:')
+        VistA.write('')
+      else:
+        VistA.wait('SEX')
+        VistA.write(patient_data['sex'].strip())
+        VistA.wait('DATE OF BIRTH')
+        VistA.write(patient_data['dob'].strip())
+        VistA.wait('SOCIAL SECURITY NUMBER')
+        VistA.write(patient_data['ssn'])
+        VistA.wait('TYPE')
+        VistA.write(patient_data['type'].strip())
+        VistA.wait('PATIENT VETERAN')
+        VistA.write(patient_data['veteran'].strip())
+        VistA.wait('SERVICE CONNECTED')
+        VistA.write(patient_data['service'].strip())
+        VistA.wait('MULTIPLE BIRTH INDICATOR')
+        VistA.write(patient_data['twin'].strip())
+        index = VistA.multiwait(["Do you still",'FAMILY'])
+        if index == 0:
+          VistA.write('Y')
+          VistA.wait("FAMILY")
+        VistA.write('^\r')
+        VistA.wait('MAIDEN NAME:')
+        VistA.write('')
+      VistA.wait('[CITY]')
+      VistA.write(patient_data['cityob'].strip())
+      VistA.wait('[STATE]')
+      VistA.write(patient_data['stateob'].strip())
+      VistA.wait('ALIAS')
+      VistA.write('')
+      while True:
+        waitIndex = VistA.multiwait(['Patient Data', 'to exit:'])
+        if waitIndex == 0:
+          break
+        VistA.write('')
+      VistA.write('Y')
+      index = VistA.multiwait(['QUIT','Do you want to edit'])
+      if index == 1:
+        VistA.write('N')
+        VistA.wait("QUIT")
+      # VistA.write("^1.1")
+      # VistA.wait("QUIT")
+      # VistA.write('1')
+      # VistA.wait('COUNTRY')
+      # VistA.write('')
+      # VistA.wait('ADDRESS')
+      # VistA.write('834 Ocean Vista Avenue\r')
+      # VistA.wait('ZIP')
+      # VistA.write('90401')
+      # VistA.wait('CITY')
+      # VistA.write('1')
+      # VistA.wait('PHONE NUMBER')
+      # VistA.write('310-555-2233\r')
+      # VistA.wait('ADDRESS changes')
+      # VistA.write('Y\r')
+      # VistA.wait('PHONE changes')
+      # VistA.write('Y\r')
+      # VistA.wait("Copy the Residential")
+      # VistA.write('N')
+      # VistA.wait('QUIT')
+      # VistA.write('^3')
+      # VistA.wait('QUIT')
+      # VistA.write('1')
+      # VistA.wait('PRIMARY NOK')
+      # VistA.write('Carter,David J Sr')
+      # VistA.wait('RELATIONSHIP')
+      # VistA.write('FATHER')
+      # VistA.wait('ADDRESS')
+      # VistA.write('Y')
+      # VistA.wait('WORK PHONE')
+      # VistA.write('310-555-9876\r^')
+      VistA.write("^")
+      VistA.wait('condition')
+      VistA.write('N')
+      VistA.wait('today')
+      VistA.write('N')
+      VistA.wait('Registration login')
+      VistA.write('NOW')
+      VistA.wait("TYPE OF BENEFIT")
+      VistA.write('3')
+      VistA.wait("TYPE OF CARE")
+      VistA.write('5')
+      VistA.wait("REGISTRATION ELIGIBILITY CODE")
+      VistA.write('')
+      VistA.wait("NEED RELATED TO AN ACCIDENT")
+      VistA.write('N')
+      VistA.wait("NEED RELATED TO OCCUPATION")
+      VistA.write('N')
+      index = VistA.multiwait(["VA Patient Enrollment", "PRINT 10"])
+      if index == 0:
+        VistA.write('No')
+        VistA.wait("as soon as available")
+        VistA.write('No')
+        VistA.wait("PRINT 10")
+      VistA.write('N')
+      VistA.wait("ROUTING SLIP")
+      VistA.write('N')
+      VistA.wait_re("SELECT PATIENT NAME")
+      VistA.write('^')
+      while True:
+        index = VistA.multiwait(["to halt","Core Applications", "to continue",
+                                 "Select ADT Manager Menu", "Registration Menu"])
+        VistA.write('')
+        if index == 0:
+          break
+      VistA.wait(PROMPT)

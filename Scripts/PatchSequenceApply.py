@@ -7,7 +7,7 @@
 #   python PatchSequenceApply.py -h
 #
 #---------------------------------------------------------------------------
-# Copyright 2011-2012 The Open Source Electronic Health Record Agent
+# Copyright 2011-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -21,8 +21,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import print_function
 from __future__ import with_statement
+from builtins import str
+from builtins import range
+from builtins import object
 import sys
 import os
 import re
@@ -56,8 +59,9 @@ from VistATaskmanUtil import VistATaskmanUtil
 class PatchSequenceApply(object):
   DEFAULT_VISTA_LOG_FILENAME = "VistAInteraction.log"
   DEFAULT_OUTPUT_FILE_LOG = "PatchAnalyzer.log"
-  def __init__(self, testClient, logFileDir):
+  def __init__(self, testClient, logFileDir, testClient2=None):
     self._testClient = testClient
+    self._testClient2 = testClient2
     curTimestamp = getCurrentTimestamp()
     logFileName = "%s.%s" % (self.DEFAULT_VISTA_LOG_FILENAME, curTimestamp)
     self._logFileName = os.path.join(logFileDir,
@@ -83,6 +87,7 @@ class PatchSequenceApply(object):
     if installName and installName not in self._patchSet:
       errMsg = ("Can not find patch for install name %s" % installName)
       raise Exception(errMsg)
+    dependencyIssues = {}
     for patchInfo in patchList:
       namespace = patchInfo.namespace
       self.__updatePatchInfoPackageName__(patchInfo)
@@ -93,12 +98,14 @@ class PatchSequenceApply(object):
         if self.__isPatchReadyToInstall__(patchInfo, patchList):
           self._outPatchList.append(patchInfo)
         else:
-          errorMsg = ("Can not install patch %s" % patchInfo.installName)
-          logger.error(errorMsg)
-          raise Exception(errorMsg)
+          dependencyIssues[patchInfo.installName] = patchInfo.depKIDSBuild
+          continue #raise Exception(errorMsg)
       if isUpToPatch and installName and installName == patchInfo.installName:
         break
-
+    if len(dependencyIssues):
+        for obj in dependencyIssues:
+            logger.error("Problems found with dependencies of %s in: %s" % (obj, dependencyIssues[obj]))
+        raise Exception("Dependency Errors Found")
     logger.info("Total patches are %d" % len(self._outPatchList))
     for patchInfo in self._outPatchList:
       logger.info("%s, %s, %s" % (patchInfo.installName,
@@ -271,6 +278,7 @@ class PatchSequenceApply(object):
   """ update package patch history """
   def __reloadPackagePatchHistory__(self, patchInfo):
     patchHistInfo = self._vistaPatchInfo
+    patchHistInfo.createAllPackageMapping()
     installNameList = []
     if patchInfo.isMultiBuilds:
       installNameList = patchInfo.multiBuildsList
@@ -298,6 +306,8 @@ class PatchSequenceApply(object):
     seqNo = patchInfo.seqNo
     logFileName = self._logFileName
     multiBuildsList = patchInfo.multiBuildsList
+    if multiBuildsList:
+      installName = multiBuildsList[0]
     kidsInstaller = None
     """ handle patch stored as external link """
     if patchInfo.kidsSha1Path != None:
@@ -323,17 +333,19 @@ class PatchSequenceApply(object):
                                       seqNo, logFileName,
                                       multiBuildsList,
                                       files=associateFiles,
-                                      globals=associatedGlobals)
+                                      globals=associatedGlobals,
+                                      duz = self._duz)
 
     else:
       kidsInstaller = KIDSInstallerFactory.createKIDSInstaller(
                             kidsPath, installName, seqNo, logFileName,
                             multiBuildsList,
                             files=associateFiles,
-                            globals=associatedGlobals)
+                            globals=associatedGlobals,
+                            duz = self._duz)
     logger.info("Applying Patch %s" % patchInfo)
     assert kidsInstaller
-    return kidsInstaller.runInstallation(self._testClient)
+    return kidsInstaller.runInstallation(self._testClient, self._testClient2)
 
   """ check to see if patch is ready to be installed """
   def __isPatchReadyToInstall__(self, patchInfo, patchList = None):
@@ -346,9 +358,8 @@ class PatchSequenceApply(object):
     """ check patch sequence no to see if it is out of order """
     if patchInfo.seqNo:
       seqNo = patchHist.getLatestSeqNo()
-      if patchInfo.seqNo < seqNo:
-        logger.error("SeqNo out of order, %s less than latest one %s" %
-                      (patchInfo.seqNo), seqNo)
+      if int(patchInfo.seqNo) < seqNo:
+        logger.error("SeqNo out of order, %s less than latest one %s" % (patchInfo.seqNo, seqNo))
         return False
     # check all the dependencies
     for item in patchInfo.depKIDSBuild:
@@ -376,6 +387,8 @@ class PatchSequenceApply(object):
       else:
         logger.error("dep %s is not installed for %s %s" %
                     (item, patchInfo.installName, patchInfo.kidsFilePath))
+        patchInfo.depKIDSBuild.remove(item)
+        patchInfo.depKIDSBuild.add(item+" <---")
         return False
     return True
 
@@ -400,6 +413,8 @@ def main():
   group.add_argument('-o', '--onlyPatch',
                      help='install specified patch and required patches only'
                           ', this option will ignore the CSV dependencies')
+  parser.add_argument('-d', '--duz', default=17, type=int,
+                help='installer\'s VistA instance\'s DUZ')
 
   result = parser.parse_args();
   print (result)
@@ -409,22 +424,27 @@ def main():
   assert os.path.exists(outputDir)
   """ create the VistATestClient"""
   testClient = VistATestClientFactory.createVistATestClientWithArgs(result)
+  testClient2 = VistATestClientFactory.createVistATestClientWithArgs(result)
   assert testClient
   initConsoleLogging()
   with testClient as vistAClient:
     patchSeqApply = PatchSequenceApply(vistAClient, outputDir)
-    if result.upToPatch:
-      patchSeqApply.generatePatchSequence(inputPatchDir,
-                                               result.upToPatch, True)
-    else:
-      patchSeqApply.generatePatchSequence(inputPatchDir, result.onlyPatch)
-    if result.install:
-      if result.onlyPatch:
-        patchSeqApply.applyPatchSequenceByNumber("All")
-      elif result.upToPatch:
-        patchSeqApply.applyPatchSequenceByInstallName(result.upToPatch)
+    patchSeqApply._duz = result.duz
+    assert testClient2
+    with testClient2 as vistAClient2:
+      patchSeqApply._testClient2 = vistAClient2
+      if result.upToPatch:
+        patchSeqApply.generatePatchSequence(inputPatchDir,
+                                                 result.upToPatch, True)
       else:
-        patchSeqApply.applyPatchSequenceByNumber(result.numOfPatch)
+        patchSeqApply.generatePatchSequence(inputPatchDir, result.onlyPatch)
+      if result.install:
+        if result.onlyPatch:
+          patchSeqApply.applyPatchSequenceByNumber("All")
+        elif result.upToPatch:
+          patchSeqApply.applyPatchSequenceByInstallName(result.upToPatch)
+        else:
+          patchSeqApply.applyPatchSequenceByNumber(result.numOfPatch)
 
 if __name__ == '__main__':
   main()

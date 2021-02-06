@@ -121,6 +121,7 @@ type
 
   type
   TCollSamp = class(TObject)
+  public
     CollSampID: Integer;                  { IEN of CollSamp }
     CollSampName: string;                 { Name of CollSamp }
     SpecimenID: Integer;                  { IEN of default specimen }
@@ -134,6 +135,7 @@ type
   end;
 
   TLabTest = class(TObject)
+  public
     TestID: Integer;                      { IEN of Lab Test }
     TestName: string;                     { Name of Lab Test }
     LabSubscript: string ;                { which section of Lab? }
@@ -186,7 +188,7 @@ implementation
 {$R *.DFM}
 
 uses rODBase, rODLab, uCore, rCore, fODLabOthCollSamp, fODLabOthSpec, fODLabImmedColl, fLabCollTimes,
- rOrders, uODBase, fRptBox, fFrame;
+ rOrders, uODBase, fRptBox, fFrame, VAUtils;
 
 
 var
@@ -245,11 +247,11 @@ begin
       EvtDelayLoc := StrToIntDef(GetEventLoc1(IntToStr(Self.EvtID)),0);
       EvtDivision := StrToIntDef(GetEventDiv1(IntToStr(Self.EvtID)),0);
       if EvtDelayLoc>0 then
-        FastAssign(ODForLab(EvtDelayLoc, EvtDivision), AList)
+        ODForLab(AList, EvtDelayLoc, EvtDivision)
       else
-        FastAssign(ODForLab(Encounter.Location, EvtDivision), AList);
+        ODForLab(AList, Encounter.Location, EvtDivision);
     end else
-      FastAssign(ODForLab(Encounter.Location), AList); // ODForLab returns TStrings with defaults
+      ODForLab(aList, Encounter.Location);
     CtrlInits.LoadDefaults(AList);
     InitDialog;
     with CtrlInits do
@@ -484,7 +486,7 @@ begin
         begin
           OneSamp := TStringList.Create;
           try
-            FastAssign(GetOneCollSamp(StrToInt(LRFSAMP)), OneSamp);
+            GetOneCollSamp(OneSamp, StrToInt(LRFSAMP));
             FillCollSampList(OneSamp, CollSampList.Count);
           finally
             OneSamp.Free;
@@ -1061,9 +1063,9 @@ begin
           GetAllSpecimens(cboSpecimen);
         if ItemIEN = 0 then SetError(TX_NO_SPECIMEN);
       end;
-      
-  If ALabTest.Urgency <= 0 then begin
-    with ALabTest do
+
+  If (ALabTest <> nil) and (ALabTest.Urgency <= 0) then begin
+   with ALabTest do
     ChangeUrgency(cboUrgency.ItemID);
    ControlChange(Self);
   end;
@@ -1222,7 +1224,7 @@ end;
 procedure TfrmODLab.cboAvailTestNeedData(Sender: TObject;
               const StartFrom: string; Direction, InsertAt: Integer);
 begin
-  cboAvailTest.ForDataUse(SubsetOfOrderItems(StartFrom, Direction, 'S.LAB'));
+  cboAvailTest.ForDataUse(SubsetOfOrderItems(StartFrom, Direction, 'S.LAB', Responses.QuickOrder));
 end;
 
 procedure TfrmODLab.cboAvailTestExit(Sender: TObject);
@@ -1734,7 +1736,7 @@ begin
   if (not pnlDoseDraw.Visible) or (ALabTest = nil) then exit;
   with txtDoseTime do
     if Length(Text)>0 then
-      Text := FormatFMDateTime('mm/dd/yy hh:nn', StrToFMDateTime(Text))
+      Text := FormatFMDateTime('mm/dd/yy@hh:nn', StrToFMDateTime(Text))
     else
       Text := 'UNKNOWN';
   DoseDrawComment;
@@ -1747,7 +1749,7 @@ begin
   if (not pnlDoseDraw.Visible) or (ALabTest = nil) then exit;
   with txtDrawTime do
     if Length(Text)>0 then
-      Text := FormatFMDateTime('mm/dd/yy hh:nn', StrToFMDateTime(Text))
+      Text := FormatFMDateTime('mm/dd/yy@hh:nn', StrToFMDateTime(Text))
     else
       Text := 'UNKNOWN';
   DoseDrawComment;

@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2013 The Open Source Electronic Health Record Agent
+# Copyright 2013-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import print_function
+from builtins import str
+from builtins import object
 import sys
 import os
 import subprocess
@@ -65,6 +67,10 @@ def generateCommitMsgFileByPatchInfo(patchInfo, commitMsgFile,
     if patchInfo.multiBuildsList:
       topicLine = "Install: %s" % (", ".join(patchInfo.multiBuildsList))
     output.write("%s\n" % topicLine)
+    output.write("\nPatch Subject: %s" % patchInfo.subject)
+    output.write('\n')
+    output.write("Description:\n\n" + '\n'.join([str(x) for x in patchInfo.description]))
+    output.write('\n')
     output.write('\n')
     output.write('Use default answers for KIDS load/install questions.\n')
     output.write('\n')
@@ -85,11 +91,12 @@ def getWebLinkForPatchSourceMultiBuilds(patchInfo, reposHash):
   buildLink = getWebLinkForPatchSourceByFile(patchInfo.kidsFilePath,
                                              reposHash, fileType=True)
   otherLink = []
-  for item in patchInfo.otherKidsInfoList:
-    if item[0]:
-      otherLink.append(getWebLinkForPatchSourceByFile(item[0], reposHash))
-    else:
-      otherLink.append(None)
+  if patchInfo.otherKidsInfoList:
+    for item in patchInfo.otherKidsInfoList:
+      if item[0]:
+        otherLink.append(getWebLinkForPatchSourceByFile(item[0], reposHash))
+      else:
+        otherLink.append(None)
   return buildLink, otherLink
 
 def getWebLinkForPatchSourceByFile(filePath, reposHash, fileType=False):
@@ -103,7 +110,7 @@ def getWebLinkForPatchSourceByFile(filePath, reposHash, fileType=False):
   webLink = Template(PATCH_SRC_WEB_LINK)
   packageLink = webLink.substitute(type=typeName,
                                    patch_dir=packageDir,
-                                   hb=reposHash)
+                                   hb="master")
   return packageLink
 
 def testSinglePatchCommitMsg():
@@ -112,7 +119,7 @@ def testSinglePatchCommitMsg():
   patchInfo.kidsFilePath = "C:/users/jason.li/git/VistA/Packages/"\
                            "Lab Service/Patches/LR_5.2_334/LR_52_334.KIDs.json"
   commitMsgFile = getDefaultCommitMsgFileByPatchInfo(patchInfo)
-  print commitMsgFile
+  print(commitMsgFile)
   generateCommitMsgFileByPatchInfo(patchInfo, commitMsgFile,
                                    "origin/master", SCRIPTS_DIR)
 

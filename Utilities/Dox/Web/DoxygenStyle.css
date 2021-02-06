@@ -120,6 +120,7 @@ BODY {
 TD.indexkey {
        background-color: #e8eef2;
        font-weight: bold;
+       overflow-wrap: break-word;
        padding-right  : 10px;
        padding-top    : 2px;
        padding-left   : 10px;
@@ -132,6 +133,7 @@ TD.indexkey {
 }
 TD.indexvalue {
        background-color: #e8eef2;
+       overflow-wrap: break-word;
        font-style: italic;
        padding-right  : 10px;
        padding-top    : 2px;
@@ -393,3 +395,15 @@ HR { height: 1px;
 .directory p { margin: 0px; white-space: nowrap; }
 .directory div { display: none; margin: 0px; }
 .directory img { vertical-align: -30%; }
+
+.printButton {
+    background-color: #e8eef2;
+    border: none;
+    font-size: 11pt;
+    text-decoration: none;
+    font-weight: bold;
+    color: #1A419D;
+}
+table {
+  table-layout: fixed;
+}

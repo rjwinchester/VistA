@@ -2,19 +2,19 @@ inherited frmODActive: TfrmODActive
   Left = 267
   Top = 216
   Caption = 'Copy active orders for selected event'
-  ClientHeight = 316
-  ClientWidth = 539
+  ClientHeight = 311
+  ClientWidth = 530
   OldCreateOrder = False
   Position = poScreenCenter
   OnCreate = FormCreate
-  ExplicitWidth = 320
-  ExplicitHeight = 240
+  ExplicitWidth = 546
+  ExplicitHeight = 346
   PixelsPerInch = 96
   TextHeight = 13
   object lblCaption: TLabel [0]
     Left = 0
     Top = 0
-    Width = 539
+    Width = 530
     Height = 29
     Align = alTop
     AutoSize = False
@@ -25,20 +25,19 @@ inherited frmODActive: TfrmODActive
   object pnlClient: TPanel [1]
     Left = 0
     Top = 29
-    Width = 539
-    Height = 287
+    Width = 530
+    Height = 282
     Align = alClient
     BevelOuter = bvNone
     Locked = True
     TabOrder = 0
-    ExplicitHeight = 294
     DesignSize = (
-      539
-      287)
+      530
+      282)
     object btnOK: TButton
-      Left = 386
-      Top = 270
-      Width = 57
+      Left = 380
+      Top = 266
+      Width = 56
       Height = 20
       Anchors = [akRight, akBottom]
       Caption = 'OK'
@@ -46,9 +45,9 @@ inherited frmODActive: TfrmODActive
       OnClick = btnOKClick
     end
     object btnCancel: TButton
-      Left = 458
-      Top = 270
-      Width = 57
+      Left = 451
+      Top = 266
+      Width = 56
       Height = 20
       Anchors = [akRight, akBottom]
       Caption = 'Cancel'
@@ -58,12 +57,11 @@ inherited frmODActive: TfrmODActive
     object lstActiveOrders: TCaptionListBox
       Left = 0
       Top = 21
-      Width = 539
-      Height = 242
+      Width = 530
+      Height = 238
       Style = lbOwnerDrawVariable
       Align = alTop
       Anchors = [akLeft, akTop, akRight, akBottom]
-      ItemHeight = 16
       MultiSelect = True
       TabOrder = 1
       OnDblClick = btnOKClick
@@ -74,7 +72,7 @@ inherited frmODActive: TfrmODActive
     object hdControl: THeaderControl
       Left = 0
       Top = 0
-      Width = 539
+      Width = 530
       Height = 21
       Sections = <
         item
@@ -105,6 +103,8 @@ inherited frmODActive: TfrmODActive
     end
   end
   inherited amgrMain: TVA508AccessibilityManager
+    Left = 24
+    Top = 8
     Data = (
       (
         'Component = pnlClient'

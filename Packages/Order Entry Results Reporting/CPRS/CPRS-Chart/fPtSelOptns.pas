@@ -26,6 +26,7 @@ type
     radClinics: TRadioButton;
     radWards: TRadioButton;
     radAll: TRadioButton;
+    radPcmmTeams: TRadioButton;
     procedure radHideSrcClick(Sender: TObject);
     procedure radShowSrcClick(Sender: TObject);
     procedure radLongSrcClick(Sender: TObject);
@@ -65,7 +66,8 @@ const
   TAG_SRC_SPEC = 14;                             // patient list by treating specialty
   TAG_SRC_CLIN = 16;                             // patient list by clinic
   TAG_SRC_WARD = 17;                             // patient list by ward
-  TAG_SRC_ALL  = 18;                             // all patients
+  TAG_SRC_PCMM = 18;                             // patient list by PCMM team added 5/27/2014 by TDP
+  TAG_SRC_ALL  = 19;                             // all patients
 
 var
   frmPtSelOptns: TfrmPtSelOptns;
@@ -77,7 +79,7 @@ implementation
 {$R *.DFM}
 
 uses
-  rCore, fPtSelOptSave, fPtSel, VA508AccessibilityRouter;
+  rCore, fPtSelOptSave, fPtSel, VA508AccessibilityRouter, VAUtils;
 
 const
   TX_LS_DFLT = 'This is already saved as your default patient list settings.';
@@ -86,6 +88,7 @@ const
   TX_LS_SPEC = 'A specialty must be selected to save patient list settings.';
   TX_LS_CLIN = 'A clinic and a date range must be selected to save settings for a clinic.';
   TX_LS_WARD = 'A ward must be selected to save patient list settings.';
+  TX_LS_PCMM = 'A PCMM team must be selected to save patient list settings.';
   TC_LS_FAIL = 'Unable to Save Patient List Settings';
   TX_LS_SAV1 = 'Save ';
   TX_LS_SAV2 = CRLF + 'as your default patient list setting?';
@@ -100,10 +103,10 @@ begin
   if not ((Length(x) = 4) or (Length(x) = 5)) then Exit;
   if Length(x) = 5 then
   begin
-    if not (x[1] in ['A'..'Z', 'a'..'z']) then Exit;
+    if not CharInSet(x[1], ['A'..'Z', 'a'..'z']) then Exit;
     x := Copy(x, 2, 4);
   end;
-  for i := 1 to 4 do if not (x[i] in ['0'..'9']) then Exit;
+  for i := 1 to 4 do if not CharInSet(x[i], ['0'..'9']) then Exit;
   Result := True;
 end;
 
@@ -115,23 +118,23 @@ begin
   if (Length(x) < 9) or (Length(x) > 12) then Exit;
   case Length(x) of
     9:  // no dashes, no 'P'
-        for i := 1 to 9 do if not (x[i] in ['0'..'9']) then Exit;
+        for i := 1 to 9 do if not CharInSet(x[i], ['0'..'9']) then Exit;
    10:  // no dashes, with 'P'
         begin
-          for i := 1 to 9 do if not (x[i] in ['0'..'9']) then Exit;
+          for i := 1 to 9 do if not CharInSet(x[i], ['0'..'9']) then Exit;
           if (Uppercase(x[10]) <> 'P') then Exit;
         end;
    11:  // dashes, no 'P'
         begin
           if (x[4] <> '-') or (x[7] <> '-') then Exit;
           x := Copy(x,1,3) + Copy(x,5,2) + Copy(x,8,4);
-          for i := 1 to 9 do if not (x[i] in ['0'..'9']) then Exit;
+          for i := 1 to 9 do if not CharInSet(x[i], ['0'..'9']) then Exit;
         end;
    12:  // dashes, with 'P'
         begin
           if (x[4] <> '-') or (x[7] <> '-') then Exit;
           x := Copy(x,1,3) + Copy(x,5,2) + Copy(x,8,5);
-          for i := 1 to 9 do if not (x[i] in ['0'..'9']) then Exit;
+          for i := 1 to 9 do if not CharInSet(x[i], ['0'..'9']) then Exit;
           if UpperCase(x[10]) <> 'P' then Exit;
         end;
   end;
@@ -168,6 +171,7 @@ begin
     TAG_SRC_TEAM: ListTeamAll(Items);
     TAG_SRC_SPEC: ListSpecialtyAll(Items);
     TAG_SRC_WARD: ListWardAll(Items);
+    TAG_SRC_PCMM: ListPcmmAll(Items);  // TDP - Added 5/27/2014 PCMM team
     end;
     Visible := True;
   end;
@@ -241,7 +245,7 @@ resulting in a "B" xref that looks like this:
 ^SC("B","zzz-hbpc-phone-jung",1830) = 
 ^SC("B","zzz-hbpcphone cocohran",1825) = 
 ^SC("B","zzz-home service",1428) = 
-^SC("B","zzz-phone-deloye",1834) = 
+^SC("B","zzz-phone-deloye",1834) =
 ^SC("B","zzz/gmonti impotence",2193) =
 
 ASCII sort mode puts those entries at the end of the "B" xref, but when retrieved by CPRS and upper-cased, it
@@ -351,6 +355,11 @@ begin
                   then InfoBox(TX_LS_WARD, TC_LS_FAIL, MB_OK)
                   else x := 'W^' + IntToStr(cboList.ItemIEN) + U + U +
                             'Ward = ' + cboList.Text;
+  // TDP - Added 5/27/2014 to handle PCMM team addition
+  TAG_SRC_PCMM: if cboList.ItemIEN <= 0
+                  then InfoBox(TX_LS_PCMM, TC_LS_FAIL, MB_OK)
+                  else x := 'E^' + IntToStr(cboList.ItemIEN) + U + U +
+                            'PCMM Team = ' + cboList.Text;
   TAG_SRC_ALL : x := 'A';
   end;
   if (x <> '') then
@@ -378,6 +387,10 @@ end;
 
 procedure TfrmPtSelOptns.SetDefaultPtList(Dflt: string);
 begin
+  //blj 22 September 2017 258066 - We will not show the Default patient list button unless
+  //     we actually have a default patient list coming in.
+  radDflt.Visible := Length(Dflt) > 0;
+
   if Length(Dflt) > 0 then                   // if default patient list available, use it
   begin
     radDflt.Caption := '&Default: ' + Dflt;

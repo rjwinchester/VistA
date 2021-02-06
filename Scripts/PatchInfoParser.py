@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from __future__ import print_function
+from builtins import object
+import codecs
 import os
 import sys
 import re
@@ -58,21 +61,14 @@ def extractInfoFromInstallName(installName):
 """ utility function to extract patch information from install name """
 def setPatchInfoFromInstallName(installName, patchInfo):
   (namespace, ver, patch) = extractInfoFromInstallName(installName)
-  logger.debug((namespace, ver, patch, installName))
-  logger.debug((patchInfo))
   if patchInfo.namespace:
     if patchInfo.namespace != namespace:
-      logger.error((namespace, ver, patch))
-      logger.error(installName)
-      logger.error(patchInfo)
+      logger.error("Namespace mismatch. Expected %s. Found %s" % (namespace, patchInfo.namespace))
   else:
     patchInfo.namespace = namespace
   if patchInfo.version:
-    if (float(patchInfo.version) !=
-        float(ver)):
-      logger.error((namespace, ver, patch))
-      logger.error(installName)
-      logger.error(patchInfo)
+    if (float(patchInfo.version) != float(ver)):
+      logger.error("Version mismatch. Expected %s. Found %s" % (ver, patchInfo.version))
   else:
     patchInfo.version = ver
   patchInfo.patchNo = patch
@@ -95,7 +91,9 @@ class PatchInfo(object):
     self.kidsInfoSha1 = None
     self.rundate = None
     self.status = None
+    self.subject = None
     self.priority = None
+    self.description = []
     """ attributes related to multibuilds """
     self.isMultiBuilds = False
     self.multiBuildsList = None
@@ -127,7 +125,7 @@ class PatchInfo(object):
 
   def __str__(self):
     return ("%s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s, %s,"
-        " %s, %s, %s, %s, %s\n%s, \ninfo:%s\nglobal:%s, %s, %s" %
+        " %s, %s, %s, %s, %s\n%s, \ninfo:%s\nglobal:%s, %s, %s,\nsubject: %s,\nDescription; %s" %
              (self.package, self.namespace, self.version,
               self.patchNo, self.seqNo, self.installName,
               self.kidsFilePath, self.kidsSha1, self.kidsSha1Path,
@@ -136,7 +134,7 @@ class PatchInfo(object):
               self.isMultiBuilds, self.multiBuildsList, self.otherKidsInfoList,
               self.priority, self.depKIDSBuild,
               self.associatedInfoFiles, self.associatedGlobalFiles,
-              self.hasCustomInstaller, self.customInstallerPath) )
+              self.hasCustomInstaller, self.customInstallerPath,self.subject, self.description) )
   def __repr__(self):
     return self.__str__()
 
@@ -154,12 +152,14 @@ class PatchInfoParser(object):
                               "^Package : (?P<name>.*) Priority: (?P<pri>.*)")
   VERSION_STATUS_REGEX = re.compile(
                             "^Version : (?P<no>.*) Status: (?P<status>.*)")
-  SUBJECT_PART_START_REGEX = re.compile("^Subject: ")
+  SUBJECT_PART_START_REGEX = re.compile("^Subject:(?P<subj>.*)")
   ASSOCIATED_PATCH_START_REGEX = re.compile("^Associated patches: ")
   ASSOCIATED_PATCH_START_INDEX = 20
   ASSOCIATED_PATCH_SECTION_REGEX = re.compile("^ {%d,%d}\(v\)" %
                                               (ASSOCIATED_PATCH_START_INDEX,
                                                ASSOCIATED_PATCH_START_INDEX))
+  DESCRIPTION_REGEX = re.compile("^ *Description:")
+  INSTALL_INSTRUCTIONS_REGEX = re.compile("Installation Instructions", re.I)
 
   def __init__(self):
     pass
@@ -169,18 +169,32 @@ class PatchInfoParser(object):
     @return PatchInfo object if has installName, otherwise None
   """
   def parseKIDSInfoFile(self, infoFile):
+    inDescription=False
     logger.debug("Parsing Info file %s" % infoFile)
     patchInfo = PatchInfo()
     assert os.path.exists(infoFile)
     patchInfo.kidsInfoPath = infoFile
-    inputFile = open(infoFile, 'rb')
+    inputFile = codecs.open(infoFile, 'r', encoding='utf-8', errors='ignore')
     for line in inputFile:
       line = line.rstrip(" \r\n")
       if len(line) == 0:
         continue
-      """ subject part are treated as end of parser section for now"""
-      if self.SUBJECT_PART_START_REGEX.search(line):
-        break;
+      """ install instructions are treated as end of parser section for now"""
+      ret = self.INSTALL_INSTRUCTIONS_REGEX.search(line)
+      if ret:
+        inDescription=False
+        break
+      if inDescription:
+        patchInfo.description.append(line)
+        continue
+      ret = self.DESCRIPTION_REGEX.search(line)
+      if ret:
+        inDescription=True
+        continue
+      ret = self.SUBJECT_PART_START_REGEX.search(line)
+      if ret:
+        patchInfo.subject= ret.group('subj')
+        continue
       ret = self.RUNDATE_DESIGNATION_REGEX.search(line)
       if ret:
         patchInfo.rundate = datetime.strptime(ret.group('date'),
@@ -190,7 +204,6 @@ class PatchInfoParser(object):
       ret = self.PACKAGE_PRIORITY_REGEX.search(line)
       if ret:
         package = ret.group('name').strip()
-        logger.debug(package)
         (namespace, name) = package.split(" - ", 1) # split on first -
         patchInfo.namespace = namespace.strip()
         patchInfo.package = name.strip()
@@ -228,14 +241,13 @@ class PatchInfoParser(object):
     setPatchInfoFromInstallName(patchInfo.installName,
                                 patchInfo)
     return patchInfo
+
   """ parsing the associated KIDS build part """
   def parseAssociatedPart(self, infoString, patchInfo):
     pos = infoString.find("<<= must be installed BEFORE")
     if pos >=0:
       installName = convertToInstallName(infoString[3:pos].strip())
       patchInfo.depKIDSBuild.add(installName)
-    else:
-      logger.warn(infoString)
 
 def testPatchInfoParser():
   print ("sys.argv is %s" % sys.argv)
@@ -244,7 +256,7 @@ def testPatchInfoParser():
     sys.exit(-1)
   infoParser = PatchInfoParser()
   patchInfo = infoParser.parseKIDSInfoFile(sys.argv[1])
-  print patchInfo
+  print(patchInfo)
 
 if __name__ == '__main__':
   testPatchInfoParser()

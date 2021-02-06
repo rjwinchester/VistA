@@ -11,7 +11,7 @@ unit fEncnt;
 interface
 
 uses
-  Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
+  Windows, Messages, SysUtils, Classes, Graphics, Vcl.Controls, Forms, Dialogs,
   StdCtrls, ORCtrls, ORDtTm, ORFn, ExtCtrls, ComCtrls, ORDtTmRng, fAutoSz, rOptions, fBase508Form,
   VA508AccessibilityManager, fFrame;
 
@@ -83,7 +83,7 @@ type
     OKPressed: Boolean;
     DoNotNeedLocation: Boolean;     //AGP This is used to not force a location when writing a delayed order
     procedure AppShowHint(var HintStr: string; var CanShow: Boolean;
-                          var HintInfo: THintInfo);
+                          var HintInfo: Vcl.Controls.THintInfo);
     procedure SetVisitCat;
     function AllowAutoFocusChange: Boolean;
   public
@@ -199,7 +199,7 @@ begin
   FDateTime      := Encounter.DateTime;
   FVisitCategory := Encounter.VisitCategory;
   FStandAlone    := Encounter.StandAlone;
-  rpcGetEncFutureDays(FEncFutureLimit); 
+  rpcGetEncFutureDays(FEncFutureLimit);
   rpcGetRangeForEncs(BDateFrom, BDateThru, False); // Get user's current date range settings.
   if BDateFrom > 0 then
     BDisplayFrom := 'T-' + IntToStr(BDateFrom)
@@ -328,20 +328,26 @@ end;
 procedure TfrmEncounter.cmdDateRangeClick(Sender: TObject);
 begin
   dlgDateRange.FMDateStart := FFromDate;
-  dlgDateRange.FMDateStop  := FThruDate;
+  dlgDateRange.FMDateStop := FThruDate;
   if dlgDateRange.Execute then
-  begin
-    FFromDate := dlgDateRange.FMDateStart;
-    FThruDate := dlgDateRange.FMDateStop + 0.2359;
-    lblDateRange.Caption := '(' + dlgDateRange.RelativeStart + ' thru '
-                                + dlgDateRange.RelativeStop + ')';
-    //label
-    lblClinic.Caption := CLINIC_TXT + lblDateRange.Caption;
-    //list
-    lstClinic.Caption := lblClinic.Caption + ' ' + lblDateRange.Caption;
-    lstClinic.Items.Clear;
-    ListApptAll(lstClinic.Items, Patient.DFN, FFromDate, FThruDate);
-  end;
+    begin
+      FFromDate := dlgDateRange.FMDateStart;
+      FThruDate := dlgDateRange.FMDateStop + 0.2359;
+      lblDateRange.Caption := '(' + dlgDateRange.RelativeStart + ' thru '
+        + dlgDateRange.RelativeStop + ')';
+      // label
+      lblClinic.Caption := CLINIC_TXT + lblDateRange.Caption;
+      // list
+      lstClinic.Caption := lblClinic.Caption + ' ' + lblDateRange.Caption;
+      lstClinic.Items.BeginUpdate;
+      try
+        lstClinic.ItemIndex := -1;
+        lstClinic.Items.Clear;
+        ListApptAll(lstClinic.Items, Patient.DFN, FFromDate, FThruDate);
+      finally
+        lstClinic.Items.EndUpdate;
+      end;
+    end;
 end;
 
 procedure TfrmEncounter.cboNewVisitChange(Sender: TObject);
@@ -402,7 +408,7 @@ var
 begin
   inherited;
   msg := '';
-  if DoNotNeedLocation = False then
+  if (not DoNotNeedLocation) or (DoNotNeedLocation and (FLocation > 0)) then
     begin
       if FLocation = 0 then msg := TX_NO_LOC;
       if FDateTime <= 0 then msg := msg + CRLF + TX_NO_DATE
@@ -458,7 +464,7 @@ end;
  }
 
 procedure TfrmEncounter.AppShowHint(var HintStr: string;
-  var CanShow: Boolean; var HintInfo: THintInfo);
+  var CanShow: Boolean; var HintInfo: Vcl.Controls.THintInfo);
 const
   HistHintDelay = 30000; // 30 seconds
 
@@ -520,18 +526,37 @@ procedure TfrmEncounter.lstClinicChange(Sender: TObject);
 begin
   inherited;
   with lstClinic do
-  begin
-    FLocation := StrToIntDef(Piece(ItemID, ';', 3), 0);
-    FLocationName := Piece(Items[ItemIndex], U, 3);
-    FDateTime := MakeFMDateTime(Piece(ItemID,';', 2));
-    FVisitCategory := 'A';
-    FStandAlone := CharAt(ItemID, 1) = 'V';
-    with txtLocation do
-    begin
-      Text := FLocationName + '  ';
-      if FDateTime <> 0 then Text := Text + FormatFMDateTime('mmm dd,yy hh:nn', FDateTime);
-    end;
-  end;
+    if ItemIndex > -1 then
+      begin
+        FLocation := StrToIntDef(Piece(ItemID, ';', 3), 0);
+        FLocationName := Piece(Items[ItemIndex], U, 3);
+        FDateTime := MakeFMDateTime(Piece(ItemID, ';', 2));
+        FVisitCategory := 'A';
+        FStandAlone := CharAt(ItemID, 1) = 'V';
+        with txtLocation do
+          begin
+            Text := FLocationName + '  ';
+            if FDateTime <> 0 then
+              Text := Text + FormatFMDateTime('mmm dd,yy hh:nn', FDateTime);
+          end;
+      end
+    else
+      begin
+        FLocation := Encounter.Location;
+        FLocationName := Encounter.LocationName;
+        FDateTime := Encounter.DateTime;
+        FVisitCategory := Encounter.VisitCategory;
+        FStandAlone := Encounter.StandAlone;
+        with txtLocation do
+          if Length(FLocationName) > 0 then
+            begin
+              Text := FLocationName + '  ';
+              if (FVisitCategory <> 'H') and (FDateTime <> 0) then
+                Text := Text + FormatFMDateTime('mmm dd,yy hh:nn', FDateTime);
+            end
+          else
+            Text := '< Select a location from the tabs below.... >';
+      end
 end;
 
 procedure TfrmEncounter.FormResize(Sender: TObject);

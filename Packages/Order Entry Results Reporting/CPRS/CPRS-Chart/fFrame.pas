@@ -1,21 +1,21 @@
 unit fFrame;
-{ This is the m
-ain form for the CPRS GUI.  It provides a patient-encounter-user framework
+{ This is the main form for the CPRS GUI.  It provides a patient-encounter-user framework
   which all the other forms of the GUI use. }
 
 {$OPTIMIZATION OFF}                              // REMOVE AFTER UNIT IS DEBUGGED
 {$WARN SYMBOL_PLATFORM OFF}
-{$DEFINE CCOWBROKER}                              
-                               
-{.$define debug}
+{$DEFINE CCOWBROKER}
+
+{$undef debug}
 
 interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, Tabs, ComCtrls,
-  ExtCtrls, Menus, StdCtrls, Buttons, ORFn, fPage, uConst, ORCtrls, Trpcb,
-  OleCtrls, VERGENCECONTEXTORLib_TLB, ComObj, AppEvnts, fBase508Form,
-  VA508AccessibilityManager, RichEdit, XUDsigS;
+  ExtCtrls, Menus, StdCtrls, Buttons, ORFn, fPage, uConst, ORCtrls, Trpcb, Contnrs,
+  OleCtrls, VERGENCECONTEXTORLib_TLB, ComObj, AppEvnts, fBase508Form, oPKIEncryption,
+  VA508AccessibilityManager, RichEdit, fDebugReport, StrUtils, vcl.ActnList,
+  System.SyncObjs, U_CPTAppMonitor, ORNetIntf, system.JSON;
 
 type
   TfrmFrame = class(TfrmBase508Form)
@@ -48,7 +48,6 @@ type
     Z4: TMenuItem;
     mnuEditPref: TMenuItem;
     Prefs1: TMenuItem;
-    mnu18pt1: TMenuItem;
     mnu14pt1: TMenuItem;
     mnu12pt1: TMenuItem;
     mnu10pt1: TMenuItem;
@@ -56,6 +55,7 @@ type
     mnuHelp: TMenuItem;
     mnuHelpContents: TMenuItem;
     mnuHelpTutor: TMenuItem;
+    mnuDebugReport: TMenuItem;
     Z5: TMenuItem;
     mnuHelpAbout: TMenuItem;
     mnuTools: TMenuItem;
@@ -140,6 +140,14 @@ type
     mnuEditRedo: TMenuItem;
     lblPtMHTC: TStaticText;
     DigitalSigningSetup1: TMenuItem;
+    mnuFocusChanges: TMenuItem;
+    txtCmdFlags: TVA508StaticText;
+    mnuFileViewNotifications: TMenuItem;
+    CPAppMon: TCopyApplicationMonitor;
+    pnlOTHD: TKeyClickPanel;
+    lblOTHDDtl: TStaticText;  // rpk 11/28/2017
+    lblOTHDTitle: TStaticText;  // rpk 11/28/2017
+	  pnlOtherInfo: TKeyClickPanel;
     procedure tabPageChange(Sender: TObject);
     procedure FormCreate(Sender: TObject);
     procedure FormResize(Sender: TObject);
@@ -192,7 +200,6 @@ type
     procedure popCIRNSelectAllClick(Sender: TObject);
     procedure popCIRNSelectNoneClick(Sender: TObject);
     procedure mnuFilePrintSetupClick(Sender: TObject);
-    procedure lstCIRNLocationsChange(Sender: TObject);
     procedure LabInfo1Click(Sender: TObject);
     procedure mnuFileNotifRemoveClick(Sender: TObject);
     procedure mnuToolsOptionsClick(Sender: TObject);
@@ -211,6 +218,7 @@ type
     procedure ctxContextorCommitted(Sender: TObject);
     procedure ctxContextorPending(Sender: TObject;
       const aContextItemCollection: IDispatch);
+    procedure mnuDebugReportClick(Sender: TObject);
     procedure mnuFileBreakContextClick(Sender: TObject);
     procedure mnuFileResumeContextGetClick(Sender: TObject);
     procedure mnuFileResumeContextSetClick(Sender: TObject);
@@ -251,6 +259,29 @@ type
     procedure tabPageMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
     procedure DigitalSigningSetup1Click(Sender: TObject);
+    procedure mnuFocusChangesClick(Sender: TObject);
+    procedure AppEventsMessage(var Msg: tagMSG; var Handled: Boolean);
+    procedure mnuFileViewNotificationsClick(Sender: TObject);
+    procedure paVAAResize(Sender: TObject);
+    procedure LoadBuffer(Sender: TObject; LoadList: TStrings; var ProcessLoad: Boolean);
+    procedure LoadProperties(Sender: TObject);
+    procedure SaveBuffer(Sender: TObject; SaveList: TStringList; var ReturnList: TStringList);
+    procedure StartPollBuff(Sender: TObject; var Error: Boolean);
+    procedure StopPollBuff(Sender: TObject; var Error: Boolean);
+    procedure pnlOTHDEnter(Sender: TObject); // rpk 1/5/2018
+    procedure pnlOTHDExit(Sender: TObject);  // rpk 1/5/2018
+    procedure pnlOTHDClick(Sender: TObject);  // rpk 1/5/2018
+    procedure lblOTHDDtlClick(Sender: TObject);   // rpk 1/5/2018
+    procedure lblOTHDTitleClick(Sender: TObject);
+    procedure pnlOTHDMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure pnlOTHDMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure pnlOtherInfoClick(Sender: TObject);
+    procedure pnlOtherInfoMouseDown(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
+    procedure pnlOtherInfoMouseUp(Sender: TObject; Button: TMouseButton;
+      Shift: TShiftState; X, Y: Integer);
   private
     FProccessingNextClick : boolean;
     FJustEnteredApp : boolean;
@@ -260,6 +291,7 @@ type
     FCCOWDrivedChange: boolean;
     FCCOWBusy: boolean;
     FCCOWError: boolean;
+//    FCCOWJustJoined: boolean;
     FNoPatientSelected: boolean;
     FRefreshing: boolean;
     FClosing: boolean;
@@ -267,7 +299,7 @@ type
     FChangeSource: Integer;
     FCreateProgress: Integer;
     FEditCtrl: TCustomEdit;
-    FLastPage: TfrmPage;
+    FLastPage: TForm;
     FNextButtonL: Integer;
     FNextButtonR: Integer;
     FNextButtonActive: Boolean;
@@ -289,15 +321,19 @@ type
     FOrderPrintForm: boolean;
     FReviewclick: boolean;
     FCtrlTabUsed: boolean;
+    fotherPanelUseColor: boolean;
+    fotherPanelType: string;
+    fotherPanelShowReportBox: boolean;
     procedure RefreshFixedStatusWidth;
     procedure FocusApplicationTopForm;
     procedure AppActivated(Sender: TObject);
     procedure AppDeActivated(Sender: TObject);
     procedure AppException(Sender: TObject; E: Exception);
+    procedure AfterAppException(Sender: TObject; E: Exception);
+    function checkOtherForms(var Reason: String): boolean;
     function AllowContextChangeAll(var Reason: string):  Boolean;
     procedure ClearPatient;
     procedure ChangeFont(NewFontSize: Integer);
-    //procedure CreateTab(var AnInstance: TObject; AClass: TClass; ATabID: integer; ALabel: string);
     procedure CreateTab(ATabID: integer; ALabel: string);
     procedure DetermineNextTab;
     function ExpandCommand(x: string): string;
@@ -306,7 +342,7 @@ type
     procedure SaveSizesForUser;
     procedure LoadUserPreferences;
     procedure SaveUserPreferences;
-    procedure SwitchToPage(NewForm: TfrmPage);
+    procedure SwitchToPage(NewForm: TForm);
     function TabToPageID(Tab: Integer): Integer;
     function TimeoutCondition: boolean;
     function GetTimedOut: boolean;
@@ -314,15 +350,17 @@ type
     procedure SetUserTools;
     procedure SetDebugMenu;
     procedure SetupPatient(AFlaggedList : TStringList = nil);
-    //procedure SetUpCIRN;
     procedure RemindersChanged(Sender: TObject);
     procedure ReportsOnlyDisplay;
+    procedure setOtherInfoPanel;
     procedure UMInitiate(var Message: TMessage);   message UM_INITIATE;
     procedure UMNewOrder(var Message: TMessage);   message UM_NEWORDER;
+    procedure UMReminders(var Message: TMessage);  message UM_REMINDERS;
     procedure UMStatusText(var Message: TMessage); message UM_STATUSTEXT;
     procedure UMShowPage(var Message: TMessage);   message UM_SHOWPAGE;
     procedure WMSetFocus(var Message: TMessage);   message WM_SETFOCUS;
     procedure WMSysCommand(var Message: TMessage); message WM_SYSCOMMAND;
+    procedure UMNOTELIMIT(var Message: TMessage);  message UM_NOTELIMIT;
     procedure UpdateECSParameter(var CmdParameter: string);
     function  ValidECSUser: boolean;
     procedure StartCCOWContextor;
@@ -335,18 +373,21 @@ type
 {$ENDIF}
     procedure HideEverything(AMessage: string = 'No patient is currently selected.');
     procedure ShowEverything;
-    //function FindBestCCOWDFN(var APatientName: string): string;
     function FindBestCCOWDFN: string;
     procedure HandleCCOWError(AMessage: string);
     procedure SetUpNextButton;
     procedure NextButtonClick(Sender: TObject);
     procedure NextButtonMouseDown(Sender: TObject; Button: TMouseButton;
       Shift: TShiftState; X, Y: Integer);
+    procedure ModalEnd(Sender: TObject);
+    Procedure GetExcludedFromMixed();
   public
     EnduringPtSelSplitterPos, frmFrameHeight, pnlPatientSelectedHeight: integer;
     EnduringPtSelColumns: string;
     procedure SetBADxList;
     procedure SetActiveTab(PageID: Integer);
+    procedure RefreshCWAD(Sender: TObject); // TDrugs Patch OR*3*377 and WV*1*24 - DanP@SLC 11-20-2015
+    procedure UpdateVAAMHVButtons(Sender: TObject); // TDrugs Patch OR*3*377 and WV*1*24 - DanP@SLC 01-02-2016
 
     function PageIDToTab(PageID: Integer): Integer;
     procedure ShowHideChartTabMenus(AMenuItem: TMenuItem);
@@ -370,23 +411,33 @@ type
     property OrderPrintForm: boolean read FOrderPrintForm write FOrderPrintForm;
   end;
 
+  TRpcRecord = record
+    RpcName: String;
+    UCallListIndex: Integer;
+    ResultListIndex: Integer;
+    SearchIndex: Integer;
+    RPCText: TStringList;
+    RPCRunTime: string;
+  end;
+
 var
   frmFrame: TfrmFrame;
   uTabList: TStringList;
-  uRemoteType, uReportID, uLabRepID : string;
+  uLabRemoteType, uRemoteType, uReportID, uLabRepID : string;
   FlaggedPTList: TStringList;
   ctxContextor : TContextorControl;
   NextTab, LastTab, ChangingTab: Integer;
   uUseVistaWeb: boolean;
-  PTSwitchRefresh: boolean = FALSE;  //flag for patient refresh or switch of patients
+  PTSwitchRefresh: boolean = False;  //flag for patient refresh or switch of patients
   ProbTabClicked: boolean = FALSE;
   TabCtrlClicked: Boolean = FALSE;
   DEAContext: Boolean = False;
   DelayReviewChanges: Boolean = False;
+  WatchArray: Array of TRpcRecord;
 
 const
   PASSCODE = '_gghwn7pghCrOJvOV61PtPvgdeEU2u5cRsGvpkVDjKT_H7SdKE_hqFYWsUIVT1H7JwT6Yz8oCtd2u2PALqWxibNXx3Yo8GPcTYsNaxW' + 'ZFo8OgT11D5TIvpu3cDQuZd3Yh_nV9jhkvb0ZBGdO9n-uNXPPEK7xfYWCI2Wp3Dsu9YDSd_EM34nvrgy64cqu9_jFJKJnGiXY96Lf1ecLiv4LT9qtmJ-BawYt7O9JZGAswi344BmmCbNxfgvgf0gfGZea';
-
+  EM_SETZOOM = (WM_USER + 225);
 implementation
 
 {$R *.DFM}
@@ -394,9 +445,9 @@ implementation
 {$R sRemSrch}
 
 uses
-  ORNet, rCore, fPtSelMsg, fPtSel, fCover, fProbs, fMeds, fOrders, rOrders, fNotes, fConsults, fDCSumm,
-  rMisc, Clipbrd, fLabs, fReports, rReports, fPtDemo, fEncnt, fPtCWAD, uCore, fAbout, fReview, fxBroker,
-  fxLists, fxServer, ORSystem, fRptBox, fSplash, rODAllergy, uInit, fLabTests, fLabInfo,
+  ORNet, rCore, fPtSelMsg, fPtSel, fCoverSheet, fProbs, fMeds, fOrders, rOrders, fNotes, fConsults, fDCSumm,
+  rMisc, Clipbrd, fLabs, fReports, rReports, fPtDemo, fEncnt, fPtCWAD, uCore, fAbout, fReview, {fxBroker,}
+  fxLists, fxServer, ORSystem, fRptBox, fSplash, rODAllergy, uInit, fLabTests, fLabInfo, uGlobalVar,
   uReminders, fReminderTree, ORClasses, fDeviceSelect, fDrawers, fReminderDialog, ShellAPI, rVitals,
   fOptions, fGraphs, fGraphData, rTemplates, fSurgery, rSurgery, uEventHooks, uSignItems,
   fDefaultEvent, rECS, fIconLegend, uOrders, fPtSelOptns, DateUtils, uSpell, uOrPtf, fPatientFlagMulti,
@@ -405,28 +456,20 @@ uses
   , CCOW_const
   {$ENDIF}
   , VA508AccessibilityRouter, fOtherSchedule, VAUtils, uVA508CPRSCompatibility, fIVRoutes,
-  fPrintLocation, fTemplateEditor, fTemplateDialog, fCombatVet;
+  fPrintLocation, fTemplateEditor, fTemplateDialog, fCombatVet, fFocusedControls,
+  fViewNotifications, iCoverSheetIntf, AVCatcher, System.IniFiles, Wsockc, rOTH,
+  uVersionCheck, uGN_RPCLog;
 
-var                                 //  RV 05/11/04
-  IsRunExecuted: Boolean = FALSE;           //  RV 05/11/04
+var
+  IsRunExecuted: Boolean = FALSE;
   GraphFloat: TfrmGraphs;
+  OTHDTitleCaptionStr, // OTHDTitle caption string
+  OTHDTitleHintStr, // OTHDTitle hint string
+  OTHDDtlCaptionStr,  // OTHD detail caption string
+  OTHDDtlHintStr: String; // OTHD detail hint string
+  OTHDDspList: TStringList; // rpk 4/2/2019
 
 const
- //  moved to uConst - RV v16
-(*  CT_NOPAGE   = -1;                             // chart tab - none selected
-  CT_UNKNOWN  =  0;                             // chart tab - unknown (shouldn't happen)
-  CT_COVER    =  1;                             // chart tab - cover sheet
-  CT_PROBLEMS =  2;                             // chart tab - problem list
-  CT_MEDS     =  3;                             // chart tab - medications screen
-  CT_ORDERS   =  4;                             // chart tab - doctor's orders
-  CT_HP       =  5;                             // chart tab - history & physical
-  CT_NOTES    =  6;                             // chart tab - progress notes
-  CT_CONSULTS =  7;                             // chart tab - consults
-  CT_DCSUMM   =  8;                             // chart tab - discharge summaries
-  CT_LABS     =  9;                             // chart tab - laboratory results
-  CT_REPORTS  = 10;                             // chart tab - reports
-  CT_SURGERY  = 11;                             // chart tab - surgery*)
-
   FCP_UPDATE  = 10;                             // form create about to check auto-update
   FCP_SETHOOK = 20;                             // form create about to set timeout hooks
   FCP_SERVER  = 30;                             // form create about to connect to server
@@ -447,6 +490,7 @@ const
   TX_NO_SURG_NOTIF = 'This notification must be processed using the Surgery tab, ' + CRLF +
                      'which is not currently available to you.';
   TC_NO_SURG_NOTIF = 'Surgery Tab Not Available';
+{
   TX_VER1       = 'This is version ';
   TX_VER2       = ' of CPRSChart.exe.';
   TX_VER3       = CRLF + 'The running server version is ';
@@ -456,7 +500,7 @@ const
   TX_VER_NEW    = CRLF + 'The program cannot be run until the server is upgraded.';
   TC_VER        = 'Server/Client Incompatibility';
   TC_CLIERR     = 'Client Specifications Mismatch';
-
+}
   SHOW_NOTIFICATIONS = True;
 
   TC_DGSR_ERR    = 'Remote Data Error';
@@ -490,7 +534,7 @@ var
     if ClosingCPRS then
       halt;
     try
-      ClosingCPRS := TRUE; 
+      ClosingCPRS := TRUE;
       Close;
     except
       halt;
@@ -504,6 +548,7 @@ begin
     if assigned (frmIVRoutes) then frmIVRoutes.Close;
     if frmFrame.DLLActive then
     begin
+       ShutdownVitals;
        CloseVitalsDLL();
        CloseMHDLL();
     end;
@@ -521,32 +566,58 @@ var
   ErrMsg: string;
 begin
   Application.NormalizeTopMosts;
-  if (E is EIntError) then
-  begin
-    ErrMsg := E.Message + CRLF +
-              'CreateProgress: ' + IntToStr(FCreateProgress) + CRLF +
-              'RPC Info: ' + RPCLastCall;
-    if EExternal(E).ExceptionRecord <> nil then
+  try
+    if (E is EIntError) then
     begin
-      AnAddr := EExternal(E).ExceptionRecord^.ExceptionAddress;
-      ErrMsg := ErrMsg + CRLF + 'Address was ' + IntToStr(Integer(AnAddr));
+      ErrMsg := E.Message + CRLF + 'CreateProgress: ' + IntToStr(FCreateProgress)
+        + CRLF + 'RPC Info: ' + RPCLastCall;
+      if EExternal(E).ExceptionRecord <> nil then
+      begin
+        AnAddr := EExternal(E).ExceptionRecord^.ExceptionAddress;
+        ErrMsg := ErrMsg + CRLF + 'Address was ' + IntToStr(Integer(AnAddr));
+      end;
+      // Pass this message up
+      E.Message := ErrMsg;
     end;
-    ShowMsg(ErrMsg);
-  end
-  else if (E is EBrokerError) then
+
+    if (E is EBrokerError) then
+      E.Message := E.Message + CRLF + 'RPC Info: ' + RPCLastCall;
+  finally
+    Application.RestoreTopMosts;
+  end;
+end;
+
+procedure TfrmFrame.AfterAppException(Sender: TObject; E: Exception);
+var
+  RtnCursor: Integer;
+begin
+  // Option for custom action
+  if (E is EBrokerError) then
   begin
-    Application.ShowException(E);
-    FCreateProgress := FCP_FORMS;
-    Close;
-  end
-  else if (E is EOleException) then
+    if EBrokerError(E).Code = XWB_M_REJECT then
+    begin
+      if RPCBrokerV.Connected then
+      begin
+        RtnCursor := Screen.cursor;
+        Screen.cursor := crHourGlass;
+        try
+          LogBrokerErrors(E.Message);
+        finally
+          Screen.cursor := RtnCursor;
+        end;
+      end;
+      // ExceptionLog.CustomButtonCaption := 'Debug';
+      // ExceptionLog.OnCustomMethod := mnuDebugReportClick;
+    end;
+  end;
+
+  if (E is EBrokerError) or (E is EOleException) then
   begin
-    Application.ShowException(E);
     FCreateProgress := FCP_FORMS;
-    Close;
-  end
-  else Application.ShowException(E);
-  Application.RestoreTopMosts;
+    // Tell the exception logger that we can't continue
+    ExceptionLog.TerminateApp := True;
+  end;
+
 end;
 
 procedure TfrmFrame.btnCombatVetClick(Sender: TObject);
@@ -573,7 +644,10 @@ begin
       Reason := 'COM_OBJECT_ACTIVE';
       Result:= False;
     end;
-  if Result then Result := frmCover.AllowContextChange(Reason);
+
+
+  if Result then Result := checkOtherForms(Reason);
+  // frmCoverSheet will always AllowContextChange
   if Result then Result := frmProblems.AllowContextChange(Reason);
   if Result then Result := frmMeds.AllowContextChange(Reason);
   if Result then Result := frmOrders.AllowContextChange(Reason);
@@ -605,8 +679,22 @@ begin
   FContextChanging := False;
 end;
 
+// TDrugs Patch OR*3*377 and WV*1*24 - DanP@SLC 11-20-2015
+// Added so the coversheet had a quick way to update.
+procedure TfrmFrame.RefreshCWAD(Sender: TObject);
+begin
+  lblPtCWAD.Caption := GetCWADInfo(Patient.DFN);
+  if Length(lblPtCWAD.Caption) > 0 then
+    lblPtPostings.Caption := 'Postings'
+  else
+    lblPtPostings.Caption := 'No Postings';
+  pnlPostings.Caption := lblPtPostings.Caption + ' ' + lblPtCWAD.Caption;
+end;
+
 procedure TfrmFrame.ClearPatient;
 { call all pages to make sure patient related information is cleared (when switching patients) }
+var
+  aCPRSTab: ICPRSTab;
 begin
   //if frmFrame.Timedout then Exit; // added to correct Access Violation when "Refresh Patient Information" selected
   lblPtName.Caption     := '';
@@ -614,6 +702,26 @@ begin
   lblPtAge.Caption      := '';
   pnlPatient.Caption    := '';
   lblPtCWAD.Caption     := '';
+  lblOTHDTitle.Caption  := '';  // rpk 3/27/2019
+  lblOTHDDtl.Caption       := '';  // rpk 12/5/2017
+  pnlOTHD.Hide;                 // rpk 12/6/2017
+  pnlOTHD.Enabled       := False; // rpk 12/6/2017
+  pnlOTHD.Color         := clBtnFace;  // rpk 4/12/2018
+  lblOTHDDtl.Enabled       := False; // rpk 4/6/2018
+  lblOTHDDtl.Color         := clBtnFace;  // rpk 4/12/2018
+  lblOTHDDtl.Font.Color    := clWindowText; // rpk 4/12/2018
+  lblOTHDDtl.Transparent   := True; // rpk 4/13/2018
+  lblOTHDTitle.Enabled  := False; // rpk 12/6/2017
+  lblOTHDTitle.Color    := clBtnFace; // rpk 4/13/2018
+  lblOTHDTitle.Font.Color    := clInfoText;  // rpk 4/12/2018
+  lblOTHDTitle.Transparent   := True; // rpk 4/13/2018
+  OTHDTitleCaptionStr          := '';  // rpk 3/27/2019
+  OTHDTitleHintStr          := '';  // rpk 3/27/2019
+  OTHDDtlCaptionStr          := '';  // rpk 1/5/2018
+  OTHDDtlHintStr          := '';  // rpk 1/5/2018
+  if Assigned(OTHDDspList) then
+    OTHDDspList.Clear;  // rpk 4/2/2019
+
   if DoNotChangeEncWindow = false then
      begin
       lblPtLocation.Caption := 'Visit Not Selected';
@@ -624,7 +732,8 @@ begin
   lblPtAttending.Caption := '';
   lblPtMHTC.Caption := '';
   pnlPrimaryCare.Caption := lblPtCare.Caption + ' ' + lblPtAttending.Caption + ' ' + lblPtMHTC.Caption;
-  frmCover.ClearPtData;
+  if Supports(frmCoverSheet, ICPRSTab, aCPRSTab) then
+    aCPRSTab.OnClearPtData(Self);
   frmProblems.ClearPtData;
   frmMeds.ClearPtData;
   frmOrders.ClearPtData;
@@ -651,7 +760,6 @@ begin
     Initialize;
     DisplayData('top');
     DisplayData('bottom');
-    //GtslCheck.Clear;
     Caption := 'CPRS Graphing - Patient: ' + MixedCase(Patient.Name);
   end;
   if frmFrame.TimedOut then
@@ -664,11 +772,34 @@ begin
 end;
 
 procedure TfrmFrame.DigitalSigningSetup1Click(Sender: TObject);
+var
+  aPKIEncryptionEngine: IPKIEncryptionEngine;
+  aDefaultMsg: string;
+  aSuccessMsg: string;
+  aResults: TStringList;
 begin
-  inherited;
-  LastPINvalue := '';
-  SetSAN(Self);
-  LastPINvalue := '';
+  try
+    // get PKI engine components ready
+    NewPKIEncryptionEngine(RPCBrokerV, aPKIEncryptionEngine);
+
+    aResults := TStringList.Create;
+    try
+      CallVistA('ORDEA LNKMSG', [], aResults);
+      aSuccessMsg := aResults.Text;
+    finally
+      FreeAndNil(aResults);
+    end;
+
+    if not IsDigitalSignatureAvailable(aPKIEncryptionEngine, aDefaultMsg, aSuccessMsg) then
+      ShowMsg('There was a problem linking your PIV card. Either the '
+        + 'PIV card name does NOT match your VistA account name or the PIV card is already '
+        + 'linked to another VistA account.  Ensure that the correct PIV card has '
+        + 'been inserted for your VistA account. Please contact your PIV Card Coordinator '
+        + 'if you continue to have problems.');
+  except
+    on E: Exception do
+      ShowMsg('Problem during digital signing setup: ' + E.Message);
+  end;
 end;
 
 procedure TfrmFrame.DisplayEncounterText;
@@ -705,15 +836,42 @@ end;
 procedure TfrmFrame.FormCreate(Sender: TObject);
 { connect to server, create tab pages, select a patient, & initialize core objects }
 var
-  ClientVer, ServerVer, ServerReq, SAN: string;
+  SAN: string;
+  otherPanelControls: TJsonValue;
+  Procedure LoadExceptionLogger;
+  var
+    aTmpLst: TStringList;
+    TmpStr: String;
+  begin
+    ExceptionLog.DaysToPurge :=
+      StrToIntDef(systemParameters.StringValue['orCPRSExceptionPurge'], 60);
+    ExceptionLog.Enabled :=
+      StrToBoolDef(systemParameters.StringValue
+      ['orCPRSExceptionLogger'], False);
+
+    aTmpLst := TStringList.Create;
+    try
+      aTmpLst := systemParameters.StringValues['orCPRSExceptionEmail'];
+      for TmpStr in aTmpLst do
+        ExceptionLog.EmailTo.Add(Piece(TmpStr, '=', 2));
+    finally
+      aTmpLst.Free;
+    end;
+
+    ExceptionLog.OnAppException := AppException;
+    ExceptionLog.OnAfterAppException := AfterAppException;
+  end;
+
 begin
   FJustEnteredApp := false;
   SizeHolder := TSizeHolder.Create;
   FOldActiveFormChange := Screen.OnActiveFormChange;
   Screen.OnActiveFormChange := ScreenActiveFormChange;
+//  FCCOWJustJoined := False;
   if not (ParamSearch('CCOW')='DISABLE') then
     try
       StartCCOWContextor;
+//      FCCOWJustJoined := True;
     except
       IsRunExecuted := False;
       FCCOWInstalled := False;
@@ -729,10 +887,9 @@ begin
       mnuFileResumeContext.Visible := False;
       mnuFileBreakContext.Visible := False;
     end;
-  
+
   RefreshFixedStatusWidth;
   FTerminate := False;
-  AutoUpdateCheck;
 
   FFlagList := TStringList.Create;
 
@@ -774,17 +931,27 @@ begin
   uECSReport := TECSReport.Create;
   uECSReport.ECSPermit := FECSAuthUser;
   RPCBrokerV.CreateContext(TX_OPTION);
-  Application.OnException := AppException;
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
+  // Temp fix for LPack error. This is expected to be dealt with
+  // in the next broker patch and should be removed
+  // { TODO : Remove when new broker patch is created }
+  TXWBWinsock(RPCBrokerV.XWBWinsock).CountWidth := 4;
+  // !!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!!//
+ // Application.OnException := AppException;
+
   FOldActivate := Application.OnActivate;
   Application.OnActivate := AppActivated;
   Application.OnDeActivate := AppDeActivated;
-  
+
   // create initial core objects
   FCreateProgress := FCP_OBJECTS;
-  User := TUser.Create;
-
+//  User := TUser.Create;
+//  getSysUserParameters(user.DUZ);
+//  LoadExceptionLogger;
   // make sure we're using the matching server version
   FCreateProgress := FCP_CHKVER;
+
+(*
   ClientVer := ClientVersion(Application.ExeName);
   ServerVer := ServerVersion(TX_OPTION, ClientVer);
   if (ServerVer = '0.0.0.0') then
@@ -799,7 +966,7 @@ begin
     InfoBox('Client "version" does not match client "required" server.', TC_CLIERR, MB_OK);
     Close;
     Exit;
-  end; 
+  end;
   SAN := sCallV('XUS PKI GET UPN', []);
   if SAN='' then DigitalSigningSetup1.Visible := True
   else DigitalSigningSetup1.Visible := False;
@@ -835,6 +1002,21 @@ begin
       Exit;
     end;
   end;
+*)
+  if not IsCorrectVersion(TX_OPTION) then
+    begin
+      CLose;
+      Exit;
+    end;
+
+
+  User := TUser.Create;
+  getSysUserParameters(user.DUZ);
+  LoadExceptionLogger;
+
+  SAN := sCallV('XUS PKI GET UPN', []);
+  if SAN='' then DigitalSigningSetup1.Visible := True
+  else DigitalSigningSetup1.Visible := False;
 
   // Add future tabs here as they are created/implemented:
   if (
@@ -847,6 +1029,36 @@ begin
     Close;
     Exit;
   end;
+//  otherPanelControls := otherInformationPanelControls;
+  otherPanelControls := systemParameters.getJsonValue('otherInfromationPanel');
+  if TJSONObject(otherPanelControls).Values['turnedOn'].ToString = '0' then
+    begin
+      pnlOtherInfo.Enabled := false;
+      pnlOtherInfo.Visible := false;
+    end
+  else
+    begin
+      fotherPanelUseColor := TJSONObject(otherPanelControls).Values['useColor'].ToString = '1';
+      if fotherPanelUseColor then
+        begin
+          self.pnlOtherInfo.ParentBackground := false;
+          self.pnlOtherInfo.ParentColor := false;
+        end
+      else
+        begin
+          pnlOtherInfo.Color := get508CompliantColor(clYellow);
+          self.pnlOtherInfo.ParentBackground := true;
+          self.pnlOtherInfo.ParentColor := true;
+          self.pnlOtherInfo.Color := clBtnFace;
+          self.pnlOtherInfo.Repaint;
+        end;
+      fotherPanelShowReportBox := TJSONObject(otherPanelControls).Values['reportBoxOn'].ToString = '1';
+      pnlOtherInfo.tabstop := screenReaderActive;
+    end;
+
+  // Global flags set by server
+  IsLeJeuneActive := ServerHasPatch(CampLejeunePatch);
+  SpansIntlDateLine := SiteSpansIntlDateLine;
 
   // create creating core objects
   Patient := TPatient.Create;
@@ -859,8 +1071,13 @@ begin
   FlaggedPTList := TStringList.Create;
   HasFlag  := False;
   FlagList := TStringList.Create;
+  OTHDDspList := TStringList.Create;  // rpk 4/2/2019
+
+  //Set the mix case exclusion event
+  GetExcludedFromMixed;
+
   // set up structures specific to the user
-  Caption := TX_IN_USE + MixedCase(User.Name) + '  (' + RPCBrokerV.Server + ')';
+  Caption := TX_IN_USE + MixedCase(User.Name) + '  (' + String(RPCBrokerV.Server) + ')';
   SetDebugMenu;
   if InteractiveRemindersActive then
     NotifyWhenRemindersChange(RemindersChanged);
@@ -897,6 +1114,7 @@ begin
   frmGraphData := TfrmGraphData.Create(self);        // form is only visible for testing
   GraphDataOnUser;
   uRemoteType := '';
+  uLabRemoteType := '';
   uReportID := '';
   uLabRepID := '';
   FPrevPtID := '';
@@ -906,15 +1124,12 @@ begin
   if User.IsReportsOnly then // Reports Only tab.
     ReportsOnlyDisplay; // Calls procedure to hide all components/menus not needed.
   InitialOrderVariables;
+
   PostMessage(Handle, UM_INITIATE, 0, 0);    // select patient after main form is created
-//  mnuFileOpenClick(Self);
-//  if Patient.DFN = '' then  //*DFN*
-//  begin
-//    Close;
-//    Exit;
-//  end;
-//  if WindowState = wsMinimized then WindowState := wsNormal;
   SetFormMonitoring(true);
+  //Will load the copy/paste buffer
+  CPAppMon.LoadTheProperties;
+  CPAppMon.LoadTheBuffer;
 end;
 
 procedure TfrmFrame.StartCCOWContextor;
@@ -988,6 +1203,8 @@ end;
 
 procedure TfrmFrame.FormDestroy(Sender: TObject);
 { free core objects used by CPRS }
+Var
+ I:integer;
 begin
   Application.OnActivate := FOldActivate;
   Screen.OnActiveFormChange := FOldActiveFormChange;
@@ -1002,15 +1219,46 @@ begin
   Encounter.Free;
   Patient.Free;
   User.Free;
+  systemParameters.Free;
   SizeHolder.Free;
   ctxContextor.Free;
+  frmDebugReport.Free;
+  FreeAndNil(OTHDDspList);
+
+  for I := high(WatchArray) downto low(WatchArray) do
+    WatchArray[I].RPCText.Free;
+  SetLength(WatchArray, 0);
+end;
+
+procedure TfrmFrame.ModalEnd(Sender: TObject);
+begin
+  Halt;
 end;
 
 procedure TfrmFrame.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 { cancels close if the user cancels the ReviewChanges screen }
 var
   Reason: string;
+  I: integer;
+  SystemModal: Boolean;
 begin
+ //check for modal windows and close any that may exist
+ if Application.ModalLevel > 0 then
+ begin
+  SystemModal := true;
+  // Screen.ActiveForm.Close();
+  for i := Screen.FormCount - 1 downto 1 do begin
+   if (fsModal in Screen.Forms[i].FormState) and (Screen.Forms[i] <> Application.MainForm) then
+   begin
+     Screen.Forms[i].Close();
+     SystemModal := False;
+   end;
+  end;
+
+  if SystemModal then
+   Application.OnModalEnd := ModalEnd;
+ end;
+
   if (FCreateProgress < FCP_FINISH) then Exit;
   if User.IsReportsOnly then // Reports Only tab.
     exit;
@@ -1029,7 +1277,6 @@ var
   index, i, idx, count: Integer;
   UserTool: TMenuItem;
   Menus: TStringList;
-  //  OptionsClick: TNotifyEvent;
 begin
   if User.IsReportsOnly then // Reports Only tab.
   begin
@@ -1048,7 +1295,6 @@ begin
     UserTool.Hint := 'GEC Referral Status Display';
     UserTool.OnClick := mnuGECStatusClick;
     mnuTools.Add(UserTool); // Add back the "Options" menu.
-    //exit;
   end;
   GetToolMenu; // For all other users, proceed normally with creation of Tools menu:
   for i := uToolMenuItems.Count-1 downto 0 do
@@ -1071,7 +1317,7 @@ begin
       for I := 0 to uToolMenuItems.Count - 1 do
       begin
         item := TToolMenuItem(uToolMenuItems[i]);
-        if assigned(item.MenuItem) then continue;        
+        if assigned(item.MenuItem) then continue;
         if item.SubMenuID = '' then
           ok := True
         else
@@ -1121,8 +1367,8 @@ begin
   VUser   := '';
   if RPCBrokerV <> nil then
   begin
-    AccVer  := RPCBrokerV.AccessVerifyCodes;
-    Svr     := RPCBrokerV.Server;
+    AccVer  := String(RPCBrokerV.AccessVerifyCodes);
+    Svr     := String(RPCBrokerV.Server);
     SvrPort := IntToStr(RPCBrokerV.ListenerPort);
     VUser   := RPCBrokerV.User.DUZ;
   end;
@@ -1173,6 +1419,10 @@ procedure TfrmFrame.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
   FClosing := TRUE;
   SetFormMonitoring(false);
+  If Assigned(Patient) then
+   CPAppMon.SaveTheBuffer; //save the buffer
+
+
   if FCreateProgress < FCP_FINISH then FTerminate := True;
 
   FlushNotifierBuffer;
@@ -1198,7 +1448,7 @@ begin
   if FCreateProgress > FCP_FORMS then
   begin
     mnuFrame.Merge(nil);
-    frmCover.Close;      //frmCover.Release;
+    frmCoverSheet.Close;
     frmProblems.Close;   //frmProblems.Release;
     frmMeds.Close;       //frmMeds.Release;
     frmOrders.Close;     //frmOrders.Release;
@@ -1209,20 +1459,9 @@ begin
     frmLabs.Close;       //frmLabs.Release;
     frmReports.Close;    //frmReports.Release;
     frmGraphData.Close;  //frmGraphData.Release;
-  
+
   end;
-//  with mnuTools do for i := Count - 1 downto 0 do
-//  begin
-//    UserTool := Items[i];
-//    if UserTool <> nil then
-//    begin
-//      Delete(i);
-//      UserTool.Free;
-//    end;
-//  end;
-  //Application.ProcessMessages;  // so everything finishes closing
   // if < FCP_FINISH we came here from inside FormCreate, so need to call terminate
-  //if GraphFloat <> nil then GraphFloat.Release;
   if FCreateProgress < FCP_FINISH then Application.Terminate;
 end;
 
@@ -1231,10 +1470,30 @@ var
   IsProgrammer: Boolean;
 begin
   IsProgrammer := User.HasKey('XUPROGMODE') or (ShowRPCList = True);
-  mnuHelpBroker.Visible  := IsProgrammer;
-  mnuHelpLists.Visible   := IsProgrammer;
-  mnuHelpSymbols.Visible := IsProgrammer;
-  Z6.Visible             := IsProgrammer;
+  mnuHelpBroker.Visible   := IsProgrammer;
+  mnuHelpLists.Visible    := IsProgrammer;
+  mnuHelpSymbols.Visible  := IsProgrammer;
+  mnuFocusChanges.Visible := IsProgrammer;  {added 10 May 2012  dlp see fFocusControls }
+  Z6.Visible              := IsProgrammer;
+end;
+
+procedure TfrmFrame.setOtherInfoPanel;
+var
+info: string;
+begin
+  pnlOtherInfo.Caption := '';
+
+  if Patient.DFN= '' then
+    exit;
+  info := otherInformationPanel(Patient.DFN);
+  pnlOtherInfo.Caption := Piece(info, u, 2);
+  fotherPanelType := Piece(info, u, 1);
+  if screenReaderActive then
+    begin
+      GetScreenReader.Speak(Piece(info, u, 2));
+
+    end;
+//  self.pnlOtherInfo.Refresh;
 end;
 
 { Updates posted to MainForm --------------------------------------------------------------- }
@@ -1246,7 +1505,8 @@ var
 begin
   with Message do
   begin
-    frmCover.NotifyOrder(WParam, TOrder(LParam));
+    CoverSheet.OnRefreshPanel(Self, CV_CPRS_ALLG);
+    CoverSheet.OnRefreshPanel(Self, CV_CPRS_POST);
     frmProblems.NotifyOrder(WParam, TOrder(LParam));
     frmMeds.NotifyOrder(WParam, TOrder(LParam));
     frmOrders.NotifyOrder(WParam, TOrder(LParam));
@@ -1257,43 +1517,88 @@ begin
     frmLabs.NotifyOrder(WParam, TOrder(LParam));
     frmReports.NotifyOrder(WParam, TOrder(LParam));
     lblPtCWAD.Caption := GetCWADInfo(Patient.DFN);
-    if Length(lblPtCWAD.Caption) > 0
-      then lblPtPostings.Caption := 'Postings'
-      else lblPtPostings.Caption := 'No Postings';
+    if Length(lblPtCWAD.Caption) > 0 then
+      lblPtPostings.Caption := 'Postings'
+    else
+      lblPtPostings.Caption := 'No Postings';
     pnlPostings.Caption := lblPtPostings.Caption + ' ' + lblPtCWAD.Caption;
     OrderAct := '';
     case WParam of
-    ORDER_NEW:   OrderAct := 'NW';
-    ORDER_DC:    OrderAct := 'DC';
-    ORDER_RENEW: OrderAct := 'RN';
-    ORDER_HOLD:  OrderAct := 'HD';
-    ORDER_EDIT:  OrderAct := 'XX';
-    ORDER_ACT:   OrderAct := 'AC';
+      ORDER_NEW:   OrderAct := 'NW';
+      ORDER_DC:    OrderAct := 'DC';
+      ORDER_RENEW: OrderAct := 'RN';
+      ORDER_HOLD:  OrderAct := 'HD';
+      ORDER_EDIT:  OrderAct := 'XX';
+      ORDER_ACT:   OrderAct := 'AC';
     end;
     if Length(OrderAct) > 0 then NotifyOtherApps(NAE_ORDER, OrderAct + U + TOrder(LParam).ID);  // add FillerID
   end;
 end;
 
+procedure TfrmFrame.UMReminders(var Message: TMessage);
+begin
+  if systemParameters.getJsonValue('reEvaluateReminders').ToString = '1' then
+    CoverSheet.onRefreshPanel(Self, CV_CPRS_RMND);
+
+
+  CoverSheet.OnRefreshPanel(Self, CV_CPRS_WVHT);
+  CoverSheet.OnRefreshPanel(Self, CV_CPRS_POST);
+
+//  CoverSheet.OnRefreshCWAD(Self);
+  lblPtCWAD.Caption := GetCWADInfo(Patient.DFN);
+  if Length(lblPtCWAD.Caption) > 0 then
+    lblPtPostings.Caption := 'Postings'
+  else
+    lblPtPostings.Caption := 'No Postings';
+  pnlPostings.Caption := lblPtPostings.Caption + ' ' + lblPtCWAD.Caption;
+end;
+
+procedure TfrmFrame.UMNOTELIMIT(var Message: TMessage);
+begin
+ //If active tab is notes then call the note's limit function
+ if tabPage.TabIndex = frmFrame.PageIDToTab(CT_NOTES) then
+    frmNotes.LimitEditableNote
+ else if tabPage.TabIndex = frmFrame.PageIDToTab(CT_SURGERY) then
+    frmSurgery.LimitEditableNote
+ else if tabPage.TabIndex = frmFrame.PageIDToTab(CT_DCSUMM) then
+    frmDCSumm.LimitEditableNote
+ else if tabPage.TabIndex = frmFrame.PageIDToTab(CT_CONSULTS) then
+    frmConsults.LimitEditableNote;
+end;
+
 { Tab Selection (navigate between pages) --------------------------------------------------- }
 
 procedure TfrmFrame.WMSetFocus(var Message: TMessage);
+var
+  aCPRS508: ICPRS508;
 begin
   if (FLastPage <> nil) and (not TimedOut) and
-     (not (csDestroying in FLastPage.ComponentState)) and FLastPage.Visible
-    then FLastPage.FocusFirstControl;
+     (not (csDestroying in FLastPage.ComponentState)) and FLastPage.Visible then
+     if FLastPage.InheritsFrom(TfrmPage) then
+       TfrmPage(FLastPage).FocusFirstControl
+     else if Supports(fLastPage, ICPRS508, aCPRS508) then
+       aCPRS508.OnFocusFirstControl(Self);
 end;
 
 procedure TfrmFrame.UMShowPage(var Message: TMessage);
 { shows a page when the UM_SHOWPAGE message is received }
+var
+  aCPRSTab: ICPRSTab;
 begin
   if FCCOWDrivedChange then FCCOWDrivedChange := False;
-  if FLastPage <> nil then FLastPage.DisplayPage;
+
+  if FLastPage <> nil then
+    if FLastPage.InheritsFrom(TfrmPage) then
+      TfrmPage(FLastPage).DisplayPage
+    else if Supports(fLastPage, ICPRSTab, aCPRSTab) then
+      aCPRSTab.OnDisplayPage(Self, CC_CLICK);
+
   FChangeSource := CC_CLICK;  // reset to click so we're only dealing with exceptions to click
   if assigned(FTabChanged) then
     FTabChanged(Self);
 end;
 
-procedure TfrmFrame.SwitchToPage(NewForm: TfrmPage);
+procedure TfrmFrame.SwitchToPage(NewForm: TForm);
 { unmerge/merge menus, bring page to top of z-order, call form-specific OnDisplay code }
 begin
   if FLastPage = NewForm then
@@ -1306,16 +1611,10 @@ begin
     mnuFrame.Unmerge(FLastPage.Menu);
     FLastPage.Hide;
   end;
-  if Assigned(NewForm) then
-  begin
-    {if ((FLastPage = frmOrders) and (NewForm.Name <> frmMeds.Name))
-      or ((FLastPage = frmMeds) and (NewForm.Name <> frmOrders.Name)) then
-    begin
-      if not CloseOrdering then
-        Exit;
-    end;}
+  if Assigned(NewForm) then begin
     mnuFrame.Merge(NewForm.Menu);
     NewForm.Show;
+    FormResize(Self);
   end;
   lstCIRNLocations.Visible := False;
   pnlCIRN.BevelOuter := bvRaised;
@@ -1338,10 +1637,16 @@ begin
       if NewForm.Name = frmSurgery.Name then frmSurgery.Align := alclient
         else frmSurgery.Align := alNone;
     NewForm.BringToFront;                    // to cause tab switch to happen immediately
-//CQ12232 NewForm.FocusFirstControl;
     Application.ProcessMessages;
     PostMessage(Handle, UM_SHOWPAGE, 0, 0);  // this calls DisplayPage for the form
   end;
+end;
+
+procedure TfrmFrame.mnuDebugReportClick(Sender: TObject);
+begin
+  inherited;
+  if not Assigned(frmDebugReport) then frmDebugReport := TfrmDebugReport.Create(self);
+   frmDebugReport.Show;
 end;
 
 procedure TfrmFrame.mnuChartTabClick(Sender: TObject);
@@ -1365,7 +1670,7 @@ begin
   begin
     case PageID of
       CT_NOPAGE:   SwitchToPage(nil);
-      CT_COVER:    SwitchToPage(frmCover);
+      CT_COVER:    SwitchToPage(frmCoverSheet);
       CT_PROBLEMS: SwitchToPage(frmProblems);
       CT_MEDS:     SwitchToPage(frmMeds);
       CT_ORDERS:   SwitchToPage(frmOrders);
@@ -1391,22 +1696,6 @@ VAR
 begin
   i :=  uTabList.IndexOf(IntToStr(PageID));
   Result := i;
-  //Result := uTabList.IndexOf(IntToStr(PageID));
-  (*
-  Result := -1;
-  case PageID of
-    CT_NOPAGE:   Result := -1;
-    CT_COVER:    Result :=  0;
-    CT_PROBLEMS: Result :=  1;
-    CT_MEDS:     Result :=  2;
-    CT_ORDERS:   Result :=  3;
-   {CT_HP:       Result :=  4;}
-    CT_NOTES:    Result :=  4;
-    CT_CONSULTS: Result :=  5;
-    CT_DCSUMM:   Result :=  6;
-    CT_LABS:     Result :=  7;
-    CT_REPORTS:  Result :=  8;
-  end;*)
 end;
 
 function TfrmFrame.TabToPageID(Tab: Integer): Integer;
@@ -1416,19 +1705,6 @@ begin
     Result := StrToIntDef(uTabList[Tab], CT_UNKNOWN)
   else
     Result := CT_NOPAGE;
-(*  case Tab of
-   -1: Result := CT_NOPAGE;
-    0: Result := CT_COVER;
-    1: Result := CT_PROBLEMS;
-    2: Result := CT_MEDS;
-    3: Result := CT_ORDERS;
-   {4: Result := CT_HP;}
-    4: Result := CT_NOTES;
-    5: Result := CT_CONSULTS;
-    6: Result := CT_DCSUMM;
-    7: Result := CT_LABS;
-    8: Result := CT_REPORTS;
-  end;*)
 end;
 
 { File Menu Events ------------------------------------------------------------------------- }
@@ -1436,6 +1712,10 @@ end;
 procedure TfrmFrame.SetupPatient(AFlaggedList : TStringList);
 var
   AMsg, SelectMsg: string;
+  TitleCaptionStr,
+  TitleHintStr,
+  DtlCaptionStr,
+  DtlHintStr: String;
 begin
   with Patient do
   begin
@@ -1448,14 +1728,49 @@ begin
     lblPtSSN.Caption := SSN;
     lblPtAge.Caption := FormatFMDateTime('mmm dd,yyyy', DOB) + ' (' + IntToStr(Age) + ')';
     pnlPatient.Caption := lblPtName.Caption + ' ' + lblPtSSN.Caption + ' ' + lblPtAge.Caption;
+
+{ removing comments to roll back changes introduced by v31.261 begin}
+    //blj 20 June 2019: RTC task 1062900
+    // OTH was commented out as it was not ready for prime time before the release
+    // of 31B version 261.  We will need to re-enable at some point.
+
+
+    if getOTHD(Patient.DFN, Patient.Name,
+      TitleCaptionStr, TitleHintStr,
+      DtlCaptionStr, DtlHintStr,
+      OTHDDspList) then begin  // rpk 1/2/2018
+      pnlOTHD.Show; // rpk 12/6/2017
+      pnlOTHD.Enabled := True; // rpk 12/6/2017
+      pnlOTHD.TabStop := True; // rpk 1/18/2018
+      pnlOTHD.Hint := TitleHintStr + CRLF + DtlHintStr;
+      lblOTHDDtl.Enabled := True; // rpk 1/2/2018
+      lblOTHDTitle.Enabled := True;  // rpk 12/6/2017
+
+      OTHDTitleCaptionStr := TitleCaptionStr;  // rpk 3/27/2019
+      OTHDTitleHintStr := TitleHintStr;  // rpk 3/27/2019
+      OTHDDtlCaptionStr := DtlCaptionStr;
+      OTHDDtlHintStr := DtlHintStr;
+      if ScreenReaderActive then begin  // rpk 1/2/2018
+        lblOTHDTitle.Caption := TitleHintStr;
+        lblOTHDDtl.Caption := DtlHintStr;
+      end
+      else begin
+        lblOTHDTitle.Caption := TitleCaptionStr;  // rpk 3/27/2019
+        lblOTHDTitle.Hint := TitleHintStr;  // rpk 4/2/2019
+        lblOTHDDtl.Caption := DtlCaptionStr; // rpk 12/6/2017
+        lblOTHDDtl.Hint := DtlHintStr;  // rpk 4/3/2019
+      end;
+    end; // rpk 1/2/2018
+{ removing comments to roll back changes introduced by v31.261 end}
+
     if Length(CWAD) > 0
       then lblPtPostings.Caption := 'Postings'
       else lblPtPostings.Caption := 'No Postings';
     lblPtCWAD.Caption := CWAD;
     pnlPostings.Caption := lblPtPostings.Caption + ' ' + lblPtCWAD.Caption;
-    if (Length(PrimaryTeam) > 0) or (Length(PrimaryProvider) > 0) then
-    begin
-      lblPtCare.Caption := PrimaryTeam + ' / ' + MixedCase(PrimaryProvider);
+    if (Length(PrimaryTeam) > 0) or (Length(PrimaryProvider) > 0) then begin
+      lblPtCare.Caption := PrimaryTeam;
+      if PrimaryProvider <> '' then lblPtCare.Caption := lblPtCare.Caption + ' / ' + MixedCase(PrimaryProvider);
       if Length(Associate)>0 then lblPtCare.Caption :=  lblPtCare.Caption + ' / ' + MixedCase(Associate);
     end;
     if Length(Attending) > 0 then lblPtAttending.Caption := '(Inpatient) Attending:  ' + MixedCase(Attending);
@@ -1468,6 +1783,7 @@ begin
     SetUpCIRN;
     DisplayEncounterText;
     SetShareNode(DFN, Handle);
+    setOtherInfoPanel;
     with Patient do
       NotifyOtherApps(NAE_NEWPT, SSN + U + FloatToStr(DOB) + U + Name);
     SelectMsg := '';
@@ -1475,25 +1791,31 @@ begin
     if HasLegacyData(Patient.DFN, AMsg)     then SelectMsg := SelectMsg + CRLF + AMsg;
 
     HasActiveFlg(FlagList, HasFlag, Patient.DFN);
-    if HasFlag then
-    begin
+    if HasFlag then begin
+      txtCmdFlags.Visible := false;
       pnlFlag.Enabled := True;
       lblFlag.Font.Color := Get508CompliantColor(clMaroon);
       lblFlag.Enabled := True;
       if (not FReFreshing) and (TriggerPRFPopUp(Patient.DFN)) then
         ShowFlags;
-    end else
-    begin
+    end else begin
+      txtCmdFlags.Visible := ScreenReaderSystemActive;
       pnlFlag.Enabled := False;
       lblFlag.Font.Color := clBtnFace;
       lblFlag.Enabled := False;
     end;
     FPrevPtID := patient.DFN;
-    frmCover.UpdateVAAButton; //VAA CQ7525  (moved here in v26.30 (RV))
+    { frmCover.UpdateVAAButton; //VAA CQ7525  (moved here in v26.30 (RV))}
+    UpdateVAAMHVButtons(nil);
+    // ensure that buttons maintain alRight align
+    pnlCVnFlag.Left    	:= pnlRemoteData.Left - pnlCVnFlag.Width;  // rpk 5/9/2019
+    paVAA.Left          := pnlCVnFlag.Left - paVAA.Width;  // rpk 5/9/2019
+    pnlOTHD.Left 		:= paVAA.Left - pnlOTHD.Width;  // reset OTH to left of VAA, rpk 8/3/2018
+
     ProcessPatientChangeEventHook;
     if Length(SelectMsg) > 0 then ShowPatientSelectMessages(SelectMsg);
   end;
-end;
+end;  // SetupPatient
 
 procedure TfrmFrame.mnuFileNextClick(Sender: TObject);
 var
@@ -1505,8 +1827,7 @@ var
 
     procedure UpdatePatientInfoForAlert;
     begin
-      if Patient.Inpatient then
-      begin
+      if Patient.Inpatient then begin
         Encounter.Inpatient := True;
         Encounter.Location := Patient.Location;
         Encounter.DateTime := Patient.AdmitTime;
@@ -1527,8 +1848,6 @@ begin
   if Notifications.Active then
   begin
     NewDFN := Notifications.DFN;
-    //Patient.DFN := Notifications.DFN;
-    //if SaveDFN <> Patient.DFN then
     if SaveDFN <> NewDFN then
     begin
       // newdfn does not have new patient.co information for CCOW call
@@ -1596,12 +1915,6 @@ begin
         else
         begin
           Notifications.Clear;
-(*          // hide the 'next notification' button
-          FNextButtonActive := False;
-          FNextButton.Free;
-          FNextButton := nil;
-          mnuFileNext.Enabled := False;
-          mnuFileNotifRemove.Enabled := False;*)
           Patient.DFN := '';
           mnuFileOpenClick(mnuFileNext);
           exit;
@@ -1622,67 +1935,84 @@ begin
                                                              NF_FLAGGED_OI_EXP_INPT,
                                                              NF_FLAGGED_OI_EXP_OUTPT];
     case Notifications.FollowUp of
-    NF_LAB_RESULTS                   : NextIndex := PageIDToTab(CT_LABS);
-    NF_FLAGGED_ORDERS                : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_ORDER_REQUIRES_ELEC_SIGNATURE : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_ABNORMAL_LAB_RESULTS          : NextIndex := PageIDToTab(CT_LABS);
-    NF_IMAGING_RESULTS               : NextIndex := PageIDToTab(CT_REPORTS);
-    NF_CONSULT_REQUEST_RESOLUTION    : NextIndex := PageIDToTab(CT_CONSULTS);
-    NF_ABNORMAL_IMAGING_RESULTS      : NextIndex := PageIDToTab(CT_REPORTS);
-    NF_IMAGING_REQUEST_CANCEL_HELD   : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_NEW_SERVICE_CONSULT_REQUEST   : NextIndex := PageIDToTab(CT_CONSULTS);
-    NF_CONSULT_REQUEST_CANCEL_HOLD   : NextIndex := PageIDToTab(CT_CONSULTS);
-    NF_SITE_FLAGGED_RESULTS          : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_ORDERER_FLAGGED_RESULTS       : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_ORDER_REQUIRES_COSIGNATURE    : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_LAB_ORDER_CANCELED            : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_STAT_RESULTS                  :
-      if Piece(Piece(Notifications.AlertData, '|', 2), '@', 2) = 'LRCH' then
-        NextIndex := PageIDToTab(CT_LABS)
-      else if Piece(Piece(Notifications.AlertData, '|', 2), '@', 2) = 'GMRC' then
-        NextIndex := PageIDToTab(CT_CONSULTS)
-      else if Piece(Piece(Notifications.AlertData, '|', 2), '@', 2) = 'RA' then
-        NextIndex := PageIDToTab(CT_REPORTS);
-    NF_DNR_EXPIRING                  : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_MEDICATIONS_EXPIRING_INPT     : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_MEDICATIONS_EXPIRING_OUTPT    : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_UNVERIFIED_MEDICATION_ORDER   : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_NEW_ORDER                     : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_IMAGING_RESULTS_AMENDED       : NextIndex := PageIDToTab(CT_REPORTS);
-    NF_CRITICAL_LAB_RESULTS          : NextIndex := PageIDToTab(CT_LABS);
-    NF_UNVERIFIED_ORDER              : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_FLAGGED_OI_RESULTS            : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_FLAGGED_OI_ORDER              : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_DC_ORDER                      : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_DEA_AUTO_DC_CS_MED_ORDER      : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_DEA_CERT_REVOKED              : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_CONSULT_UNSIGNED_NOTE         : NextIndex := PageIDToTab(CT_CONSULTS);
-    NF_DCSUMM_UNSIGNED_NOTE          : NextIndex := PageIDToTab(CT_DCSUMM);
-    NF_NOTES_UNSIGNED_NOTE           : NextIndex := PageIDToTab(CT_NOTES);
-    NF_CONSULT_REQUEST_UPDATED       : NextIndex := PageIDToTab(CT_CONSULTS);
-    NF_FLAGGED_OI_EXP_INPT           : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_FLAGGED_OI_EXP_OUTPT          : NextIndex := PageIDToTab(CT_ORDERS);
-    NF_CONSULT_PROC_INTERPRETATION   : NextIndex := PageIDToTab(CT_CONSULTS);
-    NF_IMAGING_REQUEST_CHANGED       :
+      NF_LAB_RESULTS                   : NextIndex := PageIDToTab(CT_LABS);
+      NF_FLAGGED_ORDERS                : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_ORDER_REQUIRES_ELEC_SIGNATURE : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_ABNORMAL_LAB_RESULTS          : NextIndex := PageIDToTab(CT_LABS);
+      NF_IMAGING_RESULTS               : NextIndex := PageIDToTab(CT_REPORTS);
+      NF_CONSULT_REQUEST_RESOLUTION    : NextIndex := PageIDToTab(CT_CONSULTS);
+      NF_ABNORMAL_IMAGING_RESULTS      : NextIndex := PageIDToTab(CT_REPORTS);
+      NF_IMAGING_REQUEST_CANCEL_HELD   : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_NEW_SERVICE_CONSULT_REQUEST   : NextIndex := PageIDToTab(CT_CONSULTS);
+      NF_CONSULT_REQUEST_CANCEL_HOLD   : NextIndex := PageIDToTab(CT_CONSULTS);
+      NF_SITE_FLAGGED_RESULTS          : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_ORDERER_FLAGGED_RESULTS       : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_ORDER_REQUIRES_COSIGNATURE    : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_LAB_ORDER_CANCELED            : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_STAT_RESULTS                  :
+        if Piece(Piece(Notifications.AlertData, '|', 2), '@', 2) = 'LRCH' then
+          NextIndex := PageIDToTab(CT_LABS)
+        else if Piece(Piece(Notifications.AlertData, '|', 2), '@', 2) = 'GMRC' then
+          NextIndex := PageIDToTab(CT_CONSULTS)
+        else if Piece(Piece(Notifications.AlertData, '|', 2), '@', 2) = 'RA' then
+          NextIndex := PageIDToTab(CT_REPORTS);
+      NF_DNR_EXPIRING                  : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_MEDICATIONS_EXPIRING_INPT     : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_MEDICATIONS_EXPIRING_OUTPT    : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_UNVERIFIED_MEDICATION_ORDER   : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_RX_RENEWAL_REQUEST            :
         begin
-           ReportBox(GetNotificationFollowUpText(Patient.DFN, Notifications.FollowUp, Notifications.AlertData), Pieces(Piece(Notifications.RecordID, U, 1), ':', 2, 3), True);
-           Notifications.Delete;
+          if (Notifications.AlertData = '') then
+          begin
+            Notifications.Delete;
+          end;
+          NextIndex := PageIDToTab(CT_ORDERS);
         end;
-    NF_LAB_THRESHOLD_EXCEEDED        : NextIndex := PageIDToTab(CT_LABS);
-    NF_MAMMOGRAM_RESULTS             : NextIndex := PageIDToTab(CT_REPORTS);
-    NF_PAP_SMEAR_RESULTS             : NextIndex := PageIDToTab(CT_REPORTS);
-    NF_ANATOMIC_PATHOLOGY_RESULTS    : NextIndex := PageIDToTab(CT_REPORTS);
-    NF_SURGERY_UNSIGNED_NOTE         : if TabExists(CT_SURGERY) then
-                                         NextIndex := PageIDToTab(CT_SURGERY)
-                                       else
-                                         InfoBox(TX_NO_SURG_NOTIF, TC_NO_SURG_NOTIF, MB_OK);
-                                         //NextIndex := PageIDToTab(CT_NOTES);
-    else InfoBox(TX_UNK_NOTIF, TC_UNK_NOTIF, MB_OK);
+      NF_LAPSED_ORDER                  : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_HIRISK_ORDER                  : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_NEW_ORDER                     : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_IMAGING_RESULTS_AMENDED       : NextIndex := PageIDToTab(CT_REPORTS);
+      NF_CRITICAL_LAB_RESULTS          : NextIndex := PageIDToTab(CT_LABS);
+      NF_UNVERIFIED_ORDER              : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_FLAGGED_OI_RESULTS            : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_FLAGGED_OI_ORDER              : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_DC_ORDER                      : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_DEA_AUTO_DC_CS_MED_ORDER      : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_DEA_CERT_REVOKED              : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_CONSULT_UNSIGNED_NOTE         : NextIndex := PageIDToTab(CT_CONSULTS);
+      NF_DCSUMM_UNSIGNED_NOTE          : NextIndex := PageIDToTab(CT_DCSUMM);
+      NF_NOTES_UNSIGNED_NOTE           : NextIndex := PageIDToTab(CT_NOTES);
+      NF_CONSULT_REQUEST_UPDATED       : NextIndex := PageIDToTab(CT_CONSULTS);
+      NF_FLAGGED_OI_EXP_INPT           : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_FLAGGED_OI_EXP_OUTPT          : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_CONSULT_PROC_INTERPRETATION   : NextIndex := PageIDToTab(CT_CONSULTS);
+      NF_RTC_CANCEL_ORDERS             : NextIndex := PageIDToTab(CT_ORDERS);
+      NF_IMAGING_REQUEST_CHANGED       :
+        begin
+          ReportBox(GetNotificationFollowUpText(Patient.DFN, Notifications.FollowUp, Notifications.AlertData), Pieces(Piece(Notifications.RecordID, U, 1), ':', 2, 3), True);
+          Notifications.Delete;
+        end;
+      NF_LAB_THRESHOLD_EXCEEDED        : NextIndex := PageIDToTab(CT_LABS);
+      NF_MAMMOGRAM_RESULTS             : NextIndex := PageIDToTab(CT_REPORTS);
+      NF_PAP_SMEAR_RESULTS             : NextIndex := PageIDToTab(CT_REPORTS);
+      NF_ANATOMIC_PATHOLOGY_RESULTS    : NextIndex := PageIDToTab(CT_REPORTS);
+      NF_SURGERY_UNSIGNED_NOTE         : if TabExists(CT_SURGERY) then
+                                           NextIndex := PageIDToTab(CT_SURGERY)
+                                         else
+                                           InfoBox(TX_NO_SURG_NOTIF, TC_NO_SURG_NOTIF, MB_OK);
+
+    else
+    begin
+      if IsSmartAlert(Notifications.FollowUp) then NextIndex := PageIDToTab(CT_NOTES)
+      else InfoBox(TX_UNK_NOTIF, TC_UNK_NOTIF, MB_OK);
     end;
+    end; //case
+
     tabPage.TabIndex := NextIndex;
     tabPageChange(tabPage);
+
   end
-  else mnuFileOpenClick(mnuFileNext);
+  else mnuFileOpenClick(mnuFileNext); //case else
 end;
 
 procedure TfrmFrame.SetBADxList;
@@ -1718,191 +2048,282 @@ procedure TfrmFrame.mnuFileOpenClick(Sender: TObject);
 { select a new patient & update the header displays (patient id, encounter, postings) }
 var
   SaveDFN, Reason: string;
-  //NextTab: Integer;     // moved up for visibility - v23.4  rV
-  ok, OldRemindersStarted, PtSelCancelled: boolean;
-  //i: smallint;
+  ok, OldRemindersStarted, PtSelCancelled: Boolean;
   CCOWResponse: UserResponse;
+  ThisSessionChanges: TChanges;
+  i: Integer;
 begin
-  pnlPatient.Enabled := false;
-  if (Sender = mnuFileOpen) or (FRefreshing) then PTSwitchRefresh := True
-  else PTSwitchRefresh := False;  //part of a change to CQ #11529
-  PtSelCancelled := FALSE;
-  if not FRefreshing then mnuFile.Tag := 0
-  else mnuFile.Tag := 1;
-  DetermineNextTab;
-(*  if (FRefreshing or User.UseLastTab) and (not FFirstLoad) then
-    NextTab := TabToPageID(tabPage.TabIndex)
+  pnlPatient.Enabled := FALSE;
+  if (Sender = mnuFileOpen) or (FRefreshing) then
+    PTSwitchRefresh := True
   else
-    NextTab := User.InitialTab;
-  if NextTab = CT_NOPAGE then NextTab := User.InitialTab;
-  if User.IsReportsOnly then // Reports Only tab.
-    NextTab := 0; // Only one tab should exist by this point in "REPORTS ONLY" mode.
-  if not TabExists(NextTab) then NextTab := CT_COVER;
-  if NextTab = CT_NOPAGE then NextTab := User.InitialTab;
-  if NextTab = CT_ORDERS then
-    if frmOrders <> nil then with frmOrders do
-    begin
-      if (lstSheets.ItemIndex > -1 ) and (TheCurrentView <> nil) and (theCurrentView.EventDelay.PtEventIFN>0) then
-        PtEvtCompleted(TheCurrentView.EventDelay.PtEventIFN, TheCurrentView.EventDelay.EventName);
-    end;*)
-  //if Sender <> mnuFileNext then        //CQ 16273 & 16419 - Missing Review/Sign Changes dialog when clicking 'Next' button.
+    PTSwitchRefresh := FALSE; // part of a change to CQ #11529
+  PtSelCancelled := FALSE;
+  if not FRefreshing then
+    mnuFile.Tag := 0
+  else
+    mnuFile.Tag := 1;
+  pnlOtherInfo.Caption := '';
+  pnlOtherInfo.Repaint;
+  DetermineNextTab;
+  // if Sender <> mnuFileNext then        //CQ 16273 & 16419 - Missing Review/Sign Changes dialog when clicking 'Next' button.
+  ThisSessionChanges := TChanges.Create;
+  try
+    // Loop through and add in the documents
+    for i := 0 to Changes.Documents.Count - 1 do
+      begin
+        ThisSessionChanges.Add(CH_DOC,
+          TChangeItem(Changes.Documents.Items[i]).ID,
+          TChangeItem(Changes.Documents.Items[i]).Text,
+          TChangeItem(Changes.Documents.Items[i]).GroupName,
+          TChangeItem(Changes.Documents.Items[i]).SignState,
+          TChangeItem(Changes.Documents.Items[i]).ParentID,
+          TChangeItem(Changes.Documents.Items[i]).User,
+          TChangeItem(Changes.Documents.Items[i]).OrderDG,
+          TChangeItem(Changes.Documents.Items[i]).DCOrder,
+          TChangeItem(Changes.Documents.Items[i]).Delay);
+      end;
+    // Loop through and add in the orders
+    for i := 0 to Changes.Orders.Count - 1 do
+      begin
+        ThisSessionChanges.Add(CH_ORD,
+          TChangeItem(Changes.Orders.Items[i]).ID,
+          TChangeItem(Changes.Orders.Items[i]).Text,
+          TChangeItem(Changes.Orders.Items[i]).GroupName,
+          TChangeItem(Changes.Orders.Items[i]).SignState,
+          TChangeItem(Changes.Orders.Items[i]).ParentID,
+          TChangeItem(Changes.Orders.Items[i]).User,
+          TChangeItem(Changes.Orders.Items[i]).OrderDG,
+          TChangeItem(Changes.Orders.Items[i]).DCOrder,
+          TChangeItem(Changes.Orders.Items[i]).Delay);
+      end;
+    // Loop through and add in PCE
+    for i := 0 to Changes.PCE.Count - 1 do
+      begin
+        ThisSessionChanges.Add(CH_PCE,
+          TChangeItem(Changes.PCE.Items[i]).ID,
+          TChangeItem(Changes.PCE.Items[i]).Text,
+          TChangeItem(Changes.PCE.Items[i]).GroupName,
+          TChangeItem(Changes.PCE.Items[i]).SignState,
+          TChangeItem(Changes.PCE.Items[i]).ParentID,
+          TChangeItem(Changes.PCE.Items[i]).User,
+          TChangeItem(Changes.PCE.Items[i]).OrderDG,
+          TChangeItem(Changes.PCE.Items[i]).DCOrder,
+          TChangeItem(Changes.PCE.Items[i]).Delay);
+      end;
     if not AllowContextChangeAll(Reason) then
       begin
         pnlPatient.Enabled := True;
-        Exit;
+        // If this is cancelled then reload this sessions changes.
+        Changes.Clear;
+        // Loop through and add in the documents
+        for i := 0 to ThisSessionChanges.Documents.Count - 1 do
+          begin
+            Changes.Add(CH_DOC,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).ID,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).Text,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).GroupName,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).SignState,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).ParentID,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).User,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).OrderDG,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).DCOrder,
+              TChangeItem(ThisSessionChanges.Documents.Items[i]).Delay);
+          end;
+        // Loop through and add in the orders
+        for i := 0 to ThisSessionChanges.Orders.Count - 1 do
+          begin
+            Changes.Add(CH_ORD, TChangeItem(ThisSessionChanges.Orders.Items[i]).ID,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).Text,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).GroupName,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).SignState,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).ParentID,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).User,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).OrderDG,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).DCOrder,
+              TChangeItem(ThisSessionChanges.Orders.Items[i]).Delay);
+          end;
+        // Loop through and add in PCE
+        for i := 0 to ThisSessionChanges.PCE.Count - 1 do
+          begin
+            Changes.Add(CH_PCE, TChangeItem(ThisSessionChanges.PCE.Items[i]).ID,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).Text,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).GroupName,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).SignState,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).ParentID,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).User,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).OrderDG,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).DCOrder,
+              TChangeItem(ThisSessionChanges.PCE.Items[i]).Delay);
+          end;
+        setOtherInfoPanel;
+        exit;
       end;
+  finally
+    ThisSessionChanges.Clear;
+    ThisSessionChanges.Free;
+  end;
   // update status text here
   stsArea.Panels.Items[1].Text := '';
   if (not User.IsReportsOnly) then
-  begin
-    if not FRefreshing then
     begin
-      Notifications.Next;   // avoid prompt if no more alerts selected to process  {v14a RV}
-      if Notifications.Active then
-      begin
-        if (InfoBox(TX_NOTIF_STOP, TC_NOTIF_STOP, MB_YESNO) = ID_NO) then
+      if not FRefreshing then
         begin
-          Notifications.Prior;
-          pnlPatient.Enabled := True;
-          Exit;
+          Notifications.Next; // avoid prompt if no more alerts selected to process  {v14a RV}
+          if Notifications.Active then
+            begin
+              if (infoBox(TX_NOTIF_STOP, TC_NOTIF_STOP, MB_YESNO) = ID_NO) then
+                begin
+                  Notifications.Prior;
+                  pnlPatient.Enabled := True;
+                  exit;
+                end;
+            end;
+          if Notifications.Active then
+            Notifications.Prior;
         end;
-      end;
-      if Notifications.Active then Notifications.Prior;
     end;
-  end;
 
   if FNoPatientSelected then
     SaveDFN := ''
   else
     SaveDFN := Patient.DFN;
-    
+
   OldRemindersStarted := RemindersStarted;
   RemindersStarted := FALSE;
   try
     if FRefreshing then
-    begin
-      UpdatePtInfoOnRefresh;
-      ok := TRUE;
-    end
-    else
-    begin
-      ok := FALSE;
-      if (not User.IsReportsOnly) then
       begin
-        if FCCOWInstalled and (ctxContextor.State = csParticipating) then
+        UpdatePtInfoOnRefresh;
+        ok := True;
+      end
+    else
+      begin
+        ok := FALSE;
+        if (not User.IsReportsOnly) then
           begin
-            UpdateCCOWContext;
-            if not FCCOWError then
-            begin
-              FCCOWIconName := 'BMP_CCOW_LINKED';
-              pnlCCOW.Hint := TX_CCOW_LINKED;
-              imgCCOW.Picture.Bitmap.LoadFromResourceName(hInstance, FCCOWIconName);
-            end;
+            if FCCOWInstalled and (ctxContextor.State = csParticipating) then
+              begin
+                UpdateCCOWContext;
+                if not FCCOWError then
+                  begin
+                    FCCOWIconName := 'BMP_CCOW_LINKED';
+                    pnlCCOW.Hint := TX_CCOW_LINKED;
+                    imgCCOW.Picture.Bitmap.LoadFromResourceName(hInstance, FCCOWIconName);
+                  end;
+              end
+            else
+              begin
+                FCCOWIconName := 'BMP_CCOW_BROKEN';
+                pnlCCOW.Hint := TX_CCOW_BROKEN;
+                imgCCOW.Picture.Bitmap.LoadFromResourceName(hInstance, FCCOWIconName);
+              end;
+            if (Patient.DFN = '') or (Sender = mnuFileOpen) or (Sender = mnuFileNext) or (Sender = mnuViewDemo) then
+              SelectPatient(SHOW_NOTIFICATIONS, Font.Size, PtSelCancelled);
+            if PtSelCancelled then
+              begin
+                pnlPatient.Enabled := True;
+                exit;
+              end;
+            ShowEverything;
+            // HideEverything('Retrieving information - please wait....');  //v27 (pending) RV
+            DisplayEncounterText;
+            FPrevInPatient := Patient.Inpatient;
+            if Notifications.Active then
+              begin
+                // display 'next notification' button
+                SetUpNextButton;
+                FNextButtonActive := True;
+                mnuFileNext.Enabled := True;
+                mnuFileNextClick(mnuFileOpen);
+              end
+            else
+              begin
+                // hide the 'next notification' button
+                FNextButtonActive := FALSE;
+                FNextButton.Free;
+                FNextButton := nil;
+                mnuFileNext.Enabled := FALSE;
+                mnuFileNotifRemove.Enabled := FALSE;
+                //if Patient.DFN <> SaveDFN then
+                // removed, too many things happening, just refresh the patient.
+                ok := True;
+              end
           end
         else
           begin
-            FCCOWIconName := 'BMP_CCOW_BROKEN';
-            pnlCCOW.Hint := TX_CCOW_BROKEN;
-            imgCCOW.Picture.BitMap.LoadFromResourceName(hInstance, FCCOWIconName);
+            Notifications.Clear;
+            SelectPatient(FALSE, Font.Size, PtSelCancelled); // Call Pt. Sel. w/o notifications.
+            if PtSelCancelled then
+              exit;
+            ShowEverything;
+            DisplayEncounterText;
+            FPrevInPatient := Patient.Inpatient;
+            ok := True;
           end;
-        if (Patient.DFN = '') or (Sender = mnuFileOpen) or (Sender = mnuFileNext) or (Sender = mnuViewDemo) then
-          SelectPatient(SHOW_NOTIFICATIONS, Font.Size, PtSelCancelled);
-        if PtSelCancelled then
-          begin
-            pnlPatient.Enabled := True;
-            exit;
-          end;
-        ShowEverything;
-        //HideEverything('Retrieving information - please wait....');  //v27 (pending) RV
-        DisplayEncounterText;
-        FPrevInPatient := Patient.Inpatient;
-        if Notifications.Active then
-        begin
-          // display 'next notification' button
-          SetUpNextButton;
-          FNextButtonActive := True;
-          mnuFileNext.Enabled := True;
-          mnuFileNextClick(mnuFileOpen);
-        end
-        else
-        begin
-          // hide the 'next notification' button
-          FNextButtonActive := False;
-          FNextButton.Free;
-          FNextButton := nil;
-          mnuFileNext.Enabled := False;
-          mnuFileNotifRemove.Enabled := False;
-          if Patient.DFN <> SaveDFN then
-            ok := TRUE;
-        end
-      end
-      else
-      begin
-        Notifications.Clear;
-        SelectPatient(False, Font.Size, PtSelCancelled); // Call Pt. Sel. w/o notifications.
-        if PtSelCancelled then exit;
-        ShowEverything;
-        DisplayEncounterText;
-        FPrevInPatient := Patient.Inpatient;
-        ok := TRUE;
       end;
-    end;
     if ok then
-    begin
-      if FCCOWInstalled and (ctxContextor.State = csParticipating) and (not FRefreshing) then
-        begin
-          if (AllowCCOWContextChange(CCOWResponse, Patient.DFN)) then
-            begin
-              SetupPatient;
-              tabPage.TabIndex := PageIDToTab(NextTab);
-              tabPageChange(tabPage);
-            end
-          else
-            begin
-              case CCOWResponse of
-                urCancel: UpdateCCOWContext;
-                urBreak:
-                  begin
-                    // do not revert to old DFN if context was manually broken by user - v26 (RV)
-                    if (ctxContextor.State = csParticipating) then Patient.DFN := SaveDFN;
-                    SetupPatient;
-                    tabPage.TabIndex := PageIDToTab(NextTab);
-                    tabPageChange(tabPage);
-                  end;
+      begin
+//        if FCCOWInstalled and (ctxContextor.State = csParticipating) and (not FRefreshing) and (not FCCOWJustJoined) then
+        if FCCOWInstalled and (ctxContextor.State = csParticipating) and (not FRefreshing) then
+          begin
+            if (AllowCCOWContextChange(CCOWResponse, Patient.DFN)) then
+              begin
+                SetupPatient;
+                tabPage.TabIndex := PageIDToTab(NextTab);
+                tabPageChange(tabPage);
+              end
+            else
+              begin
+                case CCOWResponse of
+                  urCancel:
+                    UpdateCCOWContext;
+                  urBreak:
+                    begin
+                      // do not revert to old DFN if context was manually broken by user - v26 (RV)
+                      if (ctxContextor.State = csParticipating) then
+                        Patient.DFN := SaveDFN;
+                      SetupPatient;
+                      tabPage.TabIndex := PageIDToTab(NextTab);
+                      tabPageChange(tabPage);
+                    end;
                 else
                   begin
                     SetupPatient;
                     tabPage.TabIndex := PageIDToTab(NextTab);
                     tabPageChange(tabPage);
                   end;
+                end;
               end;
-            end;
-        end
-      else
-        begin
-          SetupPatient;
-          tabPage.TabIndex := PageIDToTab(NextTab);
-          tabPageChange(tabPage);
-        end;
-    end;
+          end
+        else
+          begin
+            SetupPatient;
+            tabPage.TabIndex := PageIDToTab(NextTab);
+            tabPageChange(tabPage);
+//            FCCOWJustJoined := FALSE;
+          end;
+      end;
   finally
     if (not FRefreshing) and (Patient.DFN = SaveDFN) then
+    begin
       RemindersStarted := OldRemindersStarted;
-    FFirstLoad := False;
+      SetOtherInfoPanel;
+    end;
+    FFirstLoad := FALSE;
   end;
- {Begin BillingAware}
-  if  BILLING_AWARE then frmFrame.SetBADxList; //end IsBillingAware
- {End BillingAware}
- //ShowEverything;  //v27 (pending) RV
- if not FRefreshing then
-   begin
-      DoNotChangeEncWindow := false;
-      OrderPrintForm := false;
+  { Begin BillingAware }
+  if BILLING_AWARE then
+    frmFrame.SetBADxList; // end IsBillingAware
+  { End BillingAware }
+  if not FRefreshing then
+    begin
+      DoNotChangeEncWindow := FALSE;
+      OrderPrintForm := FALSE;
       uCore.TempEncounterLoc := 0;
       uCore.TempEncounterLocName := '';
-   end;
- pnlPatient.Enabled := True;
- //frmCover.UpdateVAAButton; //VAA CQ7525   CQ#7933 - moved to SetupPatient, before event hook execution (RV)
+    end;
+  pnlPatient.Enabled := True;
 end;
 
 procedure TfrmFrame.DetermineNextTab;
@@ -1916,17 +2337,21 @@ begin
     end
   else
     NextTab := User.InitialTab;
-  if NextTab = CT_NOPAGE then NextTab := User.InitialTab;
+  if NextTab = CT_NOPAGE then
+    NextTab := User.InitialTab;
   if User.IsReportsOnly then // Reports Only tab.
     NextTab := CT_REPORTS; // Only one tab should exist by this point in "REPORTS ONLY" mode.
-  if not TabExists(NextTab) then NextTab := CT_COVER;
-  if NextTab = CT_NOPAGE then NextTab := User.InitialTab;
+  if not TabExists(NextTab) then
+    NextTab := CT_COVER;
+  if NextTab = CT_NOPAGE then
+    NextTab := User.InitialTab;
   if NextTab = CT_ORDERS then
-    if frmOrders <> nil then with frmOrders do
-    begin
-      if (lstSheets.ItemIndex > -1 ) and (TheCurrentView <> nil) and (theCurrentView.EventDelay.PtEventIFN>0) then
-        PtEvtCompleted(TheCurrentView.EventDelay.PtEventIFN, TheCurrentView.EventDelay.EventName);
-    end;
+    if frmOrders <> nil then
+      with frmOrders do
+        begin
+          if (lstSheets.ItemIndex > -1) and (TheCurrentView <> nil) and (TheCurrentView.EventDelay.PtEventIFN > 0) then
+            PtEvtCompleted(TheCurrentView.EventDelay.PtEventIFN, TheCurrentView.EventDelay.EventName);
+        end;
 end;
 
 procedure TfrmFrame.mnuFileEncounterClick(Sender: TObject);
@@ -2022,11 +2447,12 @@ function TfrmFrame.ExpandCommand(x: string): string;
 
 begin
   if Pos('%MREF', x) > 0 then Substitute('%MREF',
-    '^TMP(''ORWCHART'',' + MScalar('$J') + ',''' + DottedIPStr + ''',' + IntToHex(Handle, 8) + ')');
-  if Pos('%SRV',  x) > 0 then Substitute('%SRV',  RPCBrokerV.Server);
+    '^TMP(''ORWCHART'',' + User.JobNumber + ',''' + DottedIPStr + ''',' + IntToHex(Handle, 8) + ')');
+  if Pos('%SRV',  x) > 0 then Substitute('%SRV',  String(RPCBrokerV.Server));
   if Pos('%PORT', x) > 0 then Substitute('%PORT', IntToStr(RPCBrokerV.ListenerPort));
   if Pos('%DFN',  x) > 0 then Substitute('%DFN',  Patient.DFN);  //*DFN*
   if Pos('%DUZ',  x) > 0 then Substitute('%DUZ',  IntToStr(User.DUZ));
+  if Pos('%H', x) > 0  then Substitute('%H', String(RPCBrokerV.LogIn.LogInHandle));
   Result := x;
 end;
 
@@ -2245,7 +2671,6 @@ begin
     exit;
   if pnlVisit.BevelOuter = bvLowered then exit;
   pnlVisit.BevelOuter := bvLowered;
-  //with lblStLocation do SetBounds(Left+2, Top+2, Width, Height);
   with lblPtLocation do SetBounds(Left+2, Top+2, Width, Height);
   with lblPtProvider do SetBounds(Left+2, Top+2, Width, Height);
 end;
@@ -2258,7 +2683,6 @@ begin
     exit;
   if pnlVisit.BevelOuter = bvRaised then exit;
   pnlVisit.BevelOuter := bvRaised;
-  //with lblStLocation do SetBounds(Left-2, Top-2, Width, Height);
   with lblPtLocation do SetBounds(Left-2, Top-2, Width, Height);
   with lblPtProvider do SetBounds(Left-2, Top-2, Width, Height);
 end;
@@ -2267,7 +2691,6 @@ procedure TfrmFrame.pnlVistaWebClick(Sender: TObject);
 begin
   inherited;
   uUseVistaWeb := true;
-  pnlVistaWeb.BevelOuter := bvLowered;
   pnlCIRNClick(self);
   uUseVistaWeb := false;
 end;
@@ -2331,15 +2754,38 @@ end;
 procedure TfrmFrame.LoadSizesForUser;
 var
   s1, s2, s3, s4, Dummy: integer;
-  panelBottom, panelMedIn : integer;
+  panelBottom, panelMedIn, RestoreWidth, MinCnst : integer;
+
+  procedure GetMinContraint(aControl: TWinControl; var LastMinWidth: Integer);
+  var
+   I: integer;
+  begin
+   if aControl.Constraints.MinWidth > LastMinWidth then
+     LastMinWidth := aControl.Constraints.MinWidth;
+
+   for I := 0 to aControl.ControlCount - 1 do
+   begin
+     if aControl.Controls[i] is TWinControl then
+      GetMinContraint(TWinControl(aControl.Controls[i]), LastMinWidth);
+   end;
+
+  end;
 
 begin
   ChangeFont(UserFontSize);
+  CoverSheet.OnSetFontSize(Self, UserFontSize);
+  CoverSheet.OnSetScreenReaderStatus(Self, ScreenReaderSystemActive);
   SetUserBounds(TControl(frmFrame));
   SetUserWidths(TControl(frmProblems.pnlLeft));
-  //SetUserWidths(TControl(frmMeds.pnlLeft));
   SetUserWidths(TControl(frmOrders.pnlLeft));
+  RestoreWidth := frmNotes.pnlLeft.Width;
   SetUserWidths(TControl(frmNotes.pnlLeft));
+  MinCnst := 0;
+  GetMinContraint(frmNotes.pnlLeft, MinCnst);
+  if frmNotes.pnlLeft.Width < MinCnst then
+   frmNotes.pnlLeft.Width := RestoreWidth;
+
+  frmNotes.splHorz.Left := frmNotes.pnlLeft.left + 1;
   SetUserWidths(TControl(frmConsults.pnlLeft));
   SetUserWidths(TControl(frmDCSumm.pnlLeft));
   if Assigned(frmSurgery) then SetUserWidths(TControl(frmSurgery.pnlLeft));
@@ -2356,53 +2802,38 @@ begin
   SetUserBounds2(ReminderTreeName, RemTreeDlgLeft, RemTreeDlgTop, RemTreeDlgWidth, RemTreeDlgHeight);
   SetUserBounds2(RemDlgName, RemDlgLeft, RemDlgTop, RemDlgWidth, RemDlgHeight);
   SetUserBounds2(RemDlgSplitters, RemDlgSpltr1, RemDlgSpltr2, Dummy ,Dummy);
-  SetUserBounds2(DrawerSplitters,s1, s2, s3, Dummy);
-  if Assigned(frmSurgery) then frmSurgery.Drawers.LastOpenSize := Dummy; //CQ7315
+  SetUserBounds2(DrawerSplitters,s1, s2, s3, S4);
   frmNotes.Drawers.LastOpenSize := s1;
   frmConsults.Drawers.LastOpenSize := s2;
   frmDCSumm.Drawers.LastOpenSize := s3;
+  if Assigned(frmSurgery) then frmSurgery.Drawers.LastOpenSize := S4; //CQ7315
+
+  SetUserBounds2(NoteSplitters,s1, s2, s3, s4);
+  frmNotes.LoadUserSplitterSettings(s1, s2, s3, s4);
+
+  SetUserBounds2(LabSplitters,s1, s2, s3, s4);
+  frmLabs.LoadUserSettings(s1, s2, s3, s4);
 
   with frmMeds do
      begin
      SetUserBounds2(frmMeds.Name+'Split', panelBottom, panelMedIn, Dummy, Dummy);
      if (panelBottom > frmMeds.Height-50) then panelBottom := frmMeds.Height-50;
      if (panelMedIn > panelBottom-50) then panelMedIn := panelBottom-50;
-     frmMeds.pnlBottom.Height := panelBottom;
-     frmMeds.pnlMedIn.Height := panelMedIn;
+     frmMeds.gdpOut.Height := panelBottom;
+     frmMeds.gdpIn.Height := panelMedIn;
      //Meds Tab Non-VA meds columns
      SetUserColumns(TControl(hdrMedsNonVA)); //CQ7314
      end;
 
-     frmCover.DisableAlign;
-  try
-    SetUserBounds2(CoverSplitters1, s1, s2, s3, s4);
-    if s1 > 0 then
-      frmCover.pnl_1.Width := LowerOf( frmCover.pnl_not3.ClientWidth - 5, s1);
-    if s2 > 0 then
-      frmCover.pnl_3.Width := LowerOf( frmCover.pnlTop.ClientWidth - 5, s2);
-    if s3 > 0 then
-      frmCover.pnlTop.Height := LowerOf( frmCover.pnlBase.ClientHeight - 5, s3);
-    if s4 > 0 then
-      frmCover.pnl_4.Width := LowerOf( frmCover.pnlMiddle.ClientWidth - 5, s4);
-
-    SetUserBounds2(CoverSplitters2, s1, s2, s3, Dummy);
-    if s1 > 0 then
-      frmCover.pnlBottom.Height := LowerOf( frmCover.pnlBase.ClientHeight - 5, s1);
-    if s2 > 0 then
-      frmCover.pnl_6.Width := LowerOf( frmCover.pnlBottom.ClientWidth - 5, s2);
-    if s3 > 0 then
-      frmCover.pnl_8.Width := LowerOf( frmCover.pnlBottom.ClientWidth - 5, s3);
-
-  finally
-   frmCover.EnableAlign;
-  end;
   if ParamSearch('rez') = '640' then SetBounds(Left, Top, 648, 488);  // for testing
+
 end;
 
 procedure TfrmFrame.SaveSizesForUser;
 var
   SizeList: TStringList;
   SurgTempHt: integer;
+  i, s1, s2, s3, s4: integer;
 begin
   SaveUserFontSize(MainFontSize);
   SizeList := TStringList.Create;
@@ -2411,7 +2842,6 @@ begin
     begin
       Add(StrUserBounds(frmFrame));
       Add(StrUserWidth(frmProblems.pnlLeft));
-      //Add(StrUserWidth(frmMeds.pnlLeft));
       Add(StrUserWidth(frmOrders.pnlLeft));
       Add(StrUserWidth(frmNotes.pnlLeft));
       Add(StrUserWidth(frmConsults.pnlLeft));
@@ -2436,20 +2866,19 @@ begin
                                              frmConsults.Drawers.LastOpenSize,
                                              frmDCSumm.Drawers.LastOpenSize,
                                              SurgTempHt)); // last parameter = CQ7315
+      Add(StrUserBounds2(DrawerSplitters, frmNotes.Drawers.LastOpenSize,
+                                             frmConsults.Drawers.LastOpenSize,
+                                             frmDCSumm.Drawers.LastOpenSize,
+                                             SurgTempHt));
 
-      Add(StrUserBounds2(CoverSplitters1,
-        frmCover.pnl_1.Width,
-        frmCover.pnl_3.Width,
-        frmCover.pnlTop.Height,
-        frmCover.pnl_4.Width));
-      Add(StrUserBounds2(CoverSplitters2,
-        frmCover.pnlBottom.Height,
-        frmCover.pnl_6.Width,
-        frmCover.pnl_8.Width,
-        0));
+      frmNotes.SaveUserSplitterSettings(s1, s2, s3, s4);
+      Add(StrUserBounds2(NoteSplitters, s1, s2, s3, s4));
+
+      frmLabs.SaveUserSettings(s1, s2, s3, s4);
+      Add(StrUserBounds2(LabSplitters, s1, s2, s3, s4));
 
       //Meds Tab Splitters
-      Add(StrUserBounds2(frmMeds.Name+'Split',frmMeds.pnlBottom.Height,frmMeds.pnlMedIn.Height,0,0));
+      Add(StrUserBounds2(frmMeds.Name+'Split',frmMeds.gdpOut.Height,frmMeds.gdpIn.Height,0,0));
 
       //Meds Tab Non-VA meds columns
       Add(StrUserColumns(fMeds.frmMeds.hdrMedsNonVA)); //CQ7314
@@ -2461,6 +2890,12 @@ begin
         Add(StrUserBounds2('frmPtSel.sptVert', EnduringPtSelSplitterPos, 0, 0, 0));
       if EnduringPtSelColumns <> '' then
         Add('C^frmPtSel.lstvAlerts^' + EnduringPtSelColumns);
+
+      for i := Count - 1 downto 0 do
+        if Strings[i] = '' then
+          Delete(i);
+      //**** Copy/Paste
+//      Add(StrUserBounds2('frmNotes.ReadOnlyEditMonitor', frmNotes.ReadOnlyEditMonitor.Height, 0, 0, 0)); // Notes saving is done on the notes form.
     end;
     //Add sizes for forms that used SaveUserBounds() to save thier positions
     SizeHolder.AddSizesToStrList(SizeList);
@@ -2474,10 +2909,15 @@ end;
 procedure TfrmFrame.FormResize(Sender: TObject);
 { need to resize tab forms specifically since they don't inherit resize event (because they
   are derived from TForm itself) }
+var
+  r: TRect;
+
 begin
   if FTerminate or FClosing then Exit;
   if csDestroying in ComponentState then Exit;
-  MoveWindow(frmCover.Handle,    0, 0, pnlPage.ClientWidth, pnlPage.ClientHeight, True);
+  // These MoveWindow methods can be phased out. TForm now has TAlign property that set to
+  // alClient works perfectly well. TfrmCoverSheet update no longer uses it.
+  //MoveWindow(frmCover.Handle,  0, 0, pnlPage.ClientWidth, pnlPage.ClientHeight, True);
   MoveWindow(frmProblems.Handle, 0, 0, pnlPage.ClientWidth, pnlPage.ClientHeight, True);
   MoveWindow(frmMeds.Handle,     0, 0, pnlPage.ClientWidth, pnlPage.ClientHeight, True);
   MoveWindow(frmOrders.Handle,   0, 0, pnlPage.ClientWidth, pnlPage.ClientHeight, True);
@@ -2497,11 +2937,26 @@ begin
   lstCIRNLocations.Left  := FNextButtonL - ScrollBarWidth - 100;
   lstCIRNLocations.Width := ClientWidth - lstCIRNLocations.Left;
   //cq: 15641
-  if frmFrame.FNextButtonActive then // keeps button alligned if cancel is pressed
+  if frmFrame.FNextButtonActive then // keeps button aligned if cancel is pressed
   begin
     FNextButton.Left := FNextButtonL;
     FNextButton.Top := stsArea.Top;
   end;
+
+  if Self.WindowState <> wsMaximized then
+  begin
+    r := Screen.MonitorFromWindow(Self.Handle).WorkareaRect;
+
+    if height > r.Height then
+    begin
+      height := r.Height;
+      top := r.top;
+    end;
+    if (top+height) > r.Bottom then
+      top := r.Bottom-height;
+    if (top < r.Top) then top := r.Top;
+  end;
+
   Self.Repaint;
 end;
 
@@ -2525,6 +2980,8 @@ begin
       with lblPtName     do Font.Size := NewFontSize;   // must change BOLDED labels by hand
       with lblPtSSN      do Font.Size := NewFontSize;
       with lblPtAge      do Font.Size := NewFontSize;
+      with lblOTHDTitle  do Font.Size := NewFontSize;  // rpk 11/28/2017
+      with lblOTHDDtl    do Font.Size := NewFontSize;  // rpk 11/28/2017
       with lblPtLocation do Font.Size := NewFontSize;
       with lblPtProvider do Font.Size := NewFontSize;
       with lblPtPostings do Font.Size := NewFontSize;
@@ -2552,19 +3009,7 @@ begin
       stsArea.Height := MainFontHeight + TAB_VOFFSET;
       stsArea.Panels[0].Width := ResizeWidth( OldFont, Font, stsArea.Panels[0].Width);
       stsArea.Panels[2].Width := ResizeWidth( OldFont, Font, stsArea.Panels[2].Width);
-
-      //VAA CQ8271
-      if ((fCover.PtIsVAA and fCover.PtIsMHV)) then
-        begin
-         laMHV.Height := (pnlToolBar.Height div 2) -1;
-         with laVAA2 do
-           begin
-           Top := laMHV.Top + laMHV.Height;
-           Height := (pnlToolBar.Height div 2) -1;
-           end;
-         end;
-      //end VAA
-
+      pnlOtherInfo.Font.Size := NewFontSize;
       RefreshFixedStatusWidth;
       FormResize( self );
     finally
@@ -2579,11 +3024,13 @@ begin
   10: mnu10pt1.Checked := true;
   12: mnu12pt1.Checked := true;
   14: mnu14pt1.Checked := true;
-  18: mnu18pt1.Checked := true;
+  //18: mnu18pt1.Checked := true;
   end;
 
   //Now that the form elements are resized, the pages will know what size to take.
-  frmCover.SetFontSize(NewFontSize);                // child pages lack a ParentFont property
+
+  //frmCoverSheet.Font.Size := NewFontSize;
+  CoverSheet.OnSetFontSize(Self, NewFontSize);
   frmProblems.SetFontSize(NewFontSize);
   frmMeds.SetFontSize(NewFontSize);
   frmOrders.SetFontSize(NewFontSize);
@@ -2596,6 +3043,7 @@ begin
   TfrmIconLegend.SetFontSize(NewFontSize);
   uOrders.SetFontSize(NewFontSize);
   if Assigned(frmRemDlg) then frmRemDlg.SetFontSize;
+  //if (TfrmRemDlg.GetInstance <> nil) then TfrmRemDlg.GetInstance.SetFontSize;
   if Assigned(frmReminderTree) then frmReminderTree.SetFontSize(NewFontSize);
   if GraphFloat <> nil then ResizeAnchoredFormToFont(GraphFloat);
 end;
@@ -2604,10 +3052,10 @@ procedure TfrmFrame.FitToolBar;
 { resizes and repositions the panels & labels used in the toolbar }
 const
   PATIENT_WIDTH = 29;
-  VISIT_WIDTH   = 36;
+  VISIT_WIDTH   = 57;
   POSTING_WIDTH = 11.5;
   FLAG_WIDTH    = 5;
-  CV_WIDTH      = 15; //14; WAT
+  CV_WIDTH      = 15;
   CIRN_WIDTH    = 11;
   MHV_WIDTH     = 6;
   LINES_HIGH2    = 2;
@@ -2617,8 +3065,6 @@ const
   M_NVERT       = 4;
   M_WVERT       = 6;
   TINY_MARGIN   = 2;
-//var
-  //WidthNeeded: integer;
 begin
   if lblPtMHTC.caption = '' then
   begin
@@ -2643,6 +3089,15 @@ begin
   lblPtSSN.Top       := M_HORIZ + lblPtName.Height + M_MIDDLE;
   lblPtAge.Top       := lblPtSSN.Top;
   lblPtAge.Left      := pnlPatient.Width - lblPtAge.Width - M_WVERT;
+
+  lblOTHDDtl.Top        := lblPtSSN.Top; // rpk 12/6/2017
+  pnlOTHD.Width      := HigherOf( (lblOTHDTitle.Width + (M_WVERT * 2)),
+                          (lblOTHDDtl.Width + (M_WVERT * 2)) );  // rpk 12/6/2017
+
+  // center OTH title and data text fields in pnlOTHD
+  lblOTHDTitle.Left := (pnlOTHD.Width div 2) - (lblOTHDTitle.Width div 2);
+  lblOTHDDtl.Left := (pnlOTHD.Width div 2) - (lblOTHDDtl.Width div 2);
+
   pnlVisit.Width     := HigherOf(LowerOf(VISIT_WIDTH * MainFontWidth,
                                          HigherOf(lblPtProvider.Width + (M_WVERT * 2),
                                                   lblPtLocation.Width + (M_WVERT * 2))),
@@ -2664,7 +3119,13 @@ begin
    end;
   pnlRemoteData.Width := Round(CIRN_WIDTH * MainFontWidth) + M_WVERT;
   pnlVistaWeb.Height := pnlRemoteData.Height div 2;
-  paVAA.Width        := Round(MHV_WIDTH * MainFontWidth) + M_WVERT + 2;
+  paVAA.Width        := Round(MHV_WIDTH * MainFontWidth) + M_WVERT + 2; // pt. insurance and MHV
+
+  // ensure that buttons maintain alRight align
+  pnlCVnFlag.Left    := pnlRemoteData.Left - pnlCVnFlag.Width;  // rpk 5/9/2019
+  paVAA.Left          := pnlCVnFlag.Left - paVAA.Width;  // rpk 5/9/2019
+  pnlOTHD.Left       := paVAA.Left - pnlOTHD.Width;  // rpk 3/30/2018
+
   with lblPtPostings do
     SetBounds(M_WVERT, M_HORIZ, pnlPostings.Width-M_WVERT-M_WVERT, lblPtName.Height);
   with lblPtCWAD     do
@@ -2681,46 +3142,39 @@ begin
     lblPtProvider.Left := TINY_MARGIN;
     pnlVisit.Width := HigherOf( lblPtLocation.Left + lblPtLocation.Width, lblPtProvider.Left + lblPtProvider.Width)+ TINY_MARGIN;
   end;
-  //If that is not enough, add scroll bars to form
-  {if pnlPrimaryCare.Width < HigherOf( lblPtCare.Left + lblPtCare.Width, lblPtAttending.Left + lblPtAttending.Width) + TINY_MARGIN then
-  begin
-    WidthNeeded := HigherOf( lblPtCare.Left + lblPtCare.Width, lblPtAttending.Left + lblPtAttending.Width) + TINY_MARGIN - pnlPrimaryCare.Width;
-    HorzScrollBar.Range := ClientWidth + WidthNeeded;
-    Width := Width + WidthNeeded;
-  end
-  else }   // commented out - BA
-    HorzScrollBar.Range := 0;
+  HorzScrollBar.Range := 0;
+
 end;
 
 { Temporary Calls -------------------------------------------------------------------------- }
 
 procedure TfrmFrame.ToggleMenuItemChecked(Sender: TObject);
 begin
-  with (Sender as TMenuItem) do
-     begin
-     if not Checked then
-        Checked := true
-     else
-        Checked := false;
-     end;
+  TMenuItem(Sender).Checked := not TMenuItem(Sender).Checked;
+end;
+
+{----------------------------------------------------------------------------------------}
+{  mnuFocusChangesClick - toggles the Focused Controls window for forms that support it  }
+{----------------------------------------------------------------------------------------}
+procedure TfrmFrame.mnuFocusChangesClick(Sender: TObject);
+begin
+  inherited;
+  ShowFocusedControlDialog := mnuFocusChanges.Checked;
 end;
 
 procedure TfrmFrame.mnuFontSizeClick(Sender: TObject);
 begin
   if (frmRemDlg <> nil) then
     ShowMsg('Please close the reminder dialog before changing font sizes.')
-  else
-     if (dlgProbs <> nil) then
+  else if (dlgProbs <> nil) then
     ShowMsg('Font size cannot be changed while adding or editing a problem.')
-  else
-     begin
-     with (Sender as TMenuItem) do
-        begin
-        ToggleMenuItemChecked(Sender);
-        fMeds.oldFont := MainFontSize; //CQ9182
-        ChangeFont(Tag);
-        end;
-     end;
+  else begin
+    with (Sender as TMenuItem) do begin
+      ToggleMenuItemChecked(Sender);
+      fMeds.oldFont := MainFontSize; //CQ9182
+      ChangeFont(Tag);
+    end;
+  end;
 end;
 
 procedure TfrmFrame.mnuEditClick(Sender: TObject);
@@ -2729,8 +3183,7 @@ var
 begin
   FEditCtrl := nil;
   if Screen.ActiveControl is TCustomEdit then FEditCtrl := TCustomEdit(Screen.ActiveControl);
-  if FEditCtrl <> nil then
-  begin
+  if FEditCtrl <> nil then begin
     if      FEditCtrl is TMemo     then IsReadOnly := TMemo(FEditCtrl).ReadOnly
     else if FEditCtrl is TEdit     then IsReadOnly := TEdit(FEditCtrl).ReadOnly
     else if FEditCtrl is TRichEdit then IsReadOnly := TRichEdit(FEditCtrl).ReadOnly
@@ -2742,8 +3195,7 @@ begin
     mnuEditCut.Enabled := FEditCtrl.SelLength > 0;
     mnuEditCopy.Enabled := mnuEditCut.Enabled;
     mnuEditPaste.Enabled := (IsReadOnly = False) and Clipboard.HasFormat(CF_TEXT);
-  end else
-  begin
+  end else begin
     mnuEditUndo.Enabled  := False;
     mnuEditCut.Enabled   := False;
     mnuEditCopy.Enabled  := False;
@@ -2774,8 +3226,7 @@ end;
 
 procedure TfrmFrame.mnuEditPasteClick(Sender: TObject);
 begin
-  FEditCtrl.SelText := Clipboard.AsText;
-  //FEditCtrl.PasteFromClipboard;  // use AsText to prevent formatting from being pasted
+  FEditCtrl.PasteFromClipboard;  // use AsText to prevent formatting from being pasted
 end;
 
 procedure TfrmFrame.mnuFilePrintClick(Sender: TObject);
@@ -2929,8 +3380,11 @@ end;
 procedure TfrmFrame.SetUpCIRN;
 var
   i: integer;
-  aAutoQuery: string;
+  iNwHIN, iRDVOnly: integer;
+  aAutoQuery,aVistaWebLabel: string;
   ASite: TRemoteSite;
+  item: TVA508AccessibilityItem;
+  id: integer;
 begin
   uUseVistaWeb := false;
   with RemoteSites do
@@ -2938,9 +3392,31 @@ begin
     ChangePatient(Patient.DFN);
     lblCIRN.Caption := ' Remote Data';
     lblCIRN.Alignment := taCenter;
+    aVistaWebLabel := GetVistaWeb_JLV_LabelName;
+    if aVistaWebLabel = '' then aVistaWebLabel := 'VistAWeb';
+    lblVistaWeb.Caption := aVistaWebLabel;
     pnlVistaWeb.BevelOuter := bvRaised;
-    if RemoteDataExists and (RemoteSites.Count > 0) then
+    iNwHIN := 0;
+    iRDVOnly := 0;
+    for i := 0 to RemoteSites.Count - 1 do
       begin
+        if not(LeftStr(TRemoteSite(RemoteSites.SiteList.Items[i]).SiteID, 4) = '200N') then
+          begin
+            iRDVOnly := 1;
+            continue;
+          end
+        else
+          iNwHIN := 1;
+      end;
+
+    if RemoteDataExists and ((iRDVOnly = 1) or (iNwHIN = 1)) and (RemoteSites.Count > 0) then
+      begin
+        if ScreenReaderSystemActive then
+        begin
+         item := amgrMain.AccessData.FindItem(pnlRemoteData, False);
+         id:= item.INDEX;
+         amgrMain.AccessData[id].AccessText := '';
+        end;
         lblCIRN.Enabled     := True;
         pnlCIRN.TabStop     := True;
         lblCIRN.Font.Color  := Get508CompliantColor(clBlue);
@@ -2948,7 +3424,7 @@ begin
         lblCIRN.Caption := 'Remote Data';
         pnlCIRN.Hint := 'Click to display other facilities having data for this patient.';
         lblVistaWeb.Font.Color := Get508CompliantColor(clBlue);
-        pnlVistaWeb.Hint := 'Click to go to VistaWeb to see data from other facilities for this patient.';
+        pnlVistaWeb.Hint := 'Click to go to ' + aVistaWebLabel + ' to see data from other facilities for this patient.';
         if RemoteSites.Count > 0 then
           lstCIRNLocations.Items.Add('0' + U + 'All Available Sites');
         for i := 0 to RemoteSites.Count - 1 do
@@ -2960,20 +3436,36 @@ begin
       end
     else
       begin
+        if ScreenReaderSystemActive then
+        begin
+         item := amgrMain.AccessData.FindItem(pnlRemoteData, False);
+         id:= item.INDEX;
+         amgrMain.AccessData[id].AccessText := 'No remote data available';
+        end;
         lblCIRN.Font.Color  := clWindowText;
         lblVistaWeb.Font.Color := clWindowText;
         lblCIRN.Enabled     := False;
         pnlCIRN.TabStop     := False;
         pnlCIRN.Hint := NoDataReason;
+        if (iNwHIN = 1) and (iRDVOnly = 0) then
+          begin
+           lblVistaWeb.Font.Color := Get508CompliantColor(clBlue);
+           pnlVistaWeb.Hint := 'Click to go to ' + aVistaWebLabel + ' to see data from other facilities for this patient (includes Non-VA data).';
+          end;
       end;
     aAutoQuery := AutoRDV;        //Check to see if Remote Queries should be used for all available sites
     if (aAutoQuery = '1') and (lstCIRNLocations.Count > 0) then
       begin
-        lstCIRNLocations.ItemIndex := 1;
-        lstCIRNLocations.Checked[1] := true;
+        lstCIRNLocations.ItemIndex := 0;
+        lstCIRNLocations.Checked[0] := true;
         lstCIRNLocationsClick(self);
       end;
   end;
+end;
+
+procedure TfrmFrame.paVAAResize(Sender: TObject);
+begin
+  laMHV.Height := paVAA.ClientHeight div 2;
 end;
 
 procedure TfrmFrame.pnlCIRNClick(Sender: TObject);
@@ -3032,8 +3524,6 @@ begin
         for j := 0 to Count - 1 do
             begin
               Screen.Cursor := crHourGlass;
-              {CheckRemotePatient(aMsg, Patient.DFN + ';' + Patient.ICN,TRemoteSite(Items[j]).SiteID,
-                AccessStatus);}
               Screen.Cursor := crDefault;
               aMsg := aMsg + ' at site: ' + TRemoteSite(Items[j]).SiteName;
               s := lstCIRNLocations.Items[j+1];
@@ -3105,8 +3595,6 @@ begin
             with RemoteSites.SiteList do
             begin
               Screen.Cursor := crHourGlass;
-              {CheckRemotePatient(aMsg, Patient.DFN + ';' + Patient.ICN,TRemoteSite(Items[iCur]).SiteID,
-                AccessStatus);}
               Screen.Cursor := crDefault;
               aMsg := aMsg + ' at site: ' + TRemoteSite(Items[iCur]).SiteName;
               s := lstCIRNLocations.Items[iIndex];
@@ -3169,29 +3657,25 @@ begin
                       pnlRightTop.Height := lblTitle.Height + TabControl1.Height;
                     end;
               with frmLabs do
-                if piece(uRemoteType,'^',1) = '1' then
-                  if not(piece(uRemoteType,'^',2) = 'V') then
+                if piece(uLabRemoteType,'^',1) = '1' then
+                  if not(piece(uLabRemoteType,'^',2) = 'V') then
                     begin
                       TabControl1.Visible := true;
                       pnlRightTop.Height := lblTitle.Height + TabControl1.Height;
                     end;
-                {if lstReports.ItemIndex > -1 then
-                  if piece(lstReports.Items[lstReports.ItemIndex],'^',3) = '1' then
-                    if not(piece(lstReports.Items[lstReports.ItemIndex],'^',5) = 'V') then
-                      TabControl1.Visible := true;}
             end;
         end;
     end;
   with RemoteSites.SiteList do
     for j := 0 to Count - 1 do
-      if TRemoteSite(Items[j]).Selected then
+      if TRemoteSite(Items[j]).Selected
+        and (not(LeftStr(TRemoteSite(Items[j]).SiteID ,4) = '200N'))  then
         begin
           frmReports.TabControl1.Tabs.AddObject(TRemoteSite(Items[j]).SiteName,
             TRemoteSite(Items[j]));
           frmLabs.TabControl1.Tabs.AddObject(TRemoteSite(Items[j]).SiteName,
             TRemoteSite(Items[j]));
         end;
-  //uReportID, uLabRepID = Report ID's set when report is selected (from file 101.24)
   if not(Piece(uReportID,':',1) = 'OR_VWAL')
     and not(Piece(uReportID,':',1) = 'OR_VWRX')
     and not(Piece(uReportID,':',1) = 'OR_VWVS')
@@ -3199,7 +3683,6 @@ begin
   if not(uLabRepID = '6:GRAPH') and not(uLabRepID = '5:WORKSHEET')
     and not(uLabRepID = '4:SELECTED TESTS BY DATE')
     and (frmLabs.tvReports.SelectionCount > 0) then frmLabs.tvReportsClick(self);
-  //if frmLabs.lstReports.ItemIndex > -1 then frmLabs.ExtlstReportsClick(self, true);
   StatusText('');
 end;
 
@@ -3232,15 +3715,6 @@ var
 begin
   CurrPrt := SelectDevice(Self, Encounter.Location, True, 'Print Device Selection');
   User.CurrentPrinter := Piece(CurrPrt, U, 1);
-end;
-
-procedure TfrmFrame.lstCIRNLocationsChange(Sender: TObject);
-begin
-  {if lstCIRNLocations.ItemIndex > 0 then
-    if (lstCIRNLocations.Selected[lstCIRNLocations.ItemIndex] = true) and (uUpdateStat = false) then
-      if not (piece(lstCIRNLocations.Items[1],'^',1) = '0') then
-        lstCIRNLocations.OnClick(nil);
-  // Causing Access Violations}
 end;
 
 procedure TfrmFrame.LabInfo1Click(Sender: TObject);
@@ -3365,6 +3839,178 @@ begin
   end;
 end;
 
+procedure TfrmFrame.LoadBuffer(Sender: TObject; LoadList: TStrings; var ProcessLoad: Boolean);
+Var
+  IPAddr: string;
+begin
+  inherited;
+  //Load the buffer
+ IPAddr := DottedIPStr;
+ CallVistA('ORWTIU POLL', [User.DUZ, IPAddr, IntToHex(frmFrame.Handle, 8)], LoadList);
+ if Piece(LoadList.Values['(0,0)'], '^', 1) = '-1' then
+ begin
+  ProcessLoad := false;
+  CPAppMon.StopTheBuffer;
+ end else
+  ProcessLoad := true;
+end;
+
+procedure TfrmFrame.LoadProperties(Sender: TObject);
+Var
+ SavedStyles, DivID, Tmp: String;
+ aTmpLst:TStringList;
+begin
+  //Load the parameters
+  with CPAppMon do begin
+   //Check if the buffer has alread loaded
+   DivID := Piece(RPCBrokerV.User.Division, '^', 1);
+
+   If Trim(DivID) = '' then
+    DivID := GetDivisionID;
+
+   CPAppMon.UserDuz := User.DUZ; //Current User's DUZ
+
+   NumberOfWordsToBegin := StrToFloatDef(systemParameters.StringValue['cpWordCopy'], 0);
+   PercentToVerify := (StrToFloatDef(systemParameters.StringValue['cpPercentCopy'], 0) * 100);
+   SuperUser := systemParameters.StringValue['cpWordCopy'] = '2';
+   SavedStyles := systemParameters.StringValue['cpIdentifiers'];
+   BufferEnabled := not StrToBoolDef(systemParameters.StringValue['cpCopyBufferDisable'], true);
+
+   aTmpLst := TStringList.Create;
+   try
+    aTmpLst := systemParameters.StringValues['cpExcludeApps'];
+    for Tmp in aTmpLst do
+      ExcludeApps.Add(Piece(Tmp, '=', 2));
+
+    aTmpLst.Clear;
+    aTmpLst := systemParameters.StringValues['cpExcludeNotes'];
+    for Tmp in aTmpLst do
+      ExcludedList.Add(Piece(Tmp, '=', 2));
+
+   finally
+    aTmpLst.Free;
+   end;
+
+
+
+   DisplayPaste := Trim(SavedStyles) <> '-1;Visual Disable Override';
+   CPAppMon.Enabled := Trim(SavedStyles) <> '-2';
+
+   if DisplayPaste and CPAppMon.Enabled then begin
+    if SavedStyles <> '' then begin
+     if (Piece(SavedStyles, ',', 1) = '1') then
+      MatchStyle := MatchStyle + [fsBold];
+     if (Piece(SavedStyles, ',', 2) = '1') then
+      MatchStyle := MatchStyle + [fsItalic];
+     if (Piece(SavedStyles, ',', 3) = '1') then
+      MatchStyle := MatchStyle + [fsUnderline];
+
+     MatchHighlight :=  (Piece(SavedStyles, ',', 4) = '1');
+     HighlightColor := StrToIntDef(Piece(SavedStyles, ',', 5), clYellow);
+
+     //LCS
+     LCSToggle := (Piece(SavedStyles, ',', 6) = '1');
+     if (Piece(SavedStyles, ',', 7) = '1') then
+      LCSTextStyle := LCSTextStyle + [fsBold];
+     if (Piece(SavedStyles, ',', 8) = '1') then
+      LCSTextStyle := LCSTextStyle + [fsItalic];
+     if (Piece(SavedStyles, ',', 9) = '1') then
+      LCSTextStyle := LCSTextStyle + [fsUnderline];
+
+     LCSUseColor :=  (Piece(SavedStyles, ',', 10) = '1');
+     LCSTextColor := StrToIntDef(Piece(SavedStyles, ',', 11), clRed);
+     LCSCharLimit := StrToIntDef(Piece(SavedStyles, ',', 12), 0)
+    end;
+   end;
+
+  end;
+end;
+
+procedure TfrmFrame.SaveBuffer(Sender: TObject; SaveList: TStringList;
+  var ReturnList: TStringList);
+var
+  I, X, Z, TotalBuffer, LineCnt, SubLineCnt: Integer;
+  DivisionID, aName, aValue: string;
+  aList: iORNetMult;
+  LookUpLst: THashedStringList;
+begin
+  inherited;
+  TotalBuffer := StrToIntDef(SaveList.Values['TotalBufferToSave'], -1);
+  DivisionID := Piece(RPCBrokerV.User.Division, '^', 1);
+  If Trim(DivisionID) = '' then
+    DivisionID := GetDivisionID;
+
+  If TotalBuffer > -1 then
+  begin
+    LookUpLst := THashedStringList.Create;
+    try
+      LookUpLst.BeginUpdate;
+      LookUpLst.Assign(SaveList);
+      LookUpLst.EndUpdate;
+
+      neworNetMult(aList);
+
+      for I := 1 to TotalBuffer do
+      begin
+        aList.AddSubscript([I, 0], LookUpLst.Values[IntToStr(I) + ',0']);
+
+        if not CPAppMon.HashBuffer then
+        begin
+          LineCnt := StrToIntDef(LookUpLst.Values[IntToStr(I) + ',-1'], -1);
+          for X := 1 to LineCnt - 1 do
+          begin
+            SubLineCnt :=
+              StrToIntDef(LookUpLst.Values[IntToStr(I) + ',' + IntToStr(X + 1) +
+              ',-1'], -1);
+            if SubLineCnt > -1 then
+            begin
+              for Z := 1 to SubLineCnt - 1 do
+              begin
+                aName := IntToStr(I) + ',' + IntToStr(X) + ',' +
+                  IntToStr(Z);
+                aValue := FilteredString(LookUpLst.Values[aName]);
+                aList.AddSubscript([I,X,Z], aValue);
+              end;
+            end
+            else
+            begin
+              aName := IntToStr(I) + ',' + IntToStr(X);
+              aValue := FilteredString(LookUpLst.Values[aName]);
+              aList.AddSubscript([I,X], aValue);
+            end;
+          end;
+        end;
+      end;
+
+      CallVistA('ORWTIU SVCOPY', [aList, DivisionID], ReturnList);
+    finally
+      LookUpLst.Free;
+    end;
+  end;
+end;
+
+procedure TfrmFrame.StartPollBuff(Sender: TObject; var Error: Boolean);
+Var
+ DivID, IPAddr, TmpRtn: string;
+begin
+  inherited;
+  DivID := Piece(RPCBrokerV.User.Division, '^', 1);
+  If Trim(DivID) = '' then
+    DivID := GetDivisionID;
+  IPAddr := DottedIPStr;
+  CallVistA('ORWTIU START',  [User.DUZ, DivID, IPAddr, IntToHex(frmFrame.Handle, 8)], TmpRtn);
+  Error := TmpRtn = '0';
+end;
+
+procedure TfrmFrame.StopPollBuff(Sender: TObject; var Error: Boolean);
+Var
+ IPAddr, TmpRtn: string;
+begin
+  inherited;
+  IPAddr := DottedIPStr;
+  CallVistA('ORWTIU STOP', [User.DUZ, IPAddr, IntToHex(frmFrame.Handle, 8)], TmpRtn);
+  Error := TmpRtn = '0';
+end;
 
 procedure TfrmFrame.CreateTab(ATabID: integer; ALabel: string);
 begin
@@ -3411,8 +4057,10 @@ begin
                     frmSurgery.Parent := pnlPage;
                   end;
     CT_COVER    : begin
-                    frmCover := TfrmCover.Create(Self);
-                    frmCover.Parent := pnlPage;
+                    frmCoverSheet := TfrmCoverSheet.Create(Self);
+                    frmCoverSheet.Parent := pnlPage;
+                    CoverSheet.OnRefreshCWAD := RefreshCWAD;
+                    CoverSheet.OnRefreshReminders := RemindersChanged;
                   end;
   else
     Exit;
@@ -3467,7 +4115,7 @@ pnlVisit.onMouseDown := nil;
 pnlVisit.onMouseUp := nil;
 
 // Forms for other tabs:
-frmCover.visible := false;
+frmCoverSheet.visible := false;
 frmProblems.visible := false;
 frmMeds.visible := false;
 frmOrders.visible := false;
@@ -3491,6 +4139,8 @@ begin
   tmpDFN := Patient.DFN;
   Patient.Clear;
   Patient.DFN := tmpDFN;
+  pnlOtherInfo.Caption := '';
+  pnlOtherInfo.Repaint;
   uCore.TempEncounterLoc := 0;  //hds7591  Clinic/Ward movement.
   uCore.TempEncounterLocName := ''; //hds7591  Clinic/Ward movement.
   uCore.TempEncounterText := '';
@@ -3509,7 +4159,7 @@ begin
             end
           else if (patient.Location <> encounter.Location) and (OrderPrintForm = false) then
                 begin
-                  frmPrintLocation.SwitchEncounterLoction(Encounter.Location, Encounter.locationName, Encounter.LocationText,
+                  TfrmPrintLocation.SwitchEncounterLoction(Encounter.Location, Encounter.locationName, Encounter.LocationText,
                                                           Encounter.DateTime, Encounter.VisitCategory);
                   DisplayEncounterText;
                   exit;
@@ -3541,7 +4191,7 @@ begin
     lblPtName.Caption := Patient.Name + Patient.Status; //CQ #17491: Refresh patient status indicator in header bar on admission.
     if (FReviewClick = False) and (encounter.Location <> patient.Location) and (OrderPrintForm = false) then
         begin
-          frmPrintLocation.SwitchEncounterLoction(Encounter.Location, Encounter.locationName, Encounter.LocationText,
+          TfrmPrintLocation.SwitchEncounterLoction(Encounter.Location, Encounter.locationName, Encounter.LocationText,
                                                 Encounter.DateTime, Encounter.VisitCategory);
           //agp values are reset depending on the user process
           uCore.TempEncounterLoc := 0;  //hds7591  Clinic/Ward movement.
@@ -3559,8 +4209,33 @@ begin
       end;
     FPrevInPatient := True;
   end;
-  //if User.IsProvider then Encounter.Provider := ;
   DisplayEncounterText;
+  setOtherInfoPanel;
+end;
+
+procedure TfrmFrame.UpdateVAAMHVButtons(Sender: TObject);
+begin
+  Patient.RefreshVAAStatus;
+  Patient.RefreshMHVStatus;
+
+  if Patient.PtIsVAA then
+    laVAA2.Hint := 'Patient has active insurance'
+  else
+    laVAA2.Hint := 'No active insurance';
+
+  if Patient.PtIsMHV then
+    laMHV.Hint := 'Patient has data in My HealtheVet'
+  else
+    laMHV.Hint := 'No MyHealthyVet data';
+
+  laMHV.Align := alTop;
+  laMHV.Height := paVAA.ClientHeight div 2;
+  laVAA2.Align := alClient;
+
+  laMHV.Enabled := Patient.PtIsMHV;
+  laVAA2.Enabled := Patient.PtIsVAA;
+
+  paVAA.Visible := (Patient.PtIsVAA or Patient.PtIsMHV);
 end;
 
 procedure TfrmFrame.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
@@ -3599,9 +4274,14 @@ begin
 end;
 
 procedure TfrmFrame.FormActivate(Sender: TObject);
+var
+  aCPRS508: ICPRS508;
 begin
   if Assigned(FLastPage) then
-    FLastPage.FocusFirstControl;
+    if FLastPage.InheritsFrom(TfrmPage) then
+      TfrmPage(FLastPage).FocusFirstControl
+    else if Supports(fLastPage, ICPRS508, aCPRS508) then
+      aCPRS508.OnFocusFirstControl(Sender);;
 end;
 
 procedure TfrmFrame.pnlPrimaryCareEnter(Sender: TObject);
@@ -3651,14 +4331,11 @@ end;
 
 procedure TfrmFrame.pnlVisitClick(Sender: TObject);
 begin
- //if (not User.IsReportsOnly) then // Reports Only tab.
- //  mnuFileEncounterClick(Self);
   ViewInfo(mnuViewVisits);
 end;
 
 procedure TfrmFrame.pnlPrimaryCareClick(Sender: TObject);
 begin
-  //ReportBox(DetailPrimaryCare(Patient.DFN), 'Primary Care', True);
   ViewInfo(mnuViewPrimaryCare);
 end;
 
@@ -3706,6 +4383,7 @@ begin
     // Start a context change transaction
     if FCCOWInstalled then
        begin
+//          FCCOWJustJoined := False;
           FCCOWError := False;
           imgCCOW.Picture.BitMap.LoadFromResourceName(hInstance, 'BMP_CCOW_CHANGING');
           pnlCCOW.Hint := TX_CCOW_CHANGING;
@@ -3767,7 +4445,6 @@ begin
           end;
        end
     else
-      //response := urBreak;
       begin
         Result := True;
         Exit;
@@ -3777,7 +4454,6 @@ begin
     if (response = UrCommit) then
     begin
       // New context is committed.
-      //Show508Message('Response was Commit');
       mnuFileResumeContext.Enabled := False;
       mnuFileBreakContext.Enabled := True;
       FCCOWIconName := 'BMP_CCOW_LINKED';
@@ -3820,7 +4496,6 @@ begin
     end;
   except
     on exc : EOleException do
-      //Show508Message('EOleException: ' + exc.Message + ' - ' + string(exc.ErrorCode) );
       ShowMsg('EOleException: ' + exc.Message);
   end;
 end;
@@ -3921,7 +4596,6 @@ begin
     Exit;
   end;
   if not PtChanged then exit;
-  // HideEverything('Retrieving information - please wait....'); // v27 (pending) RV
   FCCOWDrivedChange := True;
   i := 0;
   while Length(Screen.Forms[i].Name) > 0 do
@@ -3938,10 +4612,8 @@ begin
   FCCOWIconName := 'BMP_CCOW_LINKED';
   pnlCCOW.Hint := TX_CCOW_LINKED;
   imgCCOW.Picture.BitMap.LoadFromResourceName(hInstance, FCCOWIconName);
-  // ShowEverything;    // v27 (pending) RV
 end;
 
-//function TfrmFrame.FindBestCCOWDFN(var APatientName: string): string;
 function TfrmFrame.FindBestCCOWDFN: string;
 var
   data: IContextItemCollection;
@@ -3966,9 +4638,6 @@ begin
     exit;
   end;
   IsProdAcct := User.IsProductionAccount;
-  {$IFDEF CCOWBROKER}
-  //IsProdAcct := RPCBrokerV.Login.IsProduction;  //not yet
-  {$ENDIF}
   // Get an item collection of the current context
   FCCOWError := False;
   try
@@ -3994,8 +4663,6 @@ begin
   else
     FindNextBestDFN;
   Result := tempDFN;
-(*  anItem := data.Present('Patient.co.PatientName');
-  if anItem <> nil then APatientName := anItem.Get_Value();*)
   data := nil;
   anItem := nil;
 end;
@@ -4006,14 +4673,12 @@ var
 begin
   if not FCCOWInstalled then exit;
   DoNotChangeEncWindow := false;
-  //PtDFN := FindBestCCOWDFN(PtName);
   PtDFN := FindBestCCOWDFN;
   if StrToInt64Def(PtDFN, 0) > 0 then
     begin
       // Select new patient based on context value
       if Patient.DFN = PtDFN then exit;
       Patient.DFN := PtDFN;
-      //if (Patient.Name = '-1') or (PtName <> Piece(Patient.Name, ',', 1) + U + Piece(Patient.Name, ',', 2) + '^^^^') then
       if (Patient.Name = '-1') then
         begin
           HideEverything;
@@ -4031,7 +4696,8 @@ begin
       end;
       if User.IsProvider then Encounter.Provider := User.DUZ;
       if not FFirstLoad then SetupPatient;
-      frmCover.UpdateVAAButton; //VAA
+      { frmCover.UpdateVAAButton; //VAA}
+      UpdateVAAMHVButtons(nil);
       DetermineNextTab;
       tabPage.TabIndex := PageIDToTab(NextTab);
       tabPageChange(tabPage);
@@ -4143,7 +4809,6 @@ begin
     Exit;
   end;
   data := IContextItemCollection(aContextItemCollection) ;
-  //PtDFN := FindBestCCOWDFN(PtName);
   PtDFN := FindBestCCOWDFN;
   // Retrieve the ContextItem name and value as strings
   anItem := data.Present('Patient.co.PatientName');
@@ -4187,6 +4852,24 @@ begin
             HyperlinkReason := '!@#$' + IntToStr(Self.Handle) + ':0:'
           else
             HyperlinkReason := '';
+        end;
+    end;
+end;
+
+function TfrmFrame.checkOtherForms(var Reason: String): boolean;
+var
+i: integer;
+begin
+  result := true;
+  if not frmFrame.CCOWContextChanging then exit;
+  for i := 0 to screen.FormCount - 1 do
+    begin
+      if (screen.Forms[i].Name = 'frmWVPregLacStatusUpdate') and
+       (screen.Forms[i].Showing) then
+        begin
+          Reason := 'Pregnancy and Lactation Status Update in progress, documentation will be discarded.';
+          result := false;
+          exit;
         end;
     end;
 end;
@@ -4244,6 +4927,7 @@ begin
   mnuView.Enabled := True;
   mnuTools.Enabled := True;
   if FNextButtonActive then FNextButton.Visible := True;
+//  setOtherInfoPanel;
 end;
 
 
@@ -4259,9 +4943,125 @@ begin
   pnlFlag.BevelOuter := bvRaised;
 end;
 
+procedure TfrmFrame.pnlOTHDClick(Sender: TObject); // rpk 1/5/2018
+var
+  tmpstr: String;
+  i, icnt: Integer;
+begin
+  inherited;
+  if Assigned(OTHDDspList) then begin
+    icnt := OTHDDspList.Count;
+    if icnt > 0 then begin
+      tmpstr := OTHDDspList[0];
+      for I := 1 to icnt - 1 do
+        tmpstr := tmpstr + CRLF + OTHDDspList[i];
+      ShowMsg(tmpstr);  // rpk 2/28/2018
+    end;
+  end;
+end;
+
+procedure TfrmFrame.pnlOTHDEnter(Sender: TObject);  // rpk 1/5/2018
+const
+  M_WVERT       = 6;
+begin
+  inherited;
+  lblOTHDTitle.Caption := OTHDTitleHintStr;
+  lblOTHDDtl.Caption := OTHDDtlHintStr;
+
+  pnlOTHD.Width     := HigherOf( (lblOTHDTitle.Width + (M_WVERT * 2)),
+                          (lblOTHDDtl.Width + (M_WVERT * 2)) );  // rpk 12/6/2017
+  // center OTH title and data text fields in pnlOTHD
+  lblOTHDTitle.Left := (pnlOTHD.Width div 2) - (lblOTHDTitle.Width div 2);
+  lblOTHDDtl.Left := (pnlOTHD.Width div 2) - (lblOTHDDtl.Width div 2);
+
+  // ensure that buttons maintain alRight align
+  pnlCVnFlag.Left   := pnlRemoteData.Left - pnlCVnFlag.Width;  // rpk 5/9/2019
+  paVAA.Left        := pnlCVnFlag.Left - paVAA.Width;  // rpk 5/9/2019
+  pnlOTHD.Left      := paVAA.Left - pnlOTHD.Width; // rpk 1/4/2018
+
+  with Sender as TPanel do
+    BevelInner := bvRaised;
+end;
+
+procedure TfrmFrame.pnlOTHDExit(Sender: TObject);  // rpk 1/5/2018
+const
+  M_WVERT       = 6;
+begin
+  inherited;
+  with Sender as TPanel do
+    BevelInner := bvNone;
+  lblOTHDTitle.Caption := OTHDTitleCaptionStr;  // rpk 3/27/2019
+  lblOTHDDtl.Caption := OTHDDtlCaptionStr;
+  pnlOTHD.Width   := HigherOf( (lblOTHDTitle.Width + (M_WVERT * 2)),
+                          (lblOTHDDtl.Width + (M_WVERT * 2)) );  // rpk 12/6/2017
+  // center OTH title and data text fields in pnlOTHD
+  lblOTHDTitle.Left := (pnlOTHD.Width div 2) - (lblOTHDTitle.Width div 2);
+  lblOTHDDtl.Left := (pnlOTHD.Width div 2) - (lblOTHDDtl.Width div 2);
+
+  // ensure that buttons maintain alRight align
+  pnlCVnFlag.Left := pnlRemoteData.Left - pnlCVnFlag.Width;  // rpk 5/9/2019
+  paVAA.Left      := pnlCVnFlag.Left - paVAA.Width;  // rpk 5/9/2019
+  pnlOTHD.Left    := paVAA.Left - pnlOTHD.Width; // rpk 1/4/2018
+
+  lblPtCare.Refresh;
+  lblPtAttending.Refresh;
+  lblPtMHTC.Refresh;
+end;
+
+
+procedure TfrmFrame.pnlOTHDMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  inherited;
+  if pnlOTHD.BevelOuter = bvLowered then exit;
+  pnlOTHD.BevelOuter := bvLowered;
+  with lblOTHDTitle do SetBounds(Left+2, Top+2, Width, Height);
+  with lblOTHDDtl   do SetBounds(Left+2, Top+2, Width, Height);
+end;
+
+procedure TfrmFrame.pnlOTHDMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  inherited;
+  if pnlOTHD.BevelOuter = bvRaised then exit;
+  pnlOTHD.BevelOuter := bvRaised;
+  with lblOTHDTitle do SetBounds(Left-2, Top-2, Width, Height);
+  with lblOTHDDtl  do SetBounds(Left-2, Top-2, Width, Height);
+end;
+
+procedure TfrmFrame.pnlOtherInfoClick(Sender: TObject);
+var
+details: TStrings;
+begin
+  inherited;
+  if not fotherPanelShowReportBox then exit;
+  details := TStringList.Create;
+  try
+    otherInformationPanelDetails(patient.DFN, fotherPanelType, details);
+    ReportBox(details, self.pnlOtherInfo.Caption, True);
+  finally
+    FreeAndNil(details);
+  end;
+end;
+
+procedure TfrmFrame.pnlOtherInfoMouseDown(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  inherited;
+  if not fotherPanelShowReportBox then exit;
+  pnlOtherInfo.BevelOuter := bvLowered;
+end;
+
+procedure TfrmFrame.pnlOtherInfoMouseUp(Sender: TObject; Button: TMouseButton;
+  Shift: TShiftState; X, Y: Integer);
+begin
+  inherited;
+  if not fotherPanelShowReportBox then exit;
+  pnlOtherInfo.BevelOuter := bvRaised;
+end;
+
 procedure TfrmFrame.pnlFlagClick(Sender: TObject);
 begin
-  //ShowFlags;
   ViewInfo(mnuViewFlags);
 end;
 
@@ -4279,6 +5079,11 @@ var XQAID: string;
 begin
   XQAID := Piece(Notifications.RecordID, '^', 2);
   RenewAlert(XQAID);
+end;
+
+procedure TfrmFrame.mnuFileViewNotificationsClick(Sender: TObject);
+begin
+  ShowPatientNotifications(mnuFileNextClick);
 end;
 
 procedure TfrmFrame.mnuAlertForwardClick(Sender: TObject);
@@ -4369,6 +5174,31 @@ begin
   FJustEnteredApp := True;
 end;
 
+procedure TfrmFrame.AppEventsMessage(var Msg: tagMSG; var Handled: Boolean);
+var
+  Control: TComponent;
+begin
+  Handled := False;
+  if (Msg.Message = WM_MOUSEWHEEL) and (GetKeyState(VK_LBUTTON) < 0) then
+  begin
+    Control := FindControl(Msg.hwnd);
+    if not assigned(Control) then
+      Handled := True
+    else if (Control is TRichEdit) then
+    begin
+      Handled := True;
+      SendMessage(Self.Handle, EM_SETZOOM, 0, 0);
+    end;
+  end;
+  if Msg.Message = UM_OBJDESTROY then
+  begin
+    if (Msg.WParam <> 0) and (TObject(Msg.WParam) is TComponent) and
+      not (csDestroying in TComponent(Msg.WParam).ComponentState) then
+      TComponent(Msg.WParam).Free;
+    Handled := True;
+  end;
+end;
+
 procedure TfrmFrame.ScreenActiveFormChange(Sender: TObject);
 begin
   if(assigned(FOldActiveFormChange)) then
@@ -4382,12 +5212,22 @@ end;
 procedure TfrmFrame.FocusApplicationTopForm;
 var
   I : integer;
+  Temp: TList;
+
 begin
-  for I := (Screen.FormCount-1) downto 0 do //Set the last one opened last
-  begin
-    with Screen.Forms[I] do
-      if (FormStyle = fsStayOnTop) and (Enabled) and (Visible) then
-        SetFocus;
+  Temp := TList.Create;
+  try
+    for I := (Screen.FormCount-1) downto 0 do //Set the last one opened last
+    begin
+      with Screen.Forms[I] do
+        if (FormStyle = fsStayOnTop) and (Enabled) and (Visible) then
+        // do NOT call SetFocus here - SetFocus changes the order of the Sreen.Forms list.
+          Temp.Add(Screen.Forms[I]);
+    end;
+    for I := 0 to Temp.Count-1 do
+      TForm(Temp[I]).SetFocus;
+  finally
+    Temp.Free;
   end;
 end;
 
@@ -4490,42 +5330,52 @@ end;
 
 procedure TfrmFrame.laMHVClick(Sender: TObject);
 begin
-  //if laMHV.Caption = 'MHV' then
-  //  ShellExecute(Handle, 'open', PChar('http://www.doma.domain.ext/'), '', '', SW_NORMAL);
   ViewInfo(mnuViewMyHealtheVet);
 end;
 
 procedure TfrmFrame.laVAA2Click(Sender: TObject);
-{var
-  InsuranceSubscriberName: string;
-  ReportString: TStringList; //CQ7782 }
 begin
-  {if fCover.VAAFlag[0] <> '0' then //'0' means subscriber not found
-     begin
-     InsuranceSubscriberName := fCover.VAAFlag[12];
-     //CQ7782
-     //ReportString := TStringList.Create;
-     ReportString := VAAFlag;
-     ReportString[0] := '';
-     ReportBox(ReportString, InsuranceSubscriberName, True);
-     //end CQ7782
-     end;}
   ViewInfo(mnuInsurance);
+end;
+
+procedure TfrmFrame.lblOTHDDtlClick(Sender: TObject); // rpk 1/5/2018
+begin
+  inherited;
+  pnlOTHDClick(Sender);
+end;
+
+procedure TfrmFrame.lblOTHDTitleClick(Sender: TObject);  // rpk 1/5/2018
+begin
+  inherited;
+  pnlOTHDClick(Sender);
 end;
 
 procedure TfrmFrame.ViewInfo(Sender: TObject);
 var
   SelectNew: Boolean;
-  InsuranceSubscriberName: string;
-  ReportString: TStringList;
+  { TODO 5 -oDanP -cNew CoverSheet : Need to finish the VAA button stuff ASAP! }
+  aInsuranceSubscriberName: string;
+  aReportText: TStringList;
   aAddress: string;
+  ID: integer;
+  aCPRS508: ICPRS508;
 begin
-  case (Sender as TMenuItem).Tag of
+  if Sender is TMenuItem then begin
+    ID := TMenuItem(Sender).Tag;
+  end else if Sender is TAction then begin
+    ID := TAction(Sender).Tag;
+  end else begin
+    ID := -1;
+  end;
+  case ID of
     1:begin { displays patient inquiry report (which optionally allows new patient to be selected) }
         StatusText(TX_PTINQ);
         PatientInquiry(SelectNew);
         if Assigned(FLastPage) then
-          FLastPage.FocusFirstControl;
+          if FLastPage.InheritsFrom(TfrmPage) then
+            TfrmPage(FLastPage).FocusFirstControl
+          else if Supports(fLastPage, ICPRS508, aCPRS508) then
+            aCPRS508.OnFocusFirstControl(Sender);
         StatusText('');
         if SelectNew then mnuFileOpenClick(mnuViewDemo);
       end;
@@ -4537,19 +5387,18 @@ begin
         ReportBox(DetailPrimaryCare(Patient.DFN), 'Primary Care', True);
       end;
     4:begin
-        if laMHV.Caption = 'MHV' then
-          ShellExecute(laMHV.Handle, 'open', PChar('http://www.doma.domain.ext/'), '', '', SW_NORMAL);
+        if Patient.PtIsMHV then
+          ShellExecute(laMHV.Handle, 'open', PChar('http://www.myhealth.domain/'), '', '', SW_NORMAL);
       end;
     5:begin
-        if fCover.VAAFlag[0] <> '0' then //'0' means subscriber not found
-        begin
-         //  CQ:15534-GE  Remove leading spaces from Patient Name
-          InsuranceSubscriberName := ( (Piece(fCover.VAAFlag[12],':',1)) + ':  ' +
-                                     (TRIM(Piece(fCover.VAAFlag[12],':',2)) ));//fCover.VAAFlag[12];
-          ReportString := VAAFlag;
-          ReportString[0] := '';
-          ReportBox(ReportString, InsuranceSubscriberName, True);
-        end;
+       if Patient.PtIsVAA then
+         try
+           aReportText := TStringList.Create;
+           Patient.GetVAAInformation(aInsuranceSubscriberName, aReportText);
+           ReportBox(aReportText, aInsuranceSubscriberName, True);
+         finally
+           FreeAndNil(aReportText);
+         end;
       end;
     6:begin
         ShowFlags;
@@ -4649,6 +5498,25 @@ procedure TfrmFrame.SetUpNextButton;
    FNextButton.show;
 end;
 
+Procedure TfrmFrame.GetExcludedFromMixed();
+var
+ VistaList: TStringList;
+ I: integer;
+begin
+ VistaList := TStringList.Create;
+ try
+  GetUserListParam(VistaList, 'OR EXCLUDE FROM MIXCASE');
+  if VistaList.Count > 0 then
+  begin
+    ExcludeFromMixed.Clear;
+    for I := 0 to VistaList.Count - 1 do
+      ExcludeFromMixed.Add(MixedCase(Piece(VistaList[I], U, 2), True));
+  end;
+ finally
+  VistaList.Free;
+ end;
+end;
+
 initialization
   SpecifyFormIsNotADialog(TfrmFrame);
 
@@ -4656,5 +5524,3 @@ finalization
 
 
 end.
-
-

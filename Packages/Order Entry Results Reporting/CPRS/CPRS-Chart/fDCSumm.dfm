@@ -8,28 +8,41 @@ inherited frmDCSumm: TfrmDCSumm
   HelpFile = 'overvw'
   Menu = mnuSumms
   OnDestroy = FormDestroy
-  ExplicitWidth = 687
-  ExplicitHeight = 436
+  ExplicitWidth = 695
+  ExplicitHeight = 441
   PixelsPerInch = 96
   TextHeight = 13
   inherited shpPageBottom: TShape
     Top = 377
     Width = 679
-    ExplicitTop = 358
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
+    ExplicitTop = 378
     ExplicitWidth = 679
   end
   inherited sptHorz: TSplitter
     Left = 64
     Width = 3
     Height = 377
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     OnCanResize = sptHorzCanResize
     ExplicitLeft = 64
     ExplicitWidth = 3
-    ExplicitHeight = 358
+    ExplicitHeight = 378
   end
   inherited pnlLeft: TPanel
     Width = 64
     Height = 377
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    Constraints.MinWidth = 37
     ExplicitWidth = 64
     ExplicitHeight = 377
     object lblSumms: TOROffsetLabel
@@ -54,7 +67,7 @@ inherited frmDCSumm: TfrmDCSumm
       Align = alBottom
       AutoSize = False
       Caption = ' '
-      ExplicitTop = 334
+      ExplicitTop = 354
     end
     object cmdNewSumm: TORAlignButton
       Left = 0
@@ -92,7 +105,7 @@ inherited frmDCSumm: TfrmDCSumm
         Height = 3
         Cursor = crVSplit
         Align = alBottom
-        ExplicitTop = 291
+        ExplicitTop = 311
       end
       object lstSumms: TORListBox
         Left = 0
@@ -106,9 +119,10 @@ inherited frmDCSumm: TfrmDCSumm
         ParentShowHint = False
         PopupMenu = popSummList
         ShowHint = True
-        TabOrder = 0
+        TabOrder = 2
         Visible = False
         OnClick = lstSummsClick
+        Caption = ''
         ItemTipColor = clWindow
         LongList = False
         Pieces = '2,3'
@@ -127,7 +141,7 @@ inherited frmDCSumm: TfrmDCSumm
         PopupMenu = popSummList
         ReadOnly = True
         StateImages = dmodShared.imgImages
-        TabOrder = 1
+        TabOrder = 0
         OnChange = tvSummsChange
         OnClick = tvSummsClick
         OnCollapsed = tvSummsCollapsed
@@ -145,6 +159,12 @@ inherited frmDCSumm: TfrmDCSumm
     Left = 67
     Width = 612
     Height = 377
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    Constraints.MinWidth = 30
+    OnResize = pnlRightResize
     ExplicitLeft = 67
     ExplicitWidth = 612
     ExplicitHeight = 377
@@ -155,7 +175,8 @@ inherited frmDCSumm: TfrmDCSumm
       Height = 4
       Cursor = crVSplit
       Align = alBottom
-      ExplicitTop = 309
+      AutoSnap = False
+      ExplicitTop = 329
     end
     object memPCEShow: TRichEdit
       Left = 0
@@ -164,14 +185,21 @@ inherited frmDCSumm: TfrmDCSumm
       Height = 45
       Align = alBottom
       Color = clCream
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -15
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
       Lines.Strings = (
         '<No encounter information entered>')
+      ParentFont = False
       PlainText = True
       ReadOnly = True
       ScrollBars = ssVertical
       TabOrder = 2
       WantReturns = False
       WordWrap = False
+      Zoom = 100
     end
     object pnlWrite: TPanel
       Left = 0
@@ -183,15 +211,26 @@ inherited frmDCSumm: TfrmDCSumm
       TabOrder = 1
       Visible = False
       OnResize = pnlWriteResize
+      object SpEditDetails: TSplitter
+        Left = 0
+        Top = 224
+        Width = 612
+        Height = 4
+        Cursor = crVSplit
+        Align = alBottom
+        AutoSnap = False
+        Visible = False
+        ExplicitTop = 225
+      end
       object memNewSumm: TRichEdit
         Left = 0
         Top = 52
         Width = 612
-        Height = 276
+        Height = 172
         Align = alClient
-        Font.Charset = DEFAULT_CHARSET
+        Font.Charset = ANSI_CHARSET
         Font.Color = clWindowText
-        Font.Height = -11
+        Font.Height = -12
         Font.Name = 'Courier New'
         Font.Style = []
         MaxLength = 2147483645
@@ -201,6 +240,7 @@ inherited frmDCSumm: TfrmDCSumm
         ScrollBars = ssVertical
         TabOrder = 1
         WantTabs = True
+        Zoom = 100
         OnChange = memNewSummChange
         OnKeyUp = memNewSummKeyUp
       end
@@ -231,7 +271,7 @@ inherited frmDCSumm: TfrmDCSumm
           Color = clCream
           Font.Charset = DEFAULT_CHARSET
           Font.Color = clWindowText
-          Font.Height = -11
+          Font.Height = -12
           Font.Name = 'MS Sans Serif'
           Font.Style = []
           ParentColor = False
@@ -239,7 +279,7 @@ inherited frmDCSumm: TfrmDCSumm
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 1
+          TabOrder = 0
         end
         object lblVisit: TStaticText
           Left = 6
@@ -248,7 +288,7 @@ inherited frmDCSumm: TfrmDCSumm
           Height = 17
           Caption = 'Adm: 10/20/99   2BMED'
           ShowAccelChar = False
-          TabOrder = 2
+          TabOrder = 4
         end
         object lblRefDate: TStaticText
           Left = 237
@@ -261,7 +301,7 @@ inherited frmDCSumm: TfrmDCSumm
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 3
+          TabOrder = 1
         end
         object lblCosigner: TStaticText
           Left = 307
@@ -276,7 +316,7 @@ inherited frmDCSumm: TfrmDCSumm
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 4
+          TabOrder = 5
         end
         object lblDictator: TStaticText
           Left = 402
@@ -290,7 +330,7 @@ inherited frmDCSumm: TfrmDCSumm
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 5
+          TabOrder = 2
         end
         object lblDischarge: TStaticText
           Left = 6
@@ -308,9 +348,77 @@ inherited frmDCSumm: TfrmDCSumm
           Height = 21
           Anchors = [akTop, akRight]
           Caption = 'Change...'
-          TabOrder = 0
+          TabOrder = 3
           OnClick = cmdChangeClick
         end
+      end
+      object CPMemNewSumm: TCopyPasteDetails
+        Left = 0
+        Top = 228
+        Width = 612
+        Height = 100
+        Align = alBottom
+        BevelInner = bvRaised
+        BorderStyle = bsSingle
+        Constraints.MinHeight = 28
+        ShowCaption = False
+        TabOrder = 2
+        Visible = False
+        CopyMonitor = frmFrame.CPAppMon
+        CollapseBtn.Left = 587
+        CollapseBtn.Top = 0
+        CollapseBtn.Width = 17
+        CollapseBtn.Height = 16
+        CollapseBtn.Align = alRight
+        CollapseBtn.Caption = #218
+        CollapseBtn.Font.Charset = DEFAULT_CHARSET
+        CollapseBtn.Font.Color = clWindowText
+        CollapseBtn.Font.Height = -11
+        CollapseBtn.Font.Name = 'Wingdings'
+        CollapseBtn.Font.Style = []
+        CollapseBtn.ParentFont = False
+        CollapseBtn.TabOrder = 0
+        CollapseBtn.TabStop = False
+        EditMonitor.CopyMonitor = frmFrame.CPAppMon
+        EditMonitor.OnLoadPastedText = LoadPastedText
+        EditMonitor.OnPasteToMonitor = PasteToMonitor
+        EditMonitor.OnSaveTheMonitor = SaveTheMonitor
+        EditMonitor.RelatedPackage = '8925'
+        EditMonitor.TrackOnlyEdits = <>
+        InfoMessage.AlignWithMargins = True
+        InfoMessage.Left = 3
+        InfoMessage.Top = 3
+        InfoMessage.Width = 498
+        InfoMessage.Height = 56
+        InfoMessage.Align = alClient
+        InfoMessage.Font.Charset = ANSI_CHARSET
+        InfoMessage.Font.Color = clWindowText
+        InfoMessage.Font.Height = -11
+        InfoMessage.Font.Name = 'MS Sans Serif'
+        InfoMessage.Font.Style = []
+        InfoMessage.Lines.Strings = (
+          '<-- Please select the desired paste date')
+        InfoMessage.ParentFont = False
+        InfoMessage.ReadOnly = True
+        InfoMessage.ScrollBars = ssBoth
+        InfoMessage.TabOrder = 0
+        InfoMessage.WantReturns = False
+        InfoMessage.WordWrap = False
+        InfoMessage.Zoom = 100
+        InfoSelector.AlignWithMargins = True
+        InfoSelector.Left = 3
+        InfoSelector.Top = 3
+        InfoSelector.Width = 87
+        InfoSelector.Height = 56
+        InfoSelector.Style = lbOwnerDrawFixed
+        InfoSelector.Align = alClient
+        InfoSelector.ItemHeight = 13
+        InfoSelector.TabOrder = 0
+        OnHide = CPHide
+        OnShow = CPShow
+        SyncSizes = True
+        VisualEdit = memNewSumm
+        SaveFindAfter = 0
       end
     end
     object pnlRead: TPanel
@@ -331,7 +439,7 @@ inherited frmDCSumm: TfrmDCSumm
         Caption = 'No Discharge Summaries Found'
         Font.Charset = DEFAULT_CHARSET
         Font.Color = clWindowText
-        Font.Height = -11
+        Font.Height = -12
         Font.Name = 'MS Sans Serif'
         Font.Style = []
         HorzOffset = 2
@@ -341,26 +449,39 @@ inherited frmDCSumm: TfrmDCSumm
         Transparent = False
         VertOffset = 6
         WordWrap = False
+        ExplicitWidth = 154
       end
       object sptList: TSplitter
         Left = 0
-        Top = 113
+        Top = 112
         Width = 612
         Height = 3
         Cursor = crVSplit
         Align = alTop
+        ExplicitTop = 111
+      end
+      object spDetails: TSplitter
+        Left = 0
+        Top = 224
+        Width = 612
+        Height = 4
+        Cursor = crVSplit
+        Align = alBottom
+        AutoSnap = False
+        Visible = False
+        ExplicitTop = 225
       end
       object memSumm: TRichEdit
         Left = 0
-        Top = 116
+        Top = 115
         Width = 612
-        Height = 212
+        Height = 109
         Align = alClient
         Color = clCream
         Ctl3D = True
-        Font.Charset = DEFAULT_CHARSET
+        Font.Charset = ANSI_CHARSET
         Font.Color = clWindowText
-        Font.Height = -11
+        Font.Height = -12
         Font.Name = 'Courier New'
         Font.Style = []
         Lines.Strings = (
@@ -373,15 +494,16 @@ inherited frmDCSumm: TfrmDCSumm
         PopupMenu = popSummMemo
         ReadOnly = True
         ScrollBars = ssBoth
-        TabOrder = 0
+        TabOrder = 1
         WantReturns = False
         WordWrap = False
+        Zoom = 100
       end
       object lvSumms: TCaptionListView
         Left = 0
         Top = 19
         Width = 612
-        Height = 94
+        Height = 93
         Align = alTop
         Columns = <
           item
@@ -403,6 +525,7 @@ inherited frmDCSumm: TfrmDCSumm
           item
             AutoSize = True
             Caption = 'Location'
+            MinWidth = 12
           end
           item
             Caption = 'fmdate'
@@ -418,14 +541,84 @@ inherited frmDCSumm: TfrmDCSumm
         RowSelect = True
         SmallImages = dmodShared.imgNotes
         StateImages = dmodShared.imgImages
-        TabOrder = 1
+        TabOrder = 0
         ViewStyle = vsReport
         Visible = False
         OnColumnClick = lvSummsColumnClick
         OnCompare = lvSummsCompare
         OnResize = lvSummsResize
         OnSelectItem = lvSummsSelectItem
+        AutoSize = False
         Caption = 'No Discharge Summaries Found'
+        HideTinyColumns = True
+      end
+      object CPMemSumm: TCopyPasteDetails
+        Left = 0
+        Top = 228
+        Width = 612
+        Height = 100
+        Align = alBottom
+        BevelInner = bvRaised
+        BorderStyle = bsSingle
+        Constraints.MinHeight = 28
+        ShowCaption = False
+        TabOrder = 2
+        Visible = False
+        CopyMonitor = frmFrame.CPAppMon
+        CollapseBtn.Left = 587
+        CollapseBtn.Top = 0
+        CollapseBtn.Width = 17
+        CollapseBtn.Height = 16
+        CollapseBtn.Align = alRight
+        CollapseBtn.Caption = #218
+        CollapseBtn.Font.Charset = DEFAULT_CHARSET
+        CollapseBtn.Font.Color = clWindowText
+        CollapseBtn.Font.Height = -11
+        CollapseBtn.Font.Name = 'Wingdings'
+        CollapseBtn.Font.Style = []
+        CollapseBtn.ParentFont = False
+        CollapseBtn.TabOrder = 0
+        CollapseBtn.TabStop = False
+        EditMonitor.CopyMonitor = frmFrame.CPAppMon
+        EditMonitor.OnCopyToMonitor = CopyToMonitor
+        EditMonitor.OnLoadPastedText = LoadPastedText
+        EditMonitor.OnSaveTheMonitor = SaveTheMonitor
+        EditMonitor.RelatedPackage = '8925'
+        EditMonitor.TrackOnlyEdits = <>
+        InfoMessage.AlignWithMargins = True
+        InfoMessage.Left = 3
+        InfoMessage.Top = 3
+        InfoMessage.Width = 498
+        InfoMessage.Height = 56
+        InfoMessage.Align = alClient
+        InfoMessage.Font.Charset = ANSI_CHARSET
+        InfoMessage.Font.Color = clWindowText
+        InfoMessage.Font.Height = -11
+        InfoMessage.Font.Name = 'MS Sans Serif'
+        InfoMessage.Font.Style = []
+        InfoMessage.Lines.Strings = (
+          '<-- Please select the desired paste date')
+        InfoMessage.ParentFont = False
+        InfoMessage.ReadOnly = True
+        InfoMessage.ScrollBars = ssBoth
+        InfoMessage.TabOrder = 0
+        InfoMessage.WantReturns = False
+        InfoMessage.WordWrap = False
+        InfoMessage.Zoom = 100
+        InfoSelector.AlignWithMargins = True
+        InfoSelector.Left = 3
+        InfoSelector.Top = 3
+        InfoSelector.Width = 87
+        InfoSelector.Height = 56
+        InfoSelector.Style = lbOwnerDrawFixed
+        InfoSelector.Align = alClient
+        InfoSelector.ItemHeight = 13
+        InfoSelector.TabOrder = 0
+        OnHide = CPHide
+        OnShow = CPShow
+        SyncSizes = True
+        VisualEdit = memSumm
+        SaveFindAfter = 0
       end
     end
   end
@@ -496,6 +689,12 @@ inherited frmDCSumm: TfrmDCSumm
         'Status = stsDefault')
       (
         'Component = frmDCSumm'
+        'Status = stsDefault')
+      (
+        'Component = CPMemSumm'
+        'Status = stsDefault')
+      (
+        'Component = CPMemNewSumm'
         'Status = stsDefault'))
   end
   object mnuSumms: TMainMenu

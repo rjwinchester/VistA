@@ -67,7 +67,8 @@ type
     SearchString: String;  // Text Search CQ: HDS00002856
   end ;
 
-  TNoteTitles = class
+  TNoteTitles = class (TObject)
+  public
     DfltTitle: Integer;
     DfltTitleName: string;
     ShortList: TStringList;
@@ -75,7 +76,8 @@ type
     destructor Destroy; override;
   end;
 
-  TTIUPrefs = class
+  TTIUPrefs = class (TObject)
+  public
     DfltLoc: Integer;
     DfltLocName: string;
     SortAscending: Boolean;
@@ -120,7 +122,7 @@ begin
   if Piece(x, U, 1) = '' then
     Result := FormatFMDateTime('mmm dd,yy', MakeFMDateTime(Piece(x, U, 3))) + '  ' +
         Piece(x, U, 2) + ', ' + Piece(x, U, 6) + ', ' + Piece(Piece(x, U, 5), ';', 2)
-  else if Piece(x, U, 1)[1] in ['A', 'N', 'E'] then
+  else if CharInSet(Piece(x, U, 1)[1], ['A', 'N', 'E']) then
     Result := Piece(x, U, 2)
   else
     Result := FormatFMDateTime('mmm dd,yy', MakeFMDateTime(Piece(x, U, 3))) + '  ' +
@@ -150,13 +152,11 @@ begin
   Result := AStrings;
   ARichEdit74 := TRichEdit.Create(AParent);
   try
-    with ARichEdit74 do
-      begin
-        Parent := AParent;
-        Lines.Text := AStrings.Text;
-        Width := 525;
-        QuickCopy(ARichEdit74, Result);
-      end;
+    ARichEdit74.Parent := AParent;
+    ARichEdit74.Lines.Text := AStrings.Text;
+    ARichEdit74.Width := 525;
+    Result.Text := ARichEdit74.Lines.Text;
+    //QuickCopy(ARichEdit74, Result);
   finally
     ARichEdit74.Free;
   end;

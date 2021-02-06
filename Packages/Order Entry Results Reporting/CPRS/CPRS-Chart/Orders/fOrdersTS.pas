@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   fAutoSz, StdCtrls, ORCtrls, ORFn, ExtCtrls, rOrders, ORDtTm, mEvntDelay,uConst,
-  VA508AccessibilityManager;
+  VA508AccessibilityManager, ORNet, Vcl.ComCtrls, Vcl.OleCtrls, SHDocVw, rCore, ShellApi;
 
 type
   TfrmOrdersTS = class(TfrmAutoSz)
@@ -13,16 +13,16 @@ type
     pnlTop: TPanel;
     lblPtInfo: TVA508StaticText;
     grpChoice: TGroupBox;
-    radReleaseNow: TRadioButton;
     radDelayed: TRadioButton;
     pnldif: TPanel;
     Image1: TImage;
     cmdOK: TButton;
     cmdCancel: TButton;
-    lblUseAdmit: TVA508StaticText;
-    lblUseTransfer: TVA508StaticText;
     pnlBottom: TPanel;
     fraEvntDelayList: TfraEvntDelayList;
+    radReleaseNow: TRadioButton;
+    memHelp: TRichEdit;
+    btnHelp: TButton;
     procedure cmdOKClick(Sender: TObject);
     procedure cmdCancelClick(Sender: TObject);
     procedure FormCreate(Sender: TObject);
@@ -35,9 +35,12 @@ type
     procedure fraEvntDelayListmlstEventsChange(Sender: TObject);
     procedure FormKeyDown(Sender: TObject; var Key: Word;
       Shift: TShiftState);
+    procedure FormResize(Sender: TObject);
+    procedure btnHelpClick(Sender: TObject);
   private
     OKPressed: Boolean;
     FResult  : Boolean;
+    helpString: string;
     FImmediatelyRelease: boolean;
     FCurrSpecialty: string;
     F1stClick: Boolean;
@@ -98,7 +101,7 @@ begin
       else
         frmOrdersTS.lblPtInfo.Caption := Patient.Name + ' currently is an outpatient.' + SpeCap;
     end;
-    if not (AnLimitEvent in ['A','D','T','M','O']) then
+    if not CharInSet(AnLimitEvent, ['A','D','T','M','O']) then
       AnLimitEvent := #0;
     frmOrdersTs.fraEvntDelayList.EvntLimit := AnLimitEvent;
     if AnEvent.EventIFN > 0 then
@@ -158,6 +161,9 @@ begin
 end;
 
 procedure TfrmOrdersTS.FormCreate(Sender: TObject);
+var
+  msgData: TStringList;
+  msgStr: string;
 begin
   inherited;
   if not Patient.Inpatient then
@@ -167,11 +173,44 @@ begin
   FImmediatelyRelease := False;
   F1stClick           := True;
   FCurrSpecialty      := '';
+  AutoSizeDisabled := true;
+
+  msgData := TStringList.Create;
+  CallVistA('ORDDPAPI RLSMSG',[],msgData);
+    for msgStr in msgData do
+      begin
+      memHelp.Lines.Add(msgStr);
+      end;
+
+  FreeAndNil(msgData);
+  helpString := GetUserParam('OR RELEASE FORM HELP');
+  btnHelp.Visible := false;
+  memHelp.Width := memHelp.Width + btnHelp.Width;
+  if (helpString <> '') then
+  begin
+    btnHelp.Visible := true;
+    memHelp.Width := memHelp.Width - btnHelp.Width;
+  end;
 end;
 
-procedure TfrmOrdersTS.cmdOKClick(Sender: TObject);   
+
+{=========================================================================================}
+{  RetrieveValueFromIndex - Acts like old ValueFromIndex                                  }
+{-----------------------------------------------------------------------------------------}
+{  XE3 changed the Value From Index to include calculating with the delimiter character.  }
+{  This routine uses the old method for calculating ValueFromIndex from D2006             }
+{=========================================================================================}
+function RetrieveValueFromIndex(s: TStrings; Index: integer): string;
+begin
+  if Index >= 0 then
+  Result := Copy(s[Index], Length(s.Names[Index]) + 2, MaxInt) else
+  Result := '';
+end;
+
+procedure TfrmOrdersTS.cmdOKClick(Sender: TObject);
 var
   tempStr: String;
+
 begin
   inherited;
   if grpChoice.Tag = 0 then
@@ -184,8 +223,9 @@ begin
     InfoBox('A release event must be selected.', 'No Selection Made', MB_OK);
     Exit;
   end;
-  
-  tempStr := fraEvntDelayList.mlstEvents.Items.ValueFromIndex[fraEvntDelayList.mlstEvents.ItemIndex];
+
+ // tempStr := fraEvntDelayList.mlstEvents.Items.ValueFromIndex[fraEvntDelayList.mlstEvents.ItemIndex];
+  tempStr := RetrieveValueFromIndex(fraEvntDelayList.mlstEvents.Items, fraEvntDelayList.mlstEvents.ItemIndex);  // CQ 21556
 
   if(fraEvntDelayList.mlstEvents.ItemIndex >= 0) and (Length(Piece(tempStr,'^',2))<1)then
   begin
@@ -206,6 +246,13 @@ begin
   OKPressed := True;
   FResult   := True;
   Close;
+end;
+
+procedure TfrmOrdersTS.btnHelpClick(Sender: TObject);
+begin
+  inherited;
+//  InfoBox(helpString,'Info', MB_OK);
+    ShellExecute(0, 'OPEN', PChar(helpString), '', '', SW_SHOWNORMAL);
 end;
 
 procedure TfrmOrdersTS.cmdCancelClick(Sender: TObject);
@@ -302,6 +349,12 @@ begin
   inherited;
   if Key = VK_RETURN then
      cmdOKClick(Self);
+end;
+
+procedure TfrmOrdersTS.FormResize(Sender: TObject);
+begin
+ // inherited;
+
 end;
 
 end.

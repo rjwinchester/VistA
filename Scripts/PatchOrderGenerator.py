@@ -8,7 +8,7 @@
 # and generate the Patch order via patch dependency
 #
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -22,6 +22,11 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from __future__ import print_function
+from past.builtins import cmp
+from builtins import str
+from builtins import range
+from builtins import object
 import os
 import sys
 import re
@@ -63,6 +68,9 @@ from ConvertToExternalData import isValidGlobalSha1Suffix
 from ConvertToExternalData import isValidPythonSuffix
 from KIDSAssociatedFilesMapping import getAssociatedInstallName
 
+class CycleException(Exception):
+    pass
+
 """
 This class will generate a Patch order based on input
 patch directory
@@ -101,7 +109,12 @@ class PatchOrderGenerator(object):
         raise Exception("Could not find patch for %s" % installName)
     self.__updatePatchDependency__((installName is None))
     self.__generatePatchDependencyGraph__()
-    self.__topologicSort__(installName)
+    try:
+        self.__topologicSort__(installName)
+    except CycleException as e:
+        errorMessage = "Failed to sort patches: %s" % e
+        logger.error(errorMessage)
+        return []
     logger.info("After topologic sort %d" % len(self._patchOrder))
     return self._patchOrder
 
@@ -211,7 +224,7 @@ class PatchOrderGenerator(object):
 
   """ parse all the KIDS files, update kidsInstallNameDict, multibuildDict """
   def __parseAllKIDSBuildFilesList__(self):
-    for basename in self._kidsBuildFileDict.iterkeys():
+    for basename in self._kidsBuildFileDict:
       kidsFile, sha1Path = self._kidsBuildFileDict[basename]
       if kidsFile == None:
         logger.error("No KIDS file available for name %s" % basename)
@@ -278,7 +291,7 @@ class PatchOrderGenerator(object):
       """ only add to list for info that is related to a Patch"""
       installName = patchInfo.installName
       if installName not in self._kidsInstallNameDict:
-        logger.warn("no KIDS file related to %s" % patchInfo)
+        logger.warn("no KIDS file related to %s (%s)" % (installName, kidsInfoFile))
         if installName in self._missKidsBuildDict:
           logger.warn("duplicated kids install name")
           if kidsInfoFile != self._missKidsBuildDict[installName].kidsInfoPath:
@@ -321,7 +334,7 @@ class PatchOrderGenerator(object):
   """ update multiBuild KIDS patch info"""
   def __updateMultiBuildPatchInfo__(self):
     patchList = self._patchInfoDict
-    for installList in self._multiBuildDict.itervalues():
+    for installList in self._multiBuildDict.values():
       for installName in installList:
         patchInfo = patchList[installName]
         patchInfo.isMultiBuilds = True
@@ -329,7 +342,7 @@ class PatchOrderGenerator(object):
   """ update multiBuild KIDS files dependencies """
   def __updateMultiBuildDependencies__(self):
     patchList = self._patchInfoDict
-    for installList in self._multiBuildDict.itervalues():
+    for installList in self._multiBuildDict.values():
       logger.info("Multi-Buids KIDS install List: %s" % (installList))
       firstPatch = patchList[installList[0]]
       firstPatch.otherKidsInfoList = []
@@ -351,8 +364,9 @@ class PatchOrderGenerator(object):
         firstPatch.otherKidsInfoList.append([nextPatchInfo.kidsInfoPath,
                                             nextPatchInfo.kidsInfoSha1])
         prevInstallName = installList[index - 1]
-        if prevInstallName not in nextPatchInfo.depKIDSBuild:
-          nextPatchInfo.depKIDSBuild.add(prevInstallName)
+        # Removing May 2019: Causes cyclical dependency - J.Snyder
+        #if prevInstallName not in nextPatchInfo.depKIDSBuild:
+        #  nextPatchInfo.depKIDSBuild.add(prevInstallName)
         #del patchList[installList[index]] #remove the other patch from the list
         logger.debug("%s:%s" % (nextPatchInfo.installName, nextPatchInfo.depKIDSBuild))
       """ remove the self dependencies of the first patch """
@@ -361,7 +375,7 @@ class PatchOrderGenerator(object):
 
   """ update the csvDepPatch based on csv file based dependencies """
   def __updateCSVDependencies__(self):
-    for patchInfo in self._patchInfoDict.itervalues():
+    for patchInfo in self._patchInfoDict.values():
       installName = patchInfo.installName
       if installName in self._csvDepDict:
         patchInfo.csvDepPatch = self._csvDepDict[installName]
@@ -378,7 +392,7 @@ class PatchOrderGenerator(object):
   def __updateSeqNoDependencies__(self):
     namespaceVerSeq = dict()
     patchInfoDict = self._patchInfoDict
-    for patchInfo in patchInfoDict.itervalues():
+    for patchInfo in patchInfoDict.values():
       """ generate dependencies map based on seq # """
       namespace = patchInfo.namespace
       version = patchInfo.version
@@ -394,8 +408,8 @@ class PatchOrderGenerator(object):
         namespaceVerSeq[namespace][version].append((int(seqNo),
                                                     installName))
     """ add dependencies based on SEQ # """
-    for versionDict in namespaceVerSeq.itervalues():
-      for seqList in versionDict.itervalues():
+    for versionDict in namespaceVerSeq.values():
+      for seqList in versionDict.values():
         if len(seqList) < 2:
           continue
         else:
@@ -409,7 +423,7 @@ class PatchOrderGenerator(object):
   def __generatePatchDependencyGraph__(self):
     depDict = self._patchDependencyDict
     namespaceVerSeq = dict()
-    for patchInfo in self._patchInfoDict.itervalues():
+    for patchInfo in self._patchInfoDict.values():
       installName = patchInfo.installName
       if installName not in depDict:
         depDict[installName] = set()
@@ -436,6 +450,10 @@ class PatchOrderGenerator(object):
       patchInfo = PatchInfo()
       patchInfo.installName = kidsInstallName
       setPatchInfoFromInstallName(kidsInstallName, patchInfo)
+      if kidsInstallName in self._kidsInstallNameSha1Dict:
+        sha1Path = self._kidsInstallNameSha1Dict[kidsInstallName]
+        patchInfo.kidsSha1Path = sha1Path
+        patchInfo.kidsSha1 = readSha1SumFromSha1File(sha1Path)
       if kidsInstallName in self._installNameSeqMap:
         patchInfo.seqNo = self._installNameSeqMap[kidsInstallName]
       patchInfo.kidsFilePath = self._kidsInstallNameDict[kidsInstallName]
@@ -448,9 +466,9 @@ class PatchOrderGenerator(object):
   def __handlePatchAssociatedFiles__(self):
     """ handle the info files first """
     """ first by name assiciation """
-    patchInfoList = self._patchInfoDict.values()
+    patchInfoList = list(self._patchInfoDict.values())
     #handle the associated files for missingKIDSBuild info
-    patchInfoList.extend(self._missKidsBuildDict.values())
+    patchInfoList.extend(list(self._missKidsBuildDict.values()))
     for patchInfo in patchInfoList:
       infoPath = patchInfo.kidsInfoPath
       if infoPath:
@@ -504,9 +522,9 @@ class PatchOrderGenerator(object):
         patchInfo = self._patchInfoDict[installName]
         patchInfo.hasCustomInstaller = True
         if patchInfo.customInstallerPath:
-          logger.warning("Duplicated installer for %s: [%s:%s]" %
+          logger.warning("Duplicated installer for %s: [%s:%s]" % (
                          installName, patchInfo.customInstallerPath,
-                         pythonScript)
+                         pythonScript))
 
         logger.info("%s: custom installer %s" % (pythonScript, installName))
         self._patchInfoDict[installName].customInstallerPath = pythonScript
@@ -564,16 +582,18 @@ class PatchOrderGenerator(object):
     """ Utility methods to sort the CSV file based dependency """
     outOrderList = []
     """ sort the csv file by the first entry's verification date """
-    csvFileOrder = sorted(self._patchOrderCSVDict.keys(),
+    csvFileOrder = sorted(list(self._patchOrderCSVDict.keys()),
                           key=lambda
                           item: self._patchOrderCSVDict[item][0].verifiedDate)
 
     for csvFile in csvFileOrder:
       outOrderList.extend(self._patchOrderCSVDict[csvFile])
-    for idx in range(len(outOrderList)-1, 0, -1):
-      installName = outOrderList[idx].installName
-      prevInstallName = outOrderList[idx-1].installName
-      self._csvDepDict[installName] = prevInstallName
+    # Removing May 2019: Causes cyclical dependency - J.Snyder
+    #for idx in range(len(outOrderList)-1, 0, -1):
+    #  installName = outOrderList[idx].installName
+    #  prevInstallName = outOrderList[idx-1].installName
+    #  #if not outOrderList[idx].kidsFilePath == outOrderList[idx-1].kidsFilePath:
+    #  self._csvDepDict[installName] = prevInstallName
 
   def _removeNotInstalledKIDSBuild(self, installName):
     patchInfo = self._patchInfoDict.get(installName)
@@ -595,7 +615,7 @@ class PatchOrderGenerator(object):
     if orderCSV not in self._patchOrderCSVDict:
       self._patchOrderCSVDict[orderCSV] = []
     patchOrderList = self._patchOrderCSVDict[orderCSV]
-    result = csv.DictReader(open(orderCSV, 'rb'))
+    result = csv.DictReader(open(orderCSV, 'r'))
     installNameSet = set() # to check possible duplicates entry
     for row in result:
       installName = convertToInstallName(row['LABELED_AS'].strip())
@@ -615,7 +635,6 @@ class PatchOrderGenerator(object):
       try:
         verifiedTime = datetime.strptime(row['VERIFY_DT'], "%d-%b-%y")
       except ValueError as ex:
-        logger.debug(ex)
         verifiedTime = datetime.strptime(row['VERIFY_DT'], "%Y-%m-%d")
       """ check the seq # field """
       seqNo = row['SEQ#'].strip()
@@ -692,7 +711,7 @@ def visitNode(nodeName, depDict, visitSet, tempStack, result):
     index = tempStack.index(nodeName)
     logger.error("This is a cycle among these items:\n" +
                  '\n'.join(repr(x) for x in tempStack[index:]))
-    raise Exception("DAG is NOT acyclic")
+    raise CycleException("DAG is NOT acyclic")
   tempStack.append(nodeName)
   for item in depDict.get(nodeName,[]):
     visitNode(item, depDict, visitSet, tempStack, result)
@@ -705,17 +724,17 @@ def visitNode(nodeName, depDict, visitSet, tempStack, result):
 """ Utility function to print result of a ordered patch list """
 def printPatchOrderList(patchOrderList):
   for x in patchOrderList:
-    print({"Name" : x.installName},
+    print(({"Name" : x.installName},
           {"Seq#" : x.seqNo},
           {"KIDS" : os.path.basename(x.kidsFilePath)},
           {"CSVDep" : x.csvDepPatch},
-         )
+         ))
 
 """ Utility function to check if the csv file is indeed in valid format """
 def isValidOrderCSVFile(patchesCSV):
   assert os.path.exists(patchesCSV)
   validFields = VALID_CSV_ORDER_FILE_FIELDS
-  patches_csv = csv.DictReader(open(patchesCSV, 'rb'))
+  patches_csv = csv.DictReader(open(patchesCSV, 'r'))
   patchCSVHeader = patches_csv.fieldnames
   if (patchCSVHeader is None or
       len(patchCSVHeader) < len(validFields)):

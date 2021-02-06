@@ -9,6 +9,7 @@ uses
 
 type
   TDialogCtrl = class
+  public
     ID: string;
     DataType: Char;
     Required: Boolean;
@@ -73,7 +74,7 @@ implementation
 
 {$R *.DFM}
 
-uses rCore, rOrders, uConst;
+uses rCore, rOrders, uConst, VAUtils;
 
 const
   HT_FRAME  = 8;
@@ -277,7 +278,7 @@ begin
       if Required then
       begin
         AResponse := Responses.FindResponseByName(ID, 1);
-        if (AResponse = nil) or ((AResponse <> nil) and (AResponse.EValue = ''))
+        if (AResponse = nil) or ((AResponse <> nil) and (Trim(AResponse.EValue) = ''))
           then SetError(ALabel + ' is required.');
       end;
       if ((DataType = 'D') or (DataType = 'R')) and (Editor <> nil) then
@@ -353,6 +354,9 @@ begin
 end;
 
 procedure TfrmODGen.PlaceDateTime(DialogCtrl: TDialogCtrl; DialogItem: TDialogItem; CurrentItemNumber: Integer);
+var
+  item: TVA508AccessibilityItem;
+  id508: integer;
 const
   NUM_CHAR = 22;
 begin
@@ -372,7 +376,13 @@ begin
     TORDateBox(Editor).OnExit := ControlChange;
     PlaceLabel(DialogCtrl, DialogItem);
     FEditorTop := FEditorTop + HT_FRAME + FCharHt + HT_SPACE;
-  end;
+
+    amgrMain.AccessData.Add.component := Editor;
+    item := amgrMain.AccessData.FindItem(Editor, False);
+    id508:= item.INDEX;
+    amgrMain.AccessData[id508].AccessText := TORDateBox(Editor).Caption + ' Press the enter key to access.';
+
+ end;
 end;
 
 procedure TfrmODGen.PlaceFreeText(DialogCtrl: TDialogCtrl; DialogItem: TDialogItem; CurrentItemNumber: Integer);
@@ -489,9 +499,10 @@ begin
   with DialogCtrl do
   begin
     GblRef := DialogItem.Domain;
-    if CharAt(GblRef, 1) in ['0'..'9','.']
-      then GblRef := GlobalRefForFile(Piece(GblRef, ':', 1))
-      else GblRef := Piece(GblRef, ':', 1);
+    if CharInSet(CharAt(GblRef, 1), ['0'..'9','.']) then
+      GblRef := GlobalRefForFile(Piece(GblRef, ':', 1))
+    else
+      GblRef := Piece(GblRef, ':', 1);
     if CharAt(GblRef, 1) <> U then GblRef := U + GblRef;
     if Length(DialogItem.CrossRef) > 0 then XRef := DialogItem.CrossRef else XRef := 'B';
     XRef := GblRef + '"' + XRef + '")';
@@ -630,10 +641,19 @@ begin
 end;
 
 procedure TfrmODGen.cmdAcceptClick(Sender: TObject);
+var
+  ReleasePending: boolean;
+  Msg: TMsg;
+
 begin
   inherited;
+  ReleasePending := PeekMessage(Msg, Handle, CM_RELEASE, CM_RELEASE, PM_REMOVE);
+
   TrimAllMemos;
   Application.ProcessMessages;
+
+  if ReleasePending then
+    Release;
 end;
 
 procedure TfrmODGen.ControlChange(Sender: TObject);
@@ -671,7 +691,9 @@ begin
  if DialogCtrl.ID = '' then DialogCtrl.ID := 'EMPTY';
 
  for i := 1 to length(DialogCtrl.ID) do begin
-   if (DialogCtrl.ID[i] in ['A'..'Z']) or (DialogCtrl.ID[i] in ['a'..'z']) or (DialogCtrl.ID[i] in ['0'..'9']) then
+   if CharInSet(DialogCtrl.ID[i], ['A'..'Z']) or
+      CharInSet(DialogCtrl.ID[i], ['a'..'z']) or
+      CharInSet(DialogCtrl.ID[i], ['0'..'9']) then
     SaveName := SaveName + DialogCtrl.ID[i];
  end;
  SaveName := SaveName + '_' + IntToStr(Index);

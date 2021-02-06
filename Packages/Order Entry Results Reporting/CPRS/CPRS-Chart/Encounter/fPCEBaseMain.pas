@@ -10,7 +10,7 @@ uses
   CheckLst, ORFn, VA508AccessibilityManager;
 
 type
-  TCopyItemsMethod = procedure(Dest: TStrings) of object;
+  TCopyItemsMethod = procedure(Dest: TCaptionListView) of object;
   TListSectionsProc = procedure(Dest: TStrings);
 
   TfrmPCEBaseMain = class(TfrmPCEBaseGrid)
@@ -33,7 +33,6 @@ type
     procedure edtCommentChange(Sender: TObject);
     procedure btnRemoveClick(Sender: TObject);
     procedure clbListClick(Sender: TObject);
-    procedure lbGridSelect(Sender: TObject);
     procedure FormDestroy(Sender: TObject);
     procedure btnSelectAllClick(Sender: TObject);
     procedure FormResize(Sender: TObject); virtual;
@@ -45,8 +44,12 @@ type
     procedure lbSectionExit(Sender: TObject);
     procedure btnOtherExit(Sender: TObject);
     procedure lbxSectionExit(Sender: TObject);
-    procedure lbGridExit(Sender: TObject);
     procedure FormCreate(Sender: TObject);
+    procedure lstCaptionListChange(Sender: TObject; Item: TListItem;
+      Change: TItemChange);
+    procedure lstCaptionListClick(Sender: TObject);
+    procedure lstCaptionListExit(Sender: TObject);
+    procedure lstCaptionListInsert(Sender: TObject; Item: TListItem);
   private
     FCommentItem: integer;
     FCommentChanged: boolean;
@@ -58,7 +61,7 @@ type
     FPCEListCodesProc: TPCEListCodesProc;
     FPCEItemClass: TPCEItemClass;
     FPCECode: string;
-    FSplitterMove: boolean;
+    FSplitterMove: Boolean;
     FProblems: TStringList;
     function GetCat: string;
     procedure UpdateNewItemStr(var x: string); virtual;
@@ -86,7 +89,7 @@ const
 implementation
 
 uses fPCELex, fPCEOther, fEncounterFrame, fHFSearch, VA508AccessibilityRouter,
-  ORCtrlsVA508Compatibility, fBase508Form, UBAConst;
+  ORCtrlsVA508Compatibility, fBase508Form, UBAConst, VAUtils;
 
 {$R *.DFM}
 
@@ -98,6 +101,8 @@ type
   end;
 
 procedure TfrmPCEBaseMain.lbSectionClick(Sender: TObject);
+var
+  SecItems: TStrings;
 begin
   inherited;
   ClearGrid;
@@ -108,7 +113,10 @@ begin
     lblList.Caption := StringReplace(lbSection.DisplayText[lbSection.ItemIndex],
       '&', '&&', [rfReplaceAll] );
   if (lbSection.DisplayText[lbSection.ItemIndex] = DX_PROBLEM_LIST_TXT) then
-    FastAssign(lbxSection.Items, FProblems);
+  begin
+    SecItems := lbxSection.Items;
+    FastAssign(SecItems, FProblems);
+  end;
 end;
 
 procedure TfrmPCEBaseMain.lbSectionExit(Sender: TObject);
@@ -132,17 +140,14 @@ begin
   BeginUpdate;
   try
     SaveGridSelected;
-    FastAssign(lbGrid.Items, tmpList);
-    for i := 0 to lbGrid.Items.Count-1 do
+    FastAssign(lstCaptionList.ItemsStrings, tmpList);
+    for i := 0 to lstCaptionList.Items.Count-1 do
     begin
-      //lbGrid.Items[i] := TPCEItem(lbGrid.Items.Objects[i]).ItemStr;   v22.5 - RV
-      tmpList[i] := TPCEItem(lbGrid.Items.Objects[i]).ItemStr;
-      tmpList.Objects[i] := lbGrid.Items.Objects[i];
+      tmpList[i] := TPCEItem(lstCaptionList.Objects[i]).ItemStr;
+      tmpList.Objects[i] := lstCaptionList.Objects[i];
     end;
-  //FastAssign(tmpList,lbGrid.Items); //cq: 13228  Causin a/v errors.
-    lbGrid.Items.Assign(tmpList);    //cq: 13228
+    lstCaptionList.ItemsStrings.Assign(tmpList);    //cq: 13228
     RestoreGridSelected;
-    SyncGridData;
   finally
     EndUpdate;
     tmpList.Free;
@@ -164,7 +169,7 @@ begin
   ClearGrid;
   SrchCode := (Sender as TButton).Tag;
   if(SrchCode <= LX_Threshold) then
-    LexiconLookup(Code, SrchCode)
+    LexiconLookup(Code, SrchCode, 0, False, '')
   else
   if(SrchCode = PCE_HF) then
     HFLookup(Code)
@@ -180,8 +185,7 @@ begin
     APCEItem := FPCEItemClass.Create;
     APCEItem.SetFromString(x);
 //    UpdateNewItem(APCEItem);
-    GridIndex := lbGrid.Items.AddObject(APCEItem.ItemStr, APCEItem);
-    SyncGridData;
+    GridIndex := lstCaptionList.Add(APCEItem.ItemStr, APCEItem);
   end;
   UpdateControls;
 end;
@@ -190,8 +194,8 @@ procedure TfrmPCEBaseMain.btnOtherExit(Sender: TObject);
 begin
   inherited;
   if TabIsPressed then begin
-    if lbGrid.CanFocus then
-      lbGrid.SetFocus
+    if lstCaptionList.CanFocus then
+      lstCaptionList.SetFocus
   end
   else if ShiftTabIsPressed then
     if lbxSection.CanFocus then
@@ -205,7 +209,7 @@ begin
   begin
     FCommentChanged := FALSE;
     if(FCommentItem >= 0) then
-      TPCEItem(lbGrid.Items.Objects[FCommentItem]).Comment := edtComment.text;
+      TPCEItem(lstCaptionList.Objects[FCommentItem]).Comment := edtComment.text;
   end;
 end;
 
@@ -230,10 +234,10 @@ begin
   inherited;
   FUpdatingGrid := TRUE;
   try
-    for i := lbGrid.Items.Count-1 downto 0 do if(lbGrid.Selected[i]) then
+    for i := lstCaptionList.Items.Count-1 downto 0 do if(lstCaptionList.Items[i].Selected) then
     begin
       CurCategory := GetCat;
-      APCEItem := TPCEDiag(lbGrid.Items.Objects[i]);
+      APCEItem := TPCEDiag(lstCaptionList.Objects[i]);
       if APCEItem.Category = CurCategory then
       begin
         for j := 0 to lbxSection.Items.Count - 1 do
@@ -241,12 +245,14 @@ begin
           SCode := Piece(lbxSection.Items[j], U, 1);
           SNarr := Piece(lbxSection.Items[j], U, 2);
           if (Pos(APCEItem.Code, SCode) > 0) and (Pos(SNarr, APCEItem.Narrative) > 0) then
+//          if (Pos(APCEItem.Code, SCode) > 0) then
             lbxSection.Checked[j] := False;
         end;
       end;
       APCEItem.Free;
-      lbGrid.Items.Delete(i);
+      lstCaptionList.Items[i].Delete
     end;
+
     ClearGrid;
   finally
     FUpdatingGrid := FALSE;
@@ -258,18 +264,18 @@ var
   CommentOK: boolean;
 
 begin
-  btnSelectAll.Enabled := (lbGrid.Items.Count > 0);
-  btnRemove.Enabled := (lbGrid.SelCount > 0);
+  btnSelectAll.Enabled := (lstCaptionList.Items.Count > 0);
+  btnRemove.Enabled := (lstCaptionList.Items.Count > 0);
   if(NotUpdating) then
   begin
     BeginUpdate;
     try
       inherited;
-      CommentOK := (lbGrid.SelCount = 1);
+      CommentOK := (lstCaptionList.SelCount = 1);
       lblComment.Enabled := CommentOK;
       edtComment.Enabled := CommentOK;
       if(CommentOK) then
-        edtComment.Text := TPCEItem(lbGrid.Items.Objects[GridIndex]).Comment
+        edtComment.Text := TPCEItem(lstCaptionList.Objects[GridIndex]).Comment
       else
         edtComment.Text := '';
     finally
@@ -284,21 +290,6 @@ begin
 //  with clbList do
 //  if(ItemIndex >= 0) and (not(Checked[ItemIndex])) then
 //    ClearGrid;
-end;
-
-procedure TfrmPCEBaseMain.lbGridExit(Sender: TObject);
-begin
-  inherited;
-  if ShiftTabIsPressed then
-    if btnOther.CanFocus then
-      btnOther.SetFocus;
-end;
-
-procedure TfrmPCEBaseMain.lbGridSelect(Sender: TObject);
-begin
-  inherited;
-//  clbList.ItemIndex := -1;
-  UpdateControls;
 end;
 
 procedure TfrmPCEBaseMain.FormCreate(Sender: TObject);
@@ -318,7 +309,7 @@ end;
 procedure TfrmPCEBaseMain.InitTab(ACopyProc: TCopyItemsMethod; AListProc: TListSectionsProc);
 begin
   AListProc(lbSection.Items);
-  ACopyProc(lbGrid.Items);
+  ACopyProc(lstCaptionList);
   lbSection.ItemIndex := 0;
   lbSectionClick(lbSection);
   ClearGrid;
@@ -346,9 +337,9 @@ procedure TfrmPCEBaseMain.CheckOffEntries;
 { TODO -oRich V. -cCode Set Versioning : Uncomment these lines to prevent acceptance of existing inactive DX codes. }
 const
   TX_INACTIVE_CODE1 = 'The diagnosis of "';
-  TX_INACTIVE_ICD_CODE = '" entered for this encounter' + #13#10 + 'contains an inactive ICD code of "';
-  TX_INACTIVE_SCT_CODE = '" entered for this encounter' + #13#10 + 'contains an inactive SNOMED CT code"';
-  TX_INACTIVE_CODE3 = '" as of the encounter date, and will be removed.' + #13#10#13#10 +
+  TX_INACTIVE_ICD_CODE = '" entered for this encounter contains an inactive ICD code of "';
+  TX_INACTIVE_SCT_CODE = '" entered for this encounter contains an inactive SNOMED CT code';
+  TX_INACTIVE_CODE3 = ' as of the encounter date, and will be removed.' + #13#10#13#10 +
                           'Please select another diagnosis.';
   TC_INACTIVE_CODE = 'Diagnosis Contains Inactive Code';
 var
@@ -360,9 +351,9 @@ begin
   try
     if(lbSection.Items.Count < 1) then exit;
     CurCategory := GetCat;
-    for i := lbGrid.Items.Count - 1 downto 0 do
+    for i := lstCaptionList.Items.Count - 1 downto 0 do
     begin
-      APCEItem := TPCEItem(lbGrid.Items.Objects[i]);
+      APCEItem := TPCEItem(lstCaptionList.Objects[i]);
       if APCEItem.Category = CurCategory then
       begin
 //        CodeNarr := APCEItem.Code + U + APCEItem.Narrative;
@@ -370,7 +361,7 @@ begin
         begin
           SCode := Piece(lbxSection.Items[j], U, 1);
           SNarr := Piece(lbxSection.Items[j], U, 2);
-          if (Pos(APCEItem.Code, SCode) > 0) and (Pos(SNarr, APCEItem.Narrative) > 0) then
+          if (Pos(APCEItem.Code, SCode) > 0) then
           begin
             if (CurCategory = 'Problem List Items') and ((Pos('#', Piece(lbxSection.Items[j], U, 4)) > 0) or
                (Pos('$', Piece(lbxSection.Items[j], U, 4)) > 0)) then
@@ -383,7 +374,7 @@ begin
                      TX_INACTIVE_CODE3, TC_INACTIVE_CODE, MB_ICONWARNING or MB_OK);
               lbxSection.Checked[j] := False;
               APCEItem.Free;
-              lbGrid.Items.Delete(i);
+              lstCaptionList.Items.Delete(i);
             end
             else
               lbxSection.Checked[j] := True;
@@ -404,8 +395,8 @@ begin
   inherited;
   BeginUpdate;
   try
-    for i := 0 to lbGrid.Items.Count-1 do
-      lbGrid.Selected[i] := TRUE;
+    for i := 0 to lstCaptionList.Items.Count-1 do
+      lstCaptionList.Items[i].Selected := TRUE;
   finally
     EndUpdate;
   end;
@@ -441,11 +432,11 @@ var
   i, j: Integer;
   x, SCat, SCode, SNarr, CodeCatNarr: string;
   APCEItem: TPCEItem;
-  Found, DoSync: boolean;
+  Found, OK: boolean;
 begin
   inherited;
   if FUpdatingGrid or FClosing then exit;
-  DoSync := FALSE;
+
   SCat := GetCat;
   for i := 0 to lbxSection.Items.Count-1 do
   begin
@@ -454,15 +445,23 @@ begin
     SNarr := Piece(x, U, 2);
     CodeCatNarr := SCode + U + SCat + U + SNarr;
     Found := FALSE;
-    for j := lbGrid.Items.Count - 1 downto 0 do
+    for j := lstCaptionList.Items.Count - 1 downto 0 do
     begin
-      APCEItem := TPCEItem(lbGrid.Items.Objects[j]);
-      if (SCat = APCEItem.Category) and (Pos(APCEItem.Code, SCode) > 0) and (Pos(SNarr, APCEItem.Narrative) > 0) then
+      APCEItem := TPCEItem(lstCaptionList.Objects[j]);
+      OK := (SCat = APCEItem.Category) and (Pos(APCEItem.Code, SCode) > 0);
+      if OK then
+      begin
+        if (FPCEItemClass = TPCEDiag) and (TPCEDiag(APCEItem).OldNarrative <> '') then
+          OK := (Pos(SNarr, TPCEDiag(APCEItem).OldNarrative) > 0)
+        else
+          OK := (Pos(SNarr, APCEItem.Narrative) > 0);
+      end;
+      if OK then
       begin
         Found := TRUE;
         if(lbxSection.Checked[i]) then break;
         APCEItem.Free;
-        lbGrid.Items.Delete(j);
+        lstCaptionList.Items.Delete(j);
       end;
     end;
     if(lbxSection.Checked[i] and (not Found)) then
@@ -473,12 +472,10 @@ begin
       UpdateNewItemStr(x);
       APCEItem := FPCEItemClass.Create;
       APCEItem.SetFromString(x);
-      GridIndex := lbGrid.Items.AddObject(APCEItem.ItemStr, APCEItem);
-      DoSync := TRUE;
+      GridIndex := lstCaptionList.Add(APCEItem.ItemStr, APCEItem);
     end;
   end;
-  if(DoSync) then
-    SyncGridData;
+
   UpdateControls;
 end;
 
@@ -492,6 +489,33 @@ begin
   else if ShiftTabIsPressed then
     if lbSection.CanFocus then
       lbSection.SetFocus;
+end;
+
+procedure TfrmPCEBaseMain.lstCaptionListChange(Sender: TObject; Item: TListItem;
+  Change: TItemChange);
+begin
+  inherited;
+  UpdateControls;
+end;
+
+procedure TfrmPCEBaseMain.lstCaptionListClick(Sender: TObject);
+begin
+  inherited;
+  UpdateControls;
+end;
+
+procedure TfrmPCEBaseMain.lstCaptionListExit(Sender: TObject);
+begin
+  inherited;
+    if ShiftTabIsPressed then
+    if btnOther.CanFocus then
+      btnOther.SetFocus;
+end;
+
+procedure TfrmPCEBaseMain.lstCaptionListInsert(Sender: TObject; Item: TListItem);
+begin
+  inherited;
+  UpdateControls;
 end;
 
 procedure TfrmPCEBaseMain.UpdateTabPos;
@@ -518,9 +542,9 @@ begin
   try
     cnt := 0;
     idx := -1;
-    for i := 0 to lbGrid.Items.Count - 1 do
+    for i := 0 to lstCaptionList.Items.Count - 1 do
     begin
-      if(lbGrid.Selected[i]) then
+      if(lstCaptionList.Items[i].Selected) then
       begin
         if(idx < 0) then idx := i;
         inc(cnt);
@@ -530,7 +554,7 @@ begin
     NewIdx := -1;
     if(cnt = 1) then
     begin
-      APCEItem := TPCEItem(lbGrid.Items.Objects[idx]);
+      APCEItem := TPCEItem(lstCaptionList.Objects[idx]);
       if APCEItem.Category = GetCat then
       begin
         for i := 0 to lbxSection.Items.Count - 1 do
@@ -538,6 +562,7 @@ begin
           SCode := Piece(lbxSection.Items[i], U, 1);
           SNarr := Piece(lbxSection.Items[i], U, 2);
           if (Pos(APCEItem.Code, SCode) > 0) and (Pos(SNarr, APCEItem.Narrative) > 0)then
+//          if (Pos(APCEItem.Code, SCode) > 0) then
           begin
             NewIdx := i;
             break;
@@ -577,10 +602,11 @@ begin
 //      ACode := GetCat + U + Pieces(lbxSection.Items[idx], U, 1, 2)
 //    else
 //      ACode := '~@^~@^@~';
-    for i := 0 to lbGrid.Items.Count - 1 do
+    for i := 0 to lstCaptionList.Items.Count - 1 do
     begin
-      APCEItem := TPCEItem(lbGrid.Items.Objects[i]);
-      lbGrid.Selected[i] := ((SCat = APCEItem.Category) and (Pos(APCEItem.Code, SCode) > 0) and (Pos(SNarr, APCEItem.Narrative) > 0)) //(ACode = (Category + U + Code + U + Narrative));
+      APCEItem := TPCEItem(lstCaptionList.Objects[i]);
+      lstCaptionList.Items[i].Selected := ((SCat = APCEItem.Category) and (Pos(APCEItem.Code, SCode) > 0) and (Pos(SNarr, APCEItem.Narrative) >= 0)); //(ACode = (Category + U + Code + U + Narrative));
+//      lbGrid.Selected[i] := ((SCat = APCEItem.Category) and (Pos(APCEItem.Code, SCode) > 0)) //(ACode = (Category + U + Code + U + Narrative));
     end;
   finally
     FUpdatingGrid := FALSE;

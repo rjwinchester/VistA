@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2011 The Open Source Electronic Health Record Agent
+# Copyright 2011-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,6 +13,9 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+
+from __future__ import with_statement
+from __future__ import print_function
 import sys
 sys.path.append('${VISTA_SOURCE_DIR}/Python/vista')
 
@@ -32,26 +35,35 @@ def runXindexForRoutine(connection, routineName):
       break
   connection.wait("Routine")
   connection.write("")
-  selectionList = ['Select BUILD NAME:',
+  selectionList = [VistA.prompt,
+                   'Select BUILD NAME:',
                    'Select INSTALL NAME:',
-                   'Select PACKAGE NAME:']
+                   'Select PACKAGE NAME:',
+                   "NAMESPACE:",
+                   "FILE:",
+                   "Print more than compiled errors and warnings?",
+                   ]
   while True:
     index = VistA.multiwait(selectionList)
-    VistA.write('')
-    if index == len(selectionList) - 1:
+    if index == 0:
+      VistA.write("")
+      return
+    elif index == len(selectionList) - 1:
       break
-  connection.wait("Print more than compiled errors and warnings?")
+    VistA.write('')
   connection.write("YES")
   connection.wait("Print summary only?")
   connection.write("NO")
   connection.wait("Print routines?")
-  connection.write("NO")
+  connection.write("YES")
+  connection.wait("Print")
+  connection.write("Structured")
   connection.wait("Print errors and warnings with each routine?")
   connection.write("YES")
   connection.wait("Index all called routines?")
   connection.write("NO")
   connection.wait("DEVICE")
-  connection.write(";132;99999")
+  connection.write(";99999;99999")
   while True:
     try:
       index = connection.multiwait(["Press return to continue:",
@@ -61,7 +73,80 @@ def runXindexForRoutine(connection, routineName):
         continue
       else:
         break
-    except IndexError, error:
+    except IndexError as error:
+      print ("Caught IndexError %s" % error)
+      continue
+
+def runXindexForPackage(connection, packageName,namespace_list,fileNo_list):
+  VistA.write('K ^XUTL("XQ",$J)')
+  connection.write("D ^XINDEX")
+  while True:
+    index = connection.multiwait(["All Routines?",
+                                  "Routine"])
+    if index == 0:
+      connection.write("NO")
+      continue
+    else:
+      connection.write("")
+      break
+  selectionList = ['Select BUILD NAME:',
+                   'Select INSTALL NAME:',
+                   'Select PACKAGE NAME:']
+  while True:
+    index = VistA.multiwait(selectionList)
+    if index == len(selectionList) - 1:
+      connection.write(packageName)
+      break
+    VistA.write('')
+  while True:
+    index = connection.multiwait([connection.prompt,"Select PACKAGE NAME","NAMESPACE:","FILE:","CHOOSE","Include the compiled template routines"])
+    if index == 0:
+      return
+    elif index == 2:
+      for value in namespace_list.split(';'):
+        if not value == "":
+          connection.write(value)
+          connection.wait("NAMESPACE:")
+    elif index == 3:
+      for value in fileNo_list.split(';'):
+        if not value == "":
+          connection.write(value)
+          connection.wait("FILE:")
+    elif index == 4:
+      connection.write("1")
+      continue
+    elif index == 5:
+      break
+    connection.write("")
+  connection.write("Y")
+  connection.wait("Print more than compiled errors and warnings?")
+  connection.write("YES")
+  connection.wait("Print summary only?")
+  connection.write("NO")
+  connection.wait("Print routines?")
+  connection.write("Yes")
+  connection.wait("Print")
+  connection.write("R")
+  connection.wait("Print the DDs, Functions")
+  connection.write("YES")
+  connection.wait("Print errors and warnings with each routine?")
+  connection.write("NO")
+  index = connection.multiwait(["Save parameters in ROUTINE file","Index all called routines?"])
+  if index == 0:
+    connection.write("NO")
+    connection.wait("Index all called routines?")
+  connection.write("NO")
+  connection.wait("DEVICE")
+  connection.write(";99999;99999")
+  while True:
+    try:
+      index = connection.multiwait(["Press return to continue:", "--- END ---",],90)
+      if index == 0:
+        connection.write("")
+        continue
+      elif index == 1:
+        break
+    except IndexError as error:
       print ("Caught IndexError %s" % error)
       continue
 
@@ -71,7 +156,7 @@ if ('${VISTA_CACHE_USERNAME}' and '${VISTA_CACHE_PASSWORD}'):
 if VistA.type=='cache':
   try:
     VistA.ZN('${VISTA_CACHE_NAMESPACE}')
-  except IndexError,no_namechange:
+  except IndexError as no_namechange:
     pass
 AllRoutines = []
 ${AllRoutines} # this is the line that will replace by cmake config file
@@ -79,4 +164,5 @@ VistA.wait(PROMPT)
 for routineName in AllRoutines:
   runXindexForRoutine(VistA, routineName)
   VistA.wait(PROMPT)
+runXindexForPackage(VistA,"${PACKAGE_INTERNAL_NAME}","${PACKAGE_NAMESPACE}","${PACKAGE_FILE_NOS}")
 VistA.write("halt")

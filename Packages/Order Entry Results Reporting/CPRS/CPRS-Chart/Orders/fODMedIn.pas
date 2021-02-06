@@ -55,7 +55,7 @@ implementation
 
 {$R *.DFM}
 
-uses rOrders, rODBase, fODMedFA;
+uses rOrders, rODBase, fODMedFA, VAUtils;
 
 const
   TX_NO_MED    = 'Medication must be entered.';
@@ -247,7 +247,7 @@ procedure TfrmODMedIn.cboMedicationNeedData(Sender: TObject; const StartFrom: st
 { retrieves a subset of inpatient medication orderable items }
 begin
   inherited;
-  FMedCombo.ForDataUse(SubSetOfOrderItems(StartFrom, Direction, 'S.UD RX'));
+  FMedCombo.ForDataUse(SubSetOfOrderItems(StartFrom, Direction, 'S.UD RX', Responses.QuickOrder));
 end;
 
 procedure TfrmODMedIn.cboMedicationSelect(Sender: TObject);

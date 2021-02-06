@@ -15,15 +15,14 @@
 # limitations under the License.
 #---------------------------------------------------------------------------
 
+# set -x
+
 # Make sure we are root
 if [[ $EUID -ne 0 ]]; then
     echo "This script must be run as root" 1>&2
     exit 1
 fi
 
-# Update the server from repositories
-apt-get -y -qq update > /dev/null
-apt-get -y -qq upgrade > /dev/null
-
 # Install baseline packages
-apt-get install -y -qq git xinetd perl wget curl python ssh mysql-server openjdk-7-jdk maven sshpass > /dev/null
+apt-get upgrade -qq
+apt-get install -y -qq git xinetd perl wget curl python ssh mysql-server default-jdk maven sshpass > /dev/null

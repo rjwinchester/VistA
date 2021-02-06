@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,9 @@
 # limitations under the License.
 #---------------------------------------------------------------------------
 
+from __future__ import print_function
 from __future__ import with_statement
+from builtins import object
 import sys
 import os
 import re
@@ -25,7 +27,7 @@ from LoggerManager import getTempLogFile
 
 class VistARoutineExport(object):
   """ regular expression constants """
-  REGEX_ROUTINES = re.compile("Routine(\(s\))?: ")
+  REGEX_ROUTINES = "Routine(\(s\))?: "
   def __init__(self):
     pass
   def __setupOutputInfoCache__(self, connection, outputFileName):
@@ -54,7 +56,7 @@ class VistARoutineExport(object):
     connection.send("No\r")
 
   def __exportRoutineImpl__(self, vistATestClient, outputFileName,
-                            routineList, excludeList=None,
+                            routineList, excludeList=None, exceptionList=None,
                             allRoutines=False):
     vistATestClient.waitForPrompt()
     connection = vistATestClient.getConnection()
@@ -70,6 +72,10 @@ class VistARoutineExport(object):
       for routine in excludeList:
         connection.expect(self.REGEX_ROUTINES)
         connection.send("'%s\r" % routine)
+    if exceptionList:
+      for routine in exceptionList:
+        connection.expect(self.REGEX_ROUTINES)
+        connection.send("%s\r" % routine)
     connection.expect(self.REGEX_ROUTINES, 360)
     connection.send("\r")
     if vistATestClient.isCache():
@@ -79,18 +85,20 @@ class VistARoutineExport(object):
     vistATestClient.waitForPrompt(1200)
     connection.send('\r')
   def exportRoutines(self, vistATestClient,
-                     outputFileName, routineList, excludeList=None):
+                     outputFileName, routineList, excludeList=None,exceptionList=None):
     if not routineList:
       return True
     return self.__exportRoutineImpl__(vistATestClient,
                                       outputFileName,
                                       routineList,
-                                      excludeList)
-  def exportAllRoutines(self, vistATestClient, outputFileName, excludeList=None):
+                                      excludeList,
+                                      exceptionList)
+  def exportAllRoutines(self, vistATestClient, outputFileName, excludeList=None,exceptionList=None):
     return self.__exportRoutineImpl__(vistATestClient,
                                       outputFileName,
                                       None,
                                       excludeList,
+                                      exceptionList,
                                       True)
 
 DEFAULT_OUTPUT_LOG_FILE_NAME = "RoutineExportTest.log"
@@ -106,6 +114,8 @@ def main():
                       help='only specified routine names')
   parser.add_argument('-e', '--exclude', nargs='*', default=None,
                       help='exclude specified routine names')
+  parser.add_argument('-x', '--exception', nargs='*', default=None,
+                      help='except specified routine names from the excluded routines')
   result = parser.parse_args();
   print (result)
   outputFilename = result.outputFile
@@ -116,16 +126,18 @@ def main():
   assert testClient
   with testClient as vistAClient:
     logFilename = getTempLogFile(DEFAULT_OUTPUT_LOG_FILE_NAME)
-    print "Log File is %s" % logFilename
+    print("Log File is %s" % logFilename)
     vistAClient.setLogFile(logFilename)
     isAllRoutines = result.allRoutines
     vistARoutineExport = VistARoutineExport()
     if isAllRoutines:
       vistARoutineExport.exportAllRoutines(vistAClient, outputFilename,
-                                           result.exclude)
+                                           result.exclude,
+                                           result.exception)
     else:
       vistARoutineExport.exportRoutines(vistAClient, outputFilename,
                                         result.routines,
-                                        result.exclude)
+                                        result.exclude,
+                                        result.exception)
 if __name__ == '__main__':
   main()

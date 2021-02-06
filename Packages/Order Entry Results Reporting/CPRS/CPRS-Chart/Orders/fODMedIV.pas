@@ -9,50 +9,54 @@ uses
 
 type
   TfrmODMedIV = class(TfrmODBase)
-    lblInfusionRate: TLabel;
-    txtRate: TCaptionEdit;
-    lblComponent: TLabel;
-    lblAmount: TLabel;
-    grdSelected: TCaptionStringGrid;
-    cmdRemove: TButton;
-    lblComments: TLabel;
-    memComments: TCaptionMemo;
-    txtSelected: TCaptionEdit;
-    cboSelected: TCaptionComboBox;
-    pnlXDuration: TPanel;
-    txtXDuration: TCaptionEdit;
-    lblLimit: TLabel;
-    pnlCombo: TPanel;
-    cboAdditive: TORComboBox;
-    tabFluid: TTabControl;
-    cboSolution: TORComboBox;
-    lblPriority: TLabel;
-    cboPriority: TORComboBox;
-    Label1: TLabel;
-    cboRoute: TORComboBox;
-    cboSchedule: TORComboBox;
-    lblRoute: TLabel;
-    lblSchedule: TLabel;
-    cboType: TComboBox;
-    lblType: TLabel;
-    chkPRN: TCheckBox;
-    txtNSS: TLabel;
-    chkDoseNow: TCheckBox;
-    cboInfusionTime: TComboBox;
-    cboDuration: TComboBox;
-    lblAdminTime: TVA508StaticText;
-    lblFirstDose: TVA508StaticText;
-    txtAllIVRoutes: TLabel;
-    lblTypeHelp: TLabel;
-    cboAddFreq: TCaptionComboBox;
-    lblAddFreq: TLabel;
-    lblPrevAddFreq: TLabel;
-    lbl508Required: TVA508StaticText;
     VA508CompOrderSig: TVA508ComponentAccessibility;
     VA508CompRoute: TVA508ComponentAccessibility;
     VA508CompType: TVA508ComponentAccessibility;
     VA508CompSchedule: TVA508ComponentAccessibility;
     VA508CompGrdSelected: TVA508ComponentAccessibility;
+    pnlTop: TGridPanel;
+    pnlTopRightTop: TPanel;
+    pnlTopRightLbls: TPanel;
+    lblAmount: TLabel;
+    lblComponent: TLabel;
+    lblAddFreq: TLabel;
+    lblPrevAddFreq: TLabel;
+    grdSelected: TCaptionStringGrid;
+    txtSelected: TCaptionEdit;
+    cboSelected: TCaptionComboBox;
+    cboAddFreq: TCaptionComboBox;
+    pgctrlSolutionsAndAdditives: TPageControl;
+    tbshtSolutions: TTabSheet;
+    tbshtAdditives: TTabSheet;
+    cboAdditive: TORComboBox;
+    cboSolution: TORComboBox;
+    cmdRemove: TButton;
+    pnlComments: TPanel;
+    lblComments: TLabel;
+    memComments: TCaptionMemo;
+    lblRoute: TLabel;
+    txtAllIVRoutes: TLabel;
+    lblType: TLabel;
+    lblTypeHelp: TLabel;
+    lblSchedule: TLabel;
+    txtNSS: TLabel;
+    lblInfusionRate: TLabel;
+    cboRoute: TORComboBox;
+    cboType: TComboBox;
+    cboSchedule: TORComboBox;
+    chkPRN: TCheckBox;
+    txtRate: TCaptionEdit;
+    cboInfusionTime: TComboBox;
+    lblPriority: TLabel;
+    lblLimit: TLabel;
+    cboPriority: TORComboBox;
+    txtXDuration: TCaptionEdit;
+    cboDuration: TComboBox;
+    lblFirstDose: TVA508StaticText;
+    lblAdminTime: TVA508StaticText;
+    chkDoseNow: TCheckBox;
+    lbl508Required: TVA508StaticText;
+    Label1: TLabel;
     procedure FormCreate(Sender: TObject);
     procedure tabFluidChange(Sender: TObject);
     procedure  cboAdditiveNeedData(Sender: TObject; const StartFrom: string; Direction,
@@ -128,6 +132,7 @@ type
       var Text: string);
     procedure VA508CompGrdSelectedCaptionQuery(Sender: TObject;
       var Text: string);
+    procedure ScrollBox1Resize(Sender: TObject);
   private
     FInpatient: Boolean;
     FNSSAdminTime: string;
@@ -145,7 +150,7 @@ type
     //FInitialOrderID: boolean;
     procedure SetValuesFromResponses;
     procedure DoSetFontSize( FontSize: integer);
-    procedure ClickOnGridCell;
+    procedure ClickOnGridCell(keypressed: Char);
     procedure SetLimitationControl(aValue: string);
     function CreateOtherSchedule: string;
     function CreateOtherRoute: string;
@@ -171,11 +176,18 @@ type
 var
   frmODMedIV: TfrmODMedIV;
 
+
+
+
 implementation
 
 {$R *.DFM}
 
 uses ORFn, uConst, rODMeds, rODBase, fFrame, uCore, fOtherSchedule, rCore;
+
+const
+  TX_NO_DEA     = 'Provider must have a DEA# or VA# to order this medication';
+  TC_NO_DEA     = 'DEA# Required';
 
 type
   TIVComponent = class
@@ -224,13 +236,42 @@ end;
 { Form methods }
 
 procedure TfrmODMedIV.FormCreate(Sender: TObject);
+
+ //Reduce flicker
+ procedure ReplicatePreferences(c: TComponent);
+  var
+    X: Integer;
+  begin
+
+    if c is TListBox then
+      exit;
+    if (c is TWinControl) then
+    begin
+      TWinControl(c).DoubleBuffered := true;
+
+    end;
+    if (c is TPanel) then
+    begin
+      TPanel(c).FullRepaint := false;
+
+    end;
+
+    if c.ComponentCount > 0 then
+    begin
+      for X := (c.ComponentCount - 1) downto 0 do
+        ReplicatePreferences(c.Components[X]);
+    end;
+  end;
+
 var
   Restriction: string;
 begin
   frmFrame.pnlVisit.Enabled := false;
-  //AutoSizeDisabled := true;
+  AutoSizeDisabled := true;
   inherited;
   AllowQuickOrder := True;
+  if dlgFormId = OD_CLINICINF then self.Caption := 'Clinic Infusion Orders';
+
   CheckAuthForMeds(Restriction);
   if Length(Restriction) > 0 then
   begin
@@ -242,10 +283,40 @@ begin
   DoSetFontSize(MainFontSize);
   FillerID := 'PSIV';                            // does 'on Display' order check **KCM**
   StatusText('Loading Dialog Definition');
-  Responses.Dialog := 'PSJI OR PAT FLUID OE';    // loads formatting info
+  if dlgFormId = OD_CLINICINF then Responses.Dialog := 'CLINIC OR PAT FLUID OE'
+  else Responses.Dialog := 'PSJI OR PAT FLUID OE';    // loads formatting info
   StatusText('Loading Default Values');
   CtrlInits.LoadDefaults(ODForIVFluids);         // ODForIVFluids returns TStrings with defaults
   InitDialog;
+
+  // Set special font colors and sizes
+  txtAllIVRoutes.Font.Color := clBlue;
+  txtAllIVRoutes.Font.Size := txtAllIVRoutes.Font.Size - 2;
+  lblTypeHelp.Font.Color := clBlue;
+  lblTypeHelp.Font.Size := lblTypeHelp.Font.Size - 2;
+  txtNSS.Font.Color := clBlue;
+  txtNSS.Font.Size := txtNSS.Font.Size - 2;
+
+  // Move inherited controls onto the TGridPanel
+  pnlTop.ControlCollection.BeginUpdate;
+  try
+    pnlTop.ControlCollection.AddControl(memOrder, 0, 14);
+    pnlTop.ControlCollection.ControlItems[0, 14].ColumnSpan := 8;
+    pnlTop.ControlCollection.ControlItems[0, 14].RowSpan := 3;
+    memOrder.Parent := pnlTop;
+    memOrder.Align := alClient;
+
+    pnlTop.ControlCollection.AddControl(cmdAccept, 8, 15);
+    cmdAccept.Parent := pnlTop;
+    cmdAccept.Align := alBottom;
+
+    pnlTop.ControlCollection.AddControl(cmdQuit, 8, 16);
+    cmdQuit.Parent := pnlTop;
+    cmdQuit.Align := alBottom;
+  finally
+    pnlTop.ControlCollection.EndUpdate;
+  end;
+  pnlTop.Align := alClient;
 end;
 
 procedure TfrmODMedIV.FormDestroy(Sender: TObject);
@@ -259,8 +330,8 @@ end;
 
 procedure TfrmODMedIV.FormResize(Sender: TObject);
 var
-bottom: integer;
 isNewOrder: boolean;
+addFreqLeft : integer;
 begin
   inherited;
   if OrdAction in [ORDER_COPY, ORDER_EDIT] then isNewOrder := false
@@ -284,6 +355,9 @@ begin
   end;
   lblAmount.Left := grdSelected.Left + grdSelected.ColWidths[0];
   lblAddFreq.Left := grdSelected.Left +  grdSelected.ColWidths[0] +  grdSelected.ColWidths[1] + grdSelected.ColWidths[2];
+  addFreqLeft := lblAmount.Left + Canvas.TextWidth(lblAmount.Caption + '  ');
+  if addFreqLeft > lblAddFreq.Left then lblAddFreq.Left := addFreqLeft;
+
   if isNewOrder = false then
     begin
       lblPrevAddFreq.Visible := True;
@@ -293,22 +367,7 @@ begin
   self.cboType.SelLength := 0;
   self.cboInfusionTime.SelLength := 0;
   self.cboDuration.SelLength := 0;
-  bottom := self.cboPriority.Top + self.cboPriority.Height;
-  if self.chkDoseNow.Top < bottom then self.chkDoseNow.Top := bottom + 5;
-  self.txtRate.Height := self.cboInfusionTime.Height;
-  self.txtXDuration.Height := self.cboDuration.Height;
-  self.lblAdminTime.Height := TextHeightByFont(self.lblAdminTime.Font.Handle, 'A');
-  self.lblFirstDose.Height := TextHeightByFont(self.lblFirstDose.Font.Handle, 'A');
-  self.lblAdminTime.Width := TextWidthByFont(self.lblAdminTime.Font.Handle, self.lblAdminTime.Caption + '  ');
-  self.lblFirstDose.Width := TextWidthByFont(self.lblFirstDose.Font.Handle, self.lblFirstDose.Caption + '  ');
-  self.lblAdminTime.Top := self.chkDoseNow.Top + self.chkDoseNow.Height + 2;
-  self.lblFirstDose.Top := self.lblAdminTime.Top + self.lblAdminTime.Height + 2;
-  self.lbl508Required.Top := self.lblFirstDose.Top + self.lblFirstDose.Height + 5;
-  if self.Label1.Top < (self.lbl508Required.Top + self.lbl508Required.Height) then
-    begin
-      self.Label1.Top := self.lbl508Required.Top + self.lbl508Required.Height + 5;
-      self.memOrder.Top := self.Label1.Top + self.Label1.Height;
-    end;
+
 end;
 
 { TfrmODBase overrides }
@@ -339,6 +398,7 @@ begin
     SetControl(cboSolution, 'ShortList');
     cboSolution.InsertSeparator;
     SetControl(cboPriority, 'Priorities');
+    cboType.Items.Clear;
     cboType.Items.Add('Continuous');
     cboType.Items.Add('Intermittent');
     cboType.ItemIndex := -1;
@@ -380,8 +440,9 @@ begin
         cboAddFreq.Items.Add('See Comments');
       end;
   end;
-  tabFluid.TabIndex := 0;
-  tabFluidChange(Self);            // this makes cboSolution visible
+  pgctrlSolutionsAndAdditives.ActivePage := tbshtSolutions;
+//  tabFluid.TabIndex := 0;
+//  tabFluidChange(Self);            // this makes cboSolution visible
   cboSolution.InitLongList('');
   cboAdditive.InitLongList('');
   JAWSON := true;
@@ -410,6 +471,70 @@ begin
              '     IV’s administered at scheduled intervals (Q4H, QDay) or One-Time only, ' +
              CRLF + '     “over a specified time period” (e.g. “Infuse over 30 min.”).' + CRLF + CRLF +
              'Examples:' + CRLF + 'Continuous = Infusion/drip' + CRLF + 'Intermittent = IVP/IVPB';
+end;
+
+procedure TfrmODMedIV.ScrollBox1Resize(Sender: TObject);
+begin
+//  inherited;
+//  ScrollBox1.OnResize := nil;
+//  //At least minimum
+//   if (pnlForm.Width < MinFormWidth) or (pnlForm.Height < MinFormHeight) then
+//   pnlForm.Align := alNone;
+//   pnlForm.AutoSize := false;
+//   if (pnlForm.Width < MinFormWidth) then pnlForm.Width := MinFormWidth;
+//   if pnlForm.Height < MinFormHeight then pnlForm.Height := MinFormHeight;
+//
+//
+//  if (ScrollBox1.Width >= MinFormWidth) then
+//  begin
+//   if (ScrollBox1.Height >= (MinFormHeight)) then
+//   begin
+//       pnlForm.Align := alClient;
+//   end else begin
+//     pnlForm.Align := alTop;
+//     pnlForm.AutoSize := true;
+//   end;
+//  end else begin
+//   if (ScrollBox1.Height >= (MinFormHeight)) then
+//   begin
+//    pnlForm.Align := alNone;
+//    pnlForm.Top := 0;
+//    pnlForm.Left := 0;
+//    pnlForm.AutoSize := false;
+//    pnlForm.Width := MinFormWidth;
+//    pnlForm.height :=  ScrollBox1.Height;
+//   end else begin
+//    pnlForm.Align := alNone;
+//    pnlForm.Top := 0;
+//    pnlForm.Left := 0;
+//    pnlForm.AutoSize := true;
+//   end;
+//  end;
+//
+// {
+// if ScrollBox1.Height >= (MinFormHeight + 5) then
+//  begin
+//      pnlForm.Align := alClient;
+//      end else
+//  if (ScrollBox1.Width < MinFormWidth)  then
+//  begin
+//
+//   pnlForm.Align := alNone;
+//   pnlForm.Top := 0;
+//   pnlForm.Left := 0;
+//   pnlForm.autosize := false;
+//   if pnlForm.Width < MinFormWidth then
+//    pnlForm.Width := MinFormWidth;
+//
+//   if pnlForm.height < MinFormHeight then
+//    pnlForm.height :=  MinFormHeight
+//  end else
+//  begin
+//    pnlForm.Align := alTop;
+//    pnlForm.AutoSize := true;
+//  end;
+//  Caption := IntToStr(ScrollBox1.Width); }
+//  ScrollBox1.OnResize := ScrollBox1Resize;
 end;
 
 procedure TfrmODMedIV.SetCtrlAlt_L_LabelAccessText(var Text: string; theLabel : TLabel);
@@ -499,7 +624,7 @@ begin
   if (self.lblAdminTime.visible = True) and (self.lblAdminTime.Caption <> '') then
     begin
       Admin := Copy(self.lblAdminTime.Caption,  14, (Length(self.lblAdminTime.Caption)-1));
-      if not (Admin[1] in ['0'..'9']) then Admin := '';
+      if not CharInSet(Admin[1], ['0'..'9']) then Admin := '';
     end;
   if (fSolIEN = oSolIEN) and (fAddIEN = oAddIEN) and (OSchedule = SchTxt) and (oAdmin = Admin) then CalFirstDose := false
   else
@@ -530,6 +655,7 @@ begin
   else self.lblFirstDose.TabStop := false;
   if (self.lblAdminTime.Visible = true) and (self.lblAdminTime.Caption <> '') and (JAWSON = true) then self.lblAdminTime.TabStop := true
   else self.lblAdminTime.TabStop := false;
+
 end;
 
 procedure TfrmODMedIV.VA508CompRouteInstructionsQuery(
@@ -580,7 +706,7 @@ procedure TfrmODMedIV.Validate(var AnErrMsg: string);
 var
   DispWarning, ItemOK, Result: Boolean;
   LDec,RDec,x, tempStr, iunit, infError, Bag: string;
-  digits, i, j, Len, temp, Value: Integer;
+  digits, i, j, k, Len, temp, Value: Integer;
 
   procedure SetError(const x: string);
   begin
@@ -594,7 +720,16 @@ begin
   begin
     ItemOK := False;
     for i := 0 to RowCount - 1 do
+    begin
+      for k := i to RowCount - 1 do
+        if not(k = i) and (TIVComponent(Objects[0, k]).IEN = TIVComponent(Objects[0, i]).IEN) then
+        begin
+        SetError('Duplicate Orderable Items included for '+TIVComponent(Objects[0, k]).Name+'.');
+        break;
+        end;
+
       if (Objects[0,i] <> nil) and (TIVComponent(Objects[0, i]).Fluid = 'B') then ItemOK := True;
+    end;
     if (not ItemOK) and ((self.cboType.ItemIndex = -1) or (MixedCase(self.cboType.Items.Strings[self.cboType.ItemIndex]) = 'Continuous')) then
         SetError(TX_NO_BASE);
     for i := 0 to RowCount - 1 do
@@ -614,7 +749,7 @@ begin
                    SetError(cells[0, i] + TX_LEADING_NUMERIC);
                    Exit;
                  end;
-              for j := 1 to temp -1 do if not (tempStr[j] in ['0'..'9']) then
+              for j := 1 to temp -1 do if not CharInSet(tempStr[j], ['0'..'9']) then
                 begin
                   SetError(cells[0, i] + TX_LEADING_NUMERIC);
                   Exit;
@@ -636,12 +771,12 @@ begin
                   begin
                     SetError(Tx_BAG_NO_COMMENTS + cells[0,i] + Tx_BAG_NO_COMMENTS1);
                   end;
-                    
+
              end;
         end;
   end;
   end;
-  if Pos(U, self.memComments.Text) > 0 then SetError('Comments cannot contain a "^".');  
+  if Pos(U, self.memComments.Text) > 0 then SetError('Comments cannot contain a "^".');
   if cboSchedule.ItemIndex > -1 then updateDuration(Piece(cboSchedule.Items.Strings[cboSchedule.itemIndex], U, 3));
   if self.cboPriority.Text = '' then SetError('Priority is required');
   if (cboRoute.ItemIndex = -1) and (cboRoute.Text <> '') then SetError(TX_BAD_ROUTE);
@@ -687,7 +822,7 @@ begin
                 end;
               for i := 1 to Length(x) do
                 begin
-                  if  not (x[i] in ['0'..'9']) and (x[i] <> '.') then
+                  if  not CharInSet(x[i], ['0'..'9']) and (x[i] <> '.') then
                     begin
                       SetError(TX_BAD_RATE);
                       exit;
@@ -753,7 +888,7 @@ begin
          SetError('Duration with a unit of "doses" must be greater then 0 and less then 2000000');
      end;
   //if AnErrMsg = '' then self.FInitialOrderID := True;
-  
+
 end;
 
 function TFrmODMedIV.ValidateInfusionRate(Rate: string): string;
@@ -768,7 +903,7 @@ begin
       exit;
     end
   else if LeftStr(Rate, 1) = '0' then Result := 'Infuse Over Time cannot start with a zero.';
-  for i := 1 to Length(Rate) do if not (Rate[i] in ['0'..'9']) then Temp := True;
+  for i := 1 to Length(Rate) do if not CharInSet(Rate[i], ['0'..'9']) then Temp := True;
   if Temp = True then Result := 'The Infusion time can only be a whole number';
 end;
 
@@ -801,7 +936,7 @@ begin
         if not FInpatient then
         begin
           DEAFailStr := DEACheckFailedForIVOnOutPatient(AnIVComponent.IEN,'S');
-          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
             begin
               case StrToIntDef(Piece(DEAFailStr,U,1),0) of
                 1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -809,7 +944,15 @@ begin
                 3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
                 4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
                 5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+                6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
               end;
+              if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+                begin
+                  InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+                  cboAdditive.Text := '';
+                  AbortOrder := True;
+                  Exit;
+                end;
               if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
                 begin
                   DEAContext := True;
@@ -827,7 +970,7 @@ begin
         end else
         begin
           DEAFailStr := DEACheckFailed(AnIVComponent.IEN, FInpatient);
-          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
             begin
               case StrToIntDef(Piece(DEAFailStr,U,1),0) of
                 1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -835,7 +978,15 @@ begin
                 3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
                 4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
                 5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+                6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
               end;
+              if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+                begin
+                  InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+                  cboAdditive.Text := '';
+                  AbortOrder := True;
+                  Exit;
+                end;
               if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
                 begin
                   DEAContext := True;
@@ -884,7 +1035,7 @@ begin
         if not FInpatient then
         begin
           DEAFailStr := DEACheckFailedForIVOnOutPatient(AnIVComponent.IEN,'A');
-          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
             begin
               case StrToIntDef(Piece(DEAFailStr,U,1),0) of
                 1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -892,7 +1043,15 @@ begin
                 3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
                 4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
                 5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+                6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
               end;
+              if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+                begin
+                  InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+                  cboAdditive.Text := '';
+                  AbortOrder := True;
+                  Exit;
+                end;
               if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
                 begin
                   DEAContext := True;
@@ -910,7 +1069,7 @@ begin
         end else
         begin
           DEAFailStr := DEACheckFailed(AnIVComponent.IEN, FInpatient);
-          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+          while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
             begin
               case StrToIntDef(Piece(DEAFailStr,U,1),0) of
                 1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -918,7 +1077,15 @@ begin
                 3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
                 4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
                 5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+                6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
               end;
+              if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+                begin
+                  InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+                  cboAdditive.Text := '';
+                  AbortOrder := True;
+                  Exit;
+                end;
               if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
                 begin
                   DEAContext := True;
@@ -971,7 +1138,7 @@ begin
       AnInstance := NextInstance('ADDITIVE', AnInstance);
     end; {while AnInstance - ADDITIVE}
     SetControl(cboType, 'TYPE', 1);
-    if self.grdSelected.RowCount > 0 then self.txtAllIVRoutes.Visible := True;    
+    if self.grdSelected.RowCount > 0 then self.txtAllIVRoutes.Visible := True;
     updateRoute;
     AResponse := FindResponseByName('ROUTE', 1);
     if AResponse <> nil then
@@ -1019,7 +1186,7 @@ begin
          lblSchedule.Enabled := True;
          cboschedule.Enabled := True;
          //if popDuration.Items.IndexOf(popDoses) = -1 then popDuration.Items.Add(popDoses);
-         if cboDuration.Items.IndexOf('doses') = -1 then cboDuration.Items.Add('doses');         
+         if cboDuration.Items.IndexOf('doses') = -1 then cboDuration.Items.Add('doses');
          txtNss.Visible := true;
          chkDoseNow.Visible := true;
          chkPRN.Enabled := True;
@@ -1030,6 +1197,8 @@ begin
          lblAdminTime.Visible := True;
          lblAdminTime.Hint := AdminTimeHelpText;
          lblAdminTime.ShowHint := True;
+         //Add in Dose Now Checkbox
+         SetControl(chkDoseNow, 'NOW', 1);
          //AResponse := Responses.FindResponseByName('ADMIN', 1);
          //if AResponse <> nil then AdminTime := AResponse.EValue;
          //if Action = Order_Copy then FOriginalAdminTime := AdminTime;
@@ -1129,7 +1298,7 @@ begin
   OrderIEN := id;
   //self.FInitialOrderID := True;
   if self.EvtID > 0 then FAdminTimeText := 'To Be Determined';
-  if isIMO = true then self.Caption := 'Clinic ' + self.Caption;
+//  if isIMO = true then self.Caption := 'Clinic ' + self.Caption;
   if (isIMO) or ((patient.Inpatient = true) and (encounter.Location <> patient.Location)) and (FAdminTimeText = '') then
       FAdminTimeText := 'Not defined for Clinic Locations';
   if OrderAction in [ORDER_COPY, ORDER_EDIT, ORDER_QUICK] then
@@ -1142,20 +1311,24 @@ end;
 
 procedure TfrmODMedIV.tabFluidChange(Sender: TObject);
 begin
-  inherited;
-  case TabFluid.TabIndex of
-  0: begin
-       cboSolution.Visible := True;
-       cboAdditive.Visible := False;
-     end;
-  1: begin
-       cboAdditive.Visible := True;
-       cboSolution.Visible := False;
-     end;
-  end;
-  if cboSolution.Visible then
-    ActiveControl := cboSolution;
-  if cboAdditive.Visible then
+//  inherited;
+//  case TabFluid.TabIndex of
+//  0: begin
+//       cboSolution.Visible := True;
+//       cboAdditive.Visible := False;
+//     end;
+//  1: begin
+//       cboAdditive.Visible := True;
+//       cboSolution.Visible := False;
+//     end;
+//  end;
+//  if cboSolution.Visible then
+//    ActiveControl := cboSolution;
+//  if cboAdditive.Visible then
+//    ActiveControl := cboAdditive;
+  if pgctrlSolutionsAndAdditives.ActivePage = tbshtSolutions then
+    ActiveControl := cboSolution
+  else
     ActiveControl := cboAdditive;
 end;
 
@@ -1164,7 +1337,7 @@ end;
 procedure TfrmODMedIV.cboSolutionNeedData(Sender: TObject; const StartFrom: string;
   Direction, InsertAt: Integer);
 begin
-  cboSolution.ForDataUse(SubSetOfOrderItems(StartFrom, Direction, 'S.IVB RX'));
+  cboSolution.ForDataUse(SubSetOfOrderItems(StartFrom, Direction, 'S.IVB RX', Responses.QuickOrder));
 end;
 
 procedure TfrmODMedIV.cbotypeChange(Sender: TObject);
@@ -1252,7 +1425,7 @@ Const
   T1 = 'By checking the "Give additional dose now" box, you have actually entered two orders for the same medication.';
   T2 = #13#13'The first order''s administrative schedule is "';
   T3 = #13'The second order''s administrative schedule is "';
-  T4 = #13#13'Do you want to continue?';    
+  T4 = #13#13'Do you want to continue?';
   T5 = '" and a priority of "';
   T1A = 'By checking the "Give additional dose now" box, you have actually entered a new order with the schedule "NOW"';
   T2A = ' in addition to the one you are placing for the same medication.';
@@ -1329,7 +1502,7 @@ begin
   if not FInpatient then
   begin
     DEAFailStr := DEACheckFailedForIVOnOutPatient(cboSolution.ItemIEN,'S');
-    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
       begin
         case StrToIntDef(Piece(DEAFailStr,U,1),0) of
           1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -1337,7 +1510,14 @@ begin
           3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
           4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
           5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+          6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
         end;
+        if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+          begin
+            InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+            cboSolution.Text := '';
+            Exit;
+          end;
         if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
           begin
             DEAContext := True;
@@ -1354,7 +1534,7 @@ begin
   end else
   begin
     DEAFailStr := DEACheckFailed(cboSolution.ItemIEN, FInpatient);
-    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
       begin
         case StrToIntDef(Piece(DEAFailStr,U,1),0) of
           1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -1362,7 +1542,14 @@ begin
           3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
           4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
           5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+          6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
         end;
+        if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+          begin
+            InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+            cboSolution.Text := '';
+            Exit;
+          end;
         if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
           begin
             DEAContext := True;
@@ -1405,7 +1592,7 @@ begin
   end;
   Application.ProcessMessages;         //CQ: 10157
   updateRoute;
-  ClickOnGridCell;
+  ClickOnGridCell(#0);
   //updateRoute;
   ControlChange(Sender);
   //updateRoute(routeIEN);
@@ -1425,7 +1612,7 @@ end;
 procedure TfrmODMedIV.cboAdditiveNeedData(Sender: TObject; const StartFrom: string;
   Direction, InsertAt: Integer);
 begin
-  cboAdditive.ForDataUse(SubSetOfOrderItems(StartFrom, Direction, 'S.IVA RX'));
+  cboAdditive.ForDataUse(SubSetOfOrderItems(StartFrom, Direction, 'S.IVA RX', Responses.QuickOrder));
 end;
 
 procedure TfrmODMedIV.cboAddFreqCloseUp(Sender: TObject);
@@ -1456,7 +1643,25 @@ begin
 end;
 
 procedure TfrmODMedIV.cboDurationChange(Sender: TObject);
+Var
+ItemCount, i : Integer;
 begin
+  //Overwrite the auto complete to need characters up to the first unique character of the selection
+  //Loop through the items and see it we have multiple possibilites
+  ItemCount := 0;
+  For i := 0 to cboDuration.Items.Count - 1 do begin
+   If Pos(Uppercase(cboDuration.Text), Uppercase(Copy(cboDuration.Items[i], 1, Length(cboDuration.Text)))) > 0 then
+    Inc(ItemCount);
+  end;
+  //We have finally found the unique value so select it
+  If ItemCount = 1 then begin
+   For i := 0 to cboDuration.Items.Count - 1 do begin
+    If Pos(Uppercase(cboDuration.Text), Uppercase(Copy(cboDuration.Items[i], 1, Length(cboDuration.Text)))) > 0 then begin
+     cboDuration.ItemIndex := i;
+     break;
+    end;
+   end;
+  end;
   inherited;
   if (FOriginalDurationType > -1) and (FOriginalDurationType <> cboDuration.ItemIndex) then
     begin
@@ -1530,7 +1735,7 @@ begin
   inherited;
   oidx := cboRoute.Items.IndexOf('OTHER');
   if oidx = -1 then exit;
-  
+
   if cboRoute.ItemIndex = oidx then
     begin
       otherRoute := CreateOtherRoute;
@@ -1580,7 +1785,7 @@ procedure TfrmODMedIV.cboRouteKeyUp(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   inherited;
-  if (Key = VK_BACK) and (cboRoute.Text = '') then cboRoute.ItemIndex := -1;  
+  if (Key = VK_BACK) and (cboRoute.Text = '') then cboRoute.ItemIndex := -1;
 end;
 
 procedure TfrmODMedIV.cboAdditiveMouseClick(Sender: TObject);
@@ -1595,7 +1800,7 @@ begin
   if not FInpatient then
   begin
     DEAFailStr := DEACheckFailedForIVOnOutPatient(cboAdditive.ItemIEN,'A');
-    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
       begin
         case StrToIntDef(Piece(DEAFailStr,U,1),0) of
           1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -1603,7 +1808,14 @@ begin
           3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
           4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
           5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+          6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
         end;
+        if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+          begin
+            InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+            cboAdditive.Text := '';
+            Exit;
+          end;
         if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
           begin
             DEAContext := True;
@@ -1620,7 +1832,7 @@ begin
   end else
   begin
     DEAFailStr := DEACheckFailed(cboAdditive.ItemIEN, FInpatient);
-    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..5] do
+    while StrToIntDef(Piece(DEAFailStr,U,1),0) in [1..6] do
       begin
         case StrToIntDef(Piece(DEAFailStr,U,1),0) of
           1:  TX_INFO := TX_DEAFAIL;  //prescriber has an invalid or no DEA#
@@ -1628,7 +1840,14 @@ begin
           3:  TX_INFO := TX_NO_DETOX;  //prescriber has an invalid or no Detox#
           4:  TX_INFO := TX_EXP_DEA1 + Piece(DEAFailStr,U,2) + TX_EXP_DEA2;  //prescriber's DEA# expired and no VA# is assigned
           5:  TX_INFO := TX_EXP_DETOX1 + Piece(DEAFailStr,U,2) + TX_EXP_DETOX2;  //valid detox#, but expired DEA#
+          6:  TX_INFO := TX_SCH_ONE;  //schedule 1's are prohibited from electronic prescription
         end;
+        if StrToIntDef(Piece(DEAFailStr,U,1),0)=6 then
+          begin
+            InfoBox(TX_INFO, TC_DEAFAIL, MB_OK);
+            cboAdditive.Text := '';
+            Exit;
+          end;
         if InfoBox(TX_INFO + TX_INSTRUCT, TC_DEAFAIL, MB_RETRYCANCEL) = IDRETRY then
           begin
             DEAContext := True;
@@ -1664,7 +1883,7 @@ begin
     Col := 1;
   end;
   Application.ProcessMessages;         //CQ: 10157
-  ClickOnGridCell;
+  ClickOnGridCell(#0);
   updateRoute;
   ControlChange(Sender);
   //UpdateRoute(RouteIEN);
@@ -1695,11 +1914,11 @@ begin
   FIVTypeDefined := false;
 end;
 
-procedure TfrmODMedIV.ClickOnGridCell;
+procedure TfrmODMedIV.ClickOnGridCell(keypressed: Char);
 var
   AnIVComponent: TIVComponent;
 
-  procedure PlaceControl(AControl: TWinControl);
+  procedure PlaceControl(AControl: TWinControl; keypressed: Char);
   var
     ARect: TRect;
   begin
@@ -1712,10 +1931,18 @@ var
       Show;
       SetFocus;
       if AControl is TComboBox then                    //CQ: 10157
+      begin
+        TComboBox(AControl).DroppedDown := True;
+        TControl(self.grdSelected).Enabled := false;
+      end
+      else if AControl is TCaptionEdit then
+      begin
+        if not(keypressed = #0) then
         begin
-          TComboBox(AControl).DroppedDown := True;
-          TControl(self.grdSelected).Enabled := false;
+          TCaptionEdit(AControl).Text := keypressed;
+          TCaptionEdit(AControl).SelStart := 1;
         end;
+      end;
     end;
   end;
 
@@ -1732,7 +1959,7 @@ begin
     PiecesToList(AnIVComponent.Units, U, cboSelected.Items);
     cboSelected.ItemIndex := cboSelected.Items.IndexOf(grdSelected.Cells[grdSelected.Col, grdSelected.Row]);
     cboSelected.Tag  := (grdSelected.Col * 256) + grdSelected.Row;
-    PlaceControl(cboSelected);
+    PlaceControl(cboSelected,keypressed);
   end;
   // allow selection if more than 1 volume to choose from
   if (grdSelected.Col = 1) and (Length(Piece(AnIVComponent.Volumes, U, 2)) > 0) then
@@ -1740,21 +1967,21 @@ begin
     PiecesToList(AnIVComponent.Volumes, U, cboSelected.Items);
     cboSelected.ItemIndex := cboSelected.Items.IndexOf(grdSelected.Cells[grdSelected.Col, grdSelected.Row]);
     cboSelected.Tag  := (grdSelected.Col * 256) + grdSelected.Row;
-    PlaceControl(cboSelected);
+    PlaceControl(cboSelected,keypressed);
   end;
   // display text box to enter strength if the entry is an additive
   if (grdSelected.Col = 1) and (AnIVComponent.Fluid = 'A') then
   begin
     txtSelected.Text := grdSelected.Cells[grdSelected.Col, grdSelected.Row];
     txtSelected.Tag  := (grdSelected.Col * 256) + grdSelected.Row;
-    PlaceControl(txtSelected);
+    PlaceControl(txtSelected,keypressed);
   end;
   // AGP ADDITIVE FREQUENCY CHANGES
   if (Self.cboType.ItemIndex < 1) and (grdSelected.Col = 3) and (AnIVComponent.Fluid = 'A') then
   begin
     cboAddFreq.ItemIndex := cboAddFreq.Items.IndexOf(grdSelected.Cells[grdSelected.Col, grdSelected.Row]);
     cboAddFreq.Tag  := (grdSelected.Col * 256) + grdSelected.Row;
-    PlaceControl(cboAddFreq);
+    PlaceControl(cboAddFreq,keypressed);
   end;
 end;
 
@@ -1872,7 +2099,7 @@ procedure TfrmODMedIV.cboScheduleKeyUp(Sender: TObject; var Key: Word;
   Shift: TShiftState);
 begin
   inherited;
-  if (Key = VK_BACK) and (cboSchedule.Text = '') then cboSchedule.ItemIndex := -1;  
+  if (Key = VK_BACK) and (cboSchedule.Text = '') then cboSchedule.ItemIndex := -1;
 end;
 
 procedure TfrmODMedIV.cboSelectedCloseUp(Sender: TObject);
@@ -1940,7 +2167,7 @@ var
     i: Integer;
   begin
     Result := True;
-    for i := 1 to Length(x) do if not (x[i] in ['0'..'9','.']) then Result := False;
+    for i := 1 to Length(x) do if not CharInSet(x[i], ['0'..'9','.']) then Result := False;
   end;
 
 begin
@@ -2128,7 +2355,7 @@ end;
 
 procedure TfrmODMedIV.SetFontSize( FontSize: integer);
 begin
-  inherited SetFontSize( FontSize );
+//  inherited SetFontSize( FontSize );
   DoSetFontSize( FontSize );
 end;
 
@@ -2145,21 +2372,23 @@ end;
 
 procedure TfrmODMedIV.DoSetFontSize( FontSize: integer);
 begin
-  tabFluid.TabHeight := Abs(Font.Height) + 4;
-  grdSelected.DefaultRowHeight := Abs(Font.Height) + 8;
+//  tabFluid.TabHeight := Abs(Font.Height) + 4;
+//  grdSelected.DefaultRowHeight := Abs(Font.Height) + 8;
+//
+//  SetScrollBarHeight(FontSize);
+  Self.Font.Assign(Screen.IconFont);
 end;
 
-procedure TfrmODMedIV.FormKeyDown(Sender: TObject; var Key: Word;
-  Shift: TShiftState);
+procedure TfrmODMedIV.FormKeyDown(Sender: TObject; var Key: Word; Shift: TShiftState);
 begin
   inherited;
-  if (Key = VK_TAB) and (ssCtrl in Shift) then
-  begin
-    //Back-tab works the same as forward-tab because there are only two tabs.
-    tabFluid.TabIndex := (tabFluid.TabIndex + 1) mod tabFluid.Tabs.Count;
-    Key := 0;
-    tabFluidChange(tabFluid);
-  end;
+//  if (Key = VK_Tab) and (ssCtrl in Shift) then
+//    begin
+//      // Back-tab works the same as forward-tab because there are only two tabs.
+//      tabFluid.TabIndex := (tabFluid.TabIndex + 1) mod tabFluid.Tabs.Count;
+//      Key := 0;
+//      tabFluidChange(tabFluid);
+//    end;
 end;
 
 procedure TfrmODMedIV.FormKeyPress(Sender: TObject; var Key: Char);
@@ -2172,14 +2401,14 @@ end;
 procedure TfrmODMedIV.grdSelectedKeyPress(Sender: TObject; var Key: Char);
 begin
   inherited;
-  ClickOnGridCell;
+  ClickOnGridCell(Key);
 end;
 
 procedure TfrmODMedIV.grdSelectedMouseDown(Sender: TObject;
   Button: TMouseButton; Shift: TShiftState; X, Y: Integer);
 begin
   inherited;
-  ClickOnGridCell;
+  ClickOnGridCell(#0);
 end;
 
 procedure TfrmODMedIV.txtXDurationChange(Sender: TObject);

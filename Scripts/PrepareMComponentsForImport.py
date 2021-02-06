@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2013 The Open Source Electronic Health Record Agent
+# Copyright 2013-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,8 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import print_function
+import codecs
 import sys
 import os
 import PackRO
@@ -38,29 +39,29 @@ for outputfile in ["routines.ro", "globals.lst"]:
   except OSError:
     pass
 
-routputfile = open(os.path.join(result.outputdir,"routines.ro"),'w')
-goutputfile = open(os.path.join(result.outputdir,"globals.lst"),'w')
+routputfile = codecs.open(os.path.join(result.outputdir,"routines.ro"), 'w', 'ISO-8859-1', 'ignore')
+goutputfile = codecs.open(os.path.join(result.outputdir,"globals.lst"), 'w', 'ISO-8859-1', 'ignore')
 
 routines=[]
 globals=[]
 
 for directory in result.MDir:
-  print "Looking for routines in subdirectories below " + directory
+  print("Looking for routines in subdirectories below " + directory)
   routines += [r for r in files_in_tree('*.m',directory)]
-  print "Looking for globals in subdirectories below " + directory
+  print("Looking for globals in subdirectories below " + directory)
   if result.relativedir:
     globals += [os.path.relpath(g,result.relativedir) for g in files_in_tree('*.zwr',directory)]
   else:
     globals += [g for g in files_in_tree('*.zwr',directory)]
 
-print "Packing routines into routines.ro file"
+print("Packing routines into routines.ro file")
 PackRO.pack(routines[0:],routputfile)
-print "Done!"
+print("Done!")
 
-print "Packing global paths into globals.lst file"
+print("Packing global paths into globals.lst file")
 for newglobal in globals:
   goutputfile.write(newglobal+'\n')
-print "Done!"
+print("Done!")
 
 routputfile.close()
 goutputfile.close()

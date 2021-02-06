@@ -4,71 +4,87 @@ inherited frmCover: TfrmCover
   HelpContext = 1000
   BorderIcons = []
   Caption = 'Cover Sheet'
+  ClientHeight = 350
+  ClientWidth = 632
   HelpFile = 'overvw'
   OnDestroy = FormDestroy
   OnShow = FormShow
   ExplicitWidth = 648
-  ExplicitHeight = 395
+  ExplicitHeight = 388
   PixelsPerInch = 96
   TextHeight = 13
+  inherited shpPageBottom: TShape
+    Top = 345
+    Width = 632
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    ExplicitTop = 345
+    ExplicitWidth = 632
+  end
   object pnlBase: TPanel [1]
     Left = 0
     Top = 0
-    Width = 640
-    Height = 356
+    Width = 632
+    Height = 345
     Align = alClient
     BevelOuter = bvNone
     Constraints.MinHeight = 10
     TabOrder = 0
     object sptBottom: TSplitter
       Left = 0
-      Top = 237
-      Width = 640
+      Top = 226
+      Width = 632
       Height = 5
       Cursor = crVSplit
       Align = alBottom
       Constraints.MinHeight = 5
       OnCanResize = sptBottomCanResize
+      ExplicitTop = 237
+      ExplicitWidth = 640
     end
     object pnlNotTheBottom: TPanel
       Left = 0
       Top = 0
-      Width = 640
-      Height = 237
+      Width = 632
+      Height = 226
       Align = alClient
       BevelOuter = bvNone
       TabOrder = 0
       object sptTop: TSplitter
         Left = 0
         Top = 120
-        Width = 640
+        Width = 632
         Height = 5
         Cursor = crVSplit
         Align = alTop
         Constraints.MinHeight = 5
         OnCanResize = sptTopCanResize
+        ExplicitWidth = 640
       end
       object pnlTop: TPanel
         Left = 0
         Top = 0
-        Width = 640
+        Width = 632
         Height = 120
         Align = alTop
         BevelOuter = bvNone
         TabOrder = 0
         object spt_2: TSplitter
-          Left = 424
+          Left = 416
           Top = 0
           Width = 5
           Height = 120
           Align = alRight
           Constraints.MinWidth = 5
           OnCanResize = spt_2CanResize
+          ExplicitLeft = 424
         end
         object pnl_not3: TPanel
           Left = 0
           Top = 0
-          Width = 424
+          Width = 416
           Height = 120
           Align = alClient
           BevelOuter = bvNone
@@ -119,6 +135,7 @@ inherited frmCover: TfrmCover
               TabOrder = 0
               OnClick = CoverItemClick
               OnExit = CoverItemExit
+              Caption = ''
               ItemTipColor = clWindow
               LongList = False
               TabPositions = '2,3'
@@ -127,7 +144,7 @@ inherited frmCover: TfrmCover
           object pnl_2: TPanel
             Left = 216
             Top = 0
-            Width = 208
+            Width = 200
             Height = 120
             Align = alClient
             BevelOuter = bvNone
@@ -136,7 +153,7 @@ inherited frmCover: TfrmCover
             object lbl_2: TOROffsetLabel
               Left = 0
               Top = 0
-              Width = 208
+              Width = 200
               Height = 19
               Align = alTop
               Caption = ' '
@@ -144,12 +161,13 @@ inherited frmCover: TfrmCover
               Transparent = False
               VertOffset = 6
               WordWrap = False
+              ExplicitWidth = 208
             end
             object lst_2: TORListBox
               Tag = 20
               Left = 0
               Top = 19
-              Width = 208
+              Width = 200
               Height = 101
               Align = alClient
               Ctl3D = True
@@ -160,13 +178,14 @@ inherited frmCover: TfrmCover
               TabOrder = 0
               OnClick = CoverItemClick
               OnExit = CoverItemExit
+              Caption = ''
               ItemTipColor = clWindow
               LongList = False
             end
           end
         end
         object pnl_3: TPanel
-          Left = 429
+          Left = 421
           Top = 0
           Width = 211
           Height = 120
@@ -224,7 +243,7 @@ inherited frmCover: TfrmCover
               Align = alClient
               Font.Charset = DEFAULT_CHARSET
               Font.Color = clMaroon
-              Font.Height = -11
+              Font.Height = -12
               Font.Name = 'MS Sans Serif'
               Font.Style = []
               ItemHeight = 13
@@ -234,6 +253,7 @@ inherited frmCover: TfrmCover
               TabOrder = 0
               OnClick = lstFlagClick
               OnKeyDown = lstFlagKeyDown
+              Caption = ''
               ItemTipColor = clWindow
               LongList = False
               Pieces = '2'
@@ -249,7 +269,7 @@ inherited frmCover: TfrmCover
             Ctl3D = True
             Font.Charset = DEFAULT_CHARSET
             Font.Color = clMaroon
-            Font.Height = -11
+            Font.Height = -12
             Font.Name = 'MS Sans Serif'
             Font.Style = []
             ItemHeight = 13
@@ -260,6 +280,7 @@ inherited frmCover: TfrmCover
             TabOrder = 1
             OnClick = CoverItemClick
             OnExit = CoverItemExit
+            Caption = ''
             ItemTipColor = clWindow
             LongList = False
             TabPositions = '20'
@@ -269,8 +290,8 @@ inherited frmCover: TfrmCover
       object pnlMiddle: TPanel
         Left = 0
         Top = 125
-        Width = 640
-        Height = 112
+        Width = 632
+        Height = 101
         Align = alClient
         BevelOuter = bvNone
         TabOrder = 1
@@ -278,15 +299,16 @@ inherited frmCover: TfrmCover
           Left = 318
           Top = 0
           Width = 5
-          Height = 112
+          Height = 101
           Constraints.MinWidth = 5
           OnCanResize = spt_3CanResize
+          ExplicitHeight = 112
         end
         object pnl_4: TPanel
           Left = 0
           Top = 0
           Width = 318
-          Height = 112
+          Height = 101
           Align = alLeft
           BevelOuter = bvNone
           TabOrder = 0
@@ -308,7 +330,7 @@ inherited frmCover: TfrmCover
             Left = 0
             Top = 13
             Width = 318
-            Height = 99
+            Height = 88
             Align = alClient
             Ctl3D = True
             ItemHeight = 13
@@ -318,6 +340,7 @@ inherited frmCover: TfrmCover
             TabOrder = 0
             OnClick = CoverItemClick
             OnExit = CoverItemExit
+            Caption = ''
             ItemTipColor = clWindow
             LongList = False
             TabPositions = '35'
@@ -326,8 +349,8 @@ inherited frmCover: TfrmCover
         object pnl_5: TPanel
           Left = 323
           Top = 0
-          Width = 317
-          Height = 112
+          Width = 309
+          Height = 101
           Align = alClient
           BevelOuter = bvNone
           TabOrder = 1
@@ -335,7 +358,7 @@ inherited frmCover: TfrmCover
           object lbl_5: TOROffsetLabel
             Left = 0
             Top = 0
-            Width = 317
+            Width = 309
             Height = 13
             Align = alTop
             Caption = ' '
@@ -343,13 +366,14 @@ inherited frmCover: TfrmCover
             Transparent = False
             VertOffset = 0
             WordWrap = False
+            ExplicitWidth = 317
           end
           object lst_5: TORListBox
             Tag = 50
             Left = 0
             Top = 13
-            Width = 317
-            Height = 99
+            Width = 309
+            Height = 88
             Align = alClient
             Ctl3D = True
             ItemHeight = 13
@@ -359,6 +383,7 @@ inherited frmCover: TfrmCover
             TabOrder = 0
             OnClick = CoverItemClick
             OnExit = CoverItemExit
+            Caption = ''
             ItemTipColor = clWindow
             LongList = False
             TabPositions = '34,44'
@@ -368,25 +393,26 @@ inherited frmCover: TfrmCover
     end
     object pnlBottom: TPanel
       Left = 0
-      Top = 242
-      Width = 640
+      Top = 231
+      Width = 632
       Height = 114
       Align = alBottom
       BevelOuter = bvNone
       TabOrder = 1
       object spt_5: TSplitter
-        Left = 380
+        Left = 372
         Top = 0
         Width = 5
         Height = 114
         Align = alRight
         Constraints.MinWidth = 5
         OnCanResize = spt_5CanResize
+        ExplicitLeft = 380
       end
       object pnl_not8: TPanel
         Left = 0
         Top = 0
-        Width = 380
+        Width = 372
         Height = 114
         Align = alClient
         BevelOuter = bvNone
@@ -435,6 +461,7 @@ inherited frmCover: TfrmCover
             TabOrder = 0
             OnClick = CoverItemClick
             OnExit = CoverItemExit
+            Caption = ''
             ItemTipColor = clWindow
             LongList = False
             TabPositions = '34'
@@ -443,7 +470,7 @@ inherited frmCover: TfrmCover
         object pnl_7: TPanel
           Left = 260
           Top = 0
-          Width = 120
+          Width = 112
           Height = 114
           Align = alClient
           BevelOuter = bvNone
@@ -452,19 +479,20 @@ inherited frmCover: TfrmCover
           object lbl_7: TOROffsetLabel
             Left = 0
             Top = 0
-            Width = 120
+            Width = 112
             Height = 13
             Align = alTop
             HorzOffset = 2
             Transparent = False
             VertOffset = 0
             WordWrap = False
+            ExplicitWidth = 120
           end
           object lst_7: TORListBox
             Tag = 70
             Left = 0
             Top = 13
-            Width = 120
+            Width = 112
             Height = 101
             Align = alClient
             Ctl3D = True
@@ -475,6 +503,7 @@ inherited frmCover: TfrmCover
             TabOrder = 0
             OnClick = CoverItemClick
             OnExit = CoverItemExit
+            Caption = ''
             ItemTipColor = clWindow
             LongList = False
             TabPositions = '4,13,15,24'
@@ -482,7 +511,7 @@ inherited frmCover: TfrmCover
         end
       end
       object pnl_8: TPanel
-        Left = 385
+        Left = 377
         Top = 0
         Width = 255
         Height = 114
@@ -516,6 +545,7 @@ inherited frmCover: TfrmCover
           TabOrder = 0
           OnClick = CoverItemClick
           OnExit = CoverItemExit
+          Caption = ''
           ItemTipColor = clWindow
           LongList = False
           TabPositions = '15,35'
@@ -613,8 +643,8 @@ inherited frmCover: TfrmCover
   end
   object popMenuAllergies: TPopupMenu
     OnPopup = popMenuAllergiesPopup
-    Left = 283
-    Top = 46
+    Left = 67
+    Top = 30
     object popNewAllergy: TMenuItem
       Caption = 'Enter new allergy'
       OnClick = popNewAllergyClick
@@ -640,5 +670,18 @@ inherited frmCover: TfrmCover
       'o access more options such as entering a new allergy.'
     Left = 360
     Top = 48
+  end
+  object popMenuWomensHealth: TPopupMenu
+    OnPopup = popMenuWomensHealthPopup
+    Left = 64
+    Top = 72
+    object popWHNewData: TMenuItem
+      Caption = 'Enter New Data ...'
+      OnClick = popWHNewDataClick
+    end
+    object popWHEnteredInError: TMenuItem
+      Caption = 'Mark Selected Data as '#39'Entered In Error'#39' ...'
+      OnClick = popWHEnteredInErrorClick
+    end
   end
 end

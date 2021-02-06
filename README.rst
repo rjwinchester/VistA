@@ -6,7 +6,7 @@ OSEHRA VistA
 
 This source tree contains patches, tests, and tools for VistA, the Veterans
 Health Information Systems and Technology Architecture.  It is maintained by
-OSEHRA, the Open Source Electronic Health Record Agent.
+OSEHRA, the Open Source Electronic Health Record Alliance.
 
 This version of VistA includes Open Source Community contributions accepted
 by OSEHRA.
@@ -56,13 +56,9 @@ The source tree is organized as follows:
   under a specific package directory.
 
 * `<Packages/Uncategorized>`__: Holds files with no clear package category.
-  In particular, it contains ``*.csv`` spreadsheets derived from the
+  In addition, it contains ``*.csv`` spreadsheets derived from the
   `VA FOIA Spreadsheets`_.  See `<Scripts/HowtoUpdateSpreadsheets.rst>`__
   to update them.
-
-* ``FOIA/``: Holds files downloaded from the `VA VistA FOIA Site`_.
-  See `<Scripts/HowtoDownloadPatches.rst>`__ to populate it.
-  See `<Scripts/HowtoPopulatePackages.rst>`__ to move files to ``Packages/``.
 
 -----
 Links
@@ -71,11 +67,9 @@ Links
 * OSEHRA Homepage: http://osehra.org
 * OSEHRA Repositories: http://code.osehra.org
 * OSEHRA Github: https://github.com/OSEHRA
-* OSEHRA Gitorious: https://gitorious.org/osehra
 * VA VistA Document Library: http://www.va.gov/vdl
 
-.. _`VA VistA FOIA Site`: https://downloads.va.gov/files/FOIA
-.. _`VA FOIA Spreadsheets`: https://downloads.va.gov/files/FOIA/Software/DBA_VistA_FOIA_System_Files
+.. _`VA FOIA Spreadsheets`: https://foia-vista.osehra.org/DBA_VistA_FOIA_System_Files/All_Listing_of_Released_VistA_Patches
 .. _`VistA-M Source Tree`: http://code.osehra.org/VistA-M.git
 
 .. _`Packages/Order Entry Results Reporting/CPRS`: Packages/Order%20Entry%20Results%20Reporting/CPRS

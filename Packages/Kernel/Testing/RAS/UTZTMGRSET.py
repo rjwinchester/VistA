@@ -36,6 +36,10 @@ class TestZTMGRSET(unittest.TestCase):
         '''Test the PATCH^ZTMGRSET(patchnumber=1000) entrypoint'''
         self.PATCH("1000")
 
+    def test_PATCHgreaterThan9999999(self):
+        '''Test the PATCH^ZTMGRSET(patchnumber=1000) entrypoint'''
+        self.PATCH("10000000")
+
     def PATCH(self, patchNumber):
         with self.createTestClient() as testClient:
             expectedResult = self.expectedResult(patchNumber, testClient)
@@ -43,7 +47,7 @@ class TestZTMGRSET(unittest.TestCase):
             testClient.waitForPrompt()
             connection.send("D PATCH^ZTMGRSET(" + patchNumber + ")\r")
             testClient.waitForPrompt()
-            result = self.lineParser(connection.before, "^ALL DONE")
+            result = self.lineParser(connection.lastconnection, "^ALL DONE")
             if expectedResult:
                 self.assertEqual(result, "ALL DONE", msg="ZTMGRSET Failed")
             else:
@@ -59,7 +63,11 @@ class TestZTMGRSET(unittest.TestCase):
 
     def test_RELOADgreaterThan999(self):
         '''Test the RELOAD^ZTMGRSET entrypoint'''
-        self.RELOAD("1000")
+        self.RELOAD("10000")
+
+    def test_RELOADgreaterThan9999999(self):
+        '''Test the RELOAD^ZTMGRSET entrypoint'''
+        self.RELOAD("10000000")
 
     def RELOAD(self, patchNumber):
         with self.createTestClient() as testClient:
@@ -74,7 +82,7 @@ class TestZTMGRSET(unittest.TestCase):
             connection.expect("load:")
             connection.send(patchNumber + "\r")
             testClient.waitForPrompt()
-            result = self.lineParser(connection.before, "^ALL DONE")
+            result = self.lineParser(connection.lastconnection, "^ALL DONE")
             if expectedResult:
                 self.assertEqual(result, "ALL DONE", msg="ZTMGRSET Failed")
             else:
@@ -98,8 +106,15 @@ class TestZTMGRSET(unittest.TestCase):
         return VistATestClientFactory.createVistATestClientWithArgs(args)
 
     def expectedResult(self, patchNumber, testClient):
+        connection = testClient.getConnection()
+        testClient.waitForPrompt()
+        connection.send('W $T(+2^ZTMGRSET)\r')
+        upperLimit = 1000
+        index = connection.expect(["10001","Build"])
+        if index == 0:
+          upperLimit= 9999999+1
         result = True # a flag to indicate whether to check expected result
-        patchOutRange = (int(patchNumber) >= 1000)
+        patchOutRange = (int(patchNumber) >=upperLimit)
         if patchOutRange:
             """ need to report test fail as OK if patch number is out of
                 range

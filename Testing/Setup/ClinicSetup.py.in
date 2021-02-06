@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2013 PwC
+# Copyright 2013-2019 PwC
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -33,6 +33,8 @@ Created on Jun 19, 2012
 @license http://www.apache.org/licenses/LICENSE-2.0
 '''
 
+from builtins import range
+from builtins import object
 import sys
 import time
 sys.path = ['${VISTA_SOURCE_DIR}/Python/vista'] + sys.path
@@ -40,7 +42,7 @@ from OSEHRAHelper import ConnectToMUMPS, PROMPT
 
 class Clinic(object):
     def __init__(self, cname, cabr, cstarttime, ctime, cdate, cslots,
-                 cservice, ctype, cxray, cprofiles, ccico, cproviders, cdiagnosis, cvarlen,
+                 cservice, ctype, cxray, cprofiles, ccico, cproviders, cdiagnosisICD10, cdiagnosis, cvarlen,
                  cstopcode):
         self.cname = cname
         self.cabr = cabr
@@ -55,6 +57,7 @@ class Clinic(object):
         self.ccico = ccico
         self.cproviders = cproviders
         self.cdiagnosis = cdiagnosis
+        self.cdiagnosisICD10 = cdiagnosisICD10
         self.cvarlen = cvarlen
         self.cstopcode = cstopcode
     def setup(self, VistA):
@@ -71,9 +74,14 @@ class Clinic(object):
         VistA.write('')
         VistA.wait('ABBREVIATION')
         VistA.write(self.cabr)
-        VistA.wait('FACILITY?')
-        VistA.write('')
-        VistA.wait('SERVICE:')
+        while True:
+          index = VistA.multiwait(['SERVICE','CLINIC MEETS','PATIENT FRIENDLY NAME','ALLOW DIRECT PATIENT','DISPLAY CLIN APPT'])
+          if index == 0:
+            break;
+          if index == 2:
+            VistA.write('')
+          else:
+            VistA.write('Y')
         VistA.write(self.cservice)
         VistA.wait('CLINIC?')
         VistA.write('N')
@@ -108,18 +116,33 @@ class Clinic(object):
         for diag in self.cdiagnosis:
             VistA.wait('Select DIAGNOSIS')
             VistA.write(diag)
-            if diag != '':
-                VistA.wait('OK')
+            index = VistA.multiwait(['\?\?','OK'])
+            if index == 1:
                 VistA.write('')
                 VistA.wait('new DIAGNOSIS')
                 VistA.write('Yes')
                 VistA.wait('DEFAULT DIAGNOSIS')
                 VistA.write('')
+            else:
+                for diag10 in self.cdiagnosisICD10:
+                    VistA.wait('Select DIAGNOSIS')
+                    VistA.write(diag)
+                    index = VistA.multiwait(['\?\?','OK'])
+                    if index == 1:
+                        VistA.write('')
+                        VistA.wait('new DIAGNOSIS')
+                        VistA.write('Yes')
+                        VistA.wait('DEFAULT DIAGNOSIS')
+                        VistA.write('')
+                break
         VistA.wait('Select DIAGNOSIS')
         VistA.write('')
         VistA.wait('CHK OUT:')
         VistA.write('')
-        VistA.wait('NO-SHOWS:')
+        index = VistA.multiwait(['ALLOWABLE CONSECUTIVE NO-SHOWS','WORKLOAD VALIDATION'])
+        if index == 1:
+          VistA.write('')
+          VistA.wait('ALLOWABLE CONSECUTIVE NO-SHOWS')
         VistA.write('10')
         VistA.wait('BOOKING')
         VistA.write('365')
@@ -171,37 +194,37 @@ if ('${VISTA_CACHE_USERNAME}' and '${VISTA_CACHE_PASSWORD}'):
 if VistA.type == 'cache':
   try:
     VistA.ZN('${VISTA_CACHE_NAMESPACE}')
-  except IndexError, no_namechange:
+  except IndexError as no_namechange:
     pass
 VistA.wait(PROMPT, 60)
 
 '''   (cname, cabr, cstarttime, ctime, cdate, cslots,
-       cservice, ctype, cxray, cprofiles, ccico, cproviders, cdiagnosis, cvarlen,
+       cservice, ctype, cxray, cprofiles, ccico, cproviders, cdiagnosisICD10,cdiagnosis, cvarlen,
        cstopcode):'''
 Clinic('Clinic1', 'C1', '0', '0000-0800', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '16',
-       'Medicine', 'Regular', 'Yes', '', 'YES', ['Alexander'], '', '',
+       'Medicine', 'Regular', 'Yes', '', 'YES', [], '', '', '',
        'Cardiology').setup(VistA)
 
 Clinic('Clinic2', 'C2', '8', '0800-1600', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '16',
-       'Medicine', 'Regular', 'Yes', '', 'YES', ['Alexander'], '', '',
+       'Medicine', 'Regular', 'Yes', '', 'YES', [], '', '', '',
        'Cardiology').setup(VistA)
 
 Clinic('CLINICX', 'CX', '16', '1600-2400', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '16',
-       'Medicine', 'Regular', 'Yes', '', 'NO', ['Alexander'], '', '',
+       'Medicine', 'Regular', 'Yes', '', 'NO', [], '', '', '',
        'Cardiology').setup(VistA)
 
 Clinic('CLInicA', 'CA', '0', '0000-0800', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '16',
-       'Medicine', 'Regular', 'Yes', '', 'NO', ['Alexander'], '', 'Yes',
+       'Medicine', 'Regular', 'Yes', '', 'NO', [], '', '', 'Yes',
        '303').setup(VistA)
 
 Clinic('CLInicB', 'CB', '0', '0000-0800', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '2',
-       'Surgery', 'Employee', 'Yes', '', 'YES', ['Smith', 'Alexander'], ['164.1', '391.8', '402.01'], 'yes',
+       'Surgery', 'Employee', 'Yes', '', 'YES', [], ['164.1', '391.8', '402.01'], ['C38.0', 'I01.8', 'I11.0'], 'yes',
        '435').setup(VistA)
 
 Clinic('CLInicC', 'CC', '0', '0000-0800', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '4',
-       'None', 'Research', 'Yes', '', '', ['Smith'], '', '',
+       'None', 'Research', 'Yes', '', '', [], '', '', '',
        '435').setup(VistA)
 
 Clinic('CLInicD', 'CD', '0', '0000-0800', ['t', 't+1', 't+2', 't+3', 't+4', 't+5', 't+6', 't+7'], '4',
-       'Neurology', 'Service Connected', 'Yes', '', '', ['Smith', 'Alexander'], ['191.7'], '',
+       'Neurology', 'Service Connected', 'Yes', '', '', [], ['191.7'], ['C71.7'], '',
        'NEUROLOGY').setup(VistA)

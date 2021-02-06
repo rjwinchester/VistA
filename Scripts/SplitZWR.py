@@ -22,16 +22,23 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
+from builtins import object
 import argparse
+import codecs
 import os
 import sys
 
-class SplitZWR:
+class SplitZWR(object):
     def __init__(self, filepath, maxSize):
         self.maxSize = maxSize
         self.dir = os.path.dirname(filepath)
-        self.num, self.name = os.path.basename(filepath).split('+',1)
-        self.input = open(filepath, 'r')
+        nameSplit = os.path.basename(filepath).split('+',1)
+        if len(nameSplit) > 1:
+           self.num, self.name = nameSplit
+        else:
+           self.num=0
+           self.name=nameSplit[0]
+        self.input = codecs.open(filepath, 'r', encoding='ISO-8859-1', errors='ignore')
         self.headers = []
         while len(self.headers) < 2:
             self.headers.append(self.input.readline())
@@ -44,7 +51,7 @@ class SplitZWR:
         self.index += 1
         outName = '%s-%d+%s' % (self.num, self.index, self.name)
         outPath = os.path.join(self.dir, outName)
-        self.outFile = open(outPath, 'w')
+        self.outFile = codecs.open(outPath, 'w', encoding="ISO-8859-1", errors='ignore')
         self.outFile.writelines(self.headers)
         self.outSize = self.hdrSize
         sys.stdout.write(' %s\n' % outPath)
@@ -82,6 +89,8 @@ def main():
         files.extend([a.rstrip() for a in sys.stdin])
 
     for f in files:
+        if "DD.zwr" in f:
+            continue
         if f[-4:].lower() != '.zwr':
             sys.stderr.write('Skipping non-.zwr file: %s\n' % f)
             continue

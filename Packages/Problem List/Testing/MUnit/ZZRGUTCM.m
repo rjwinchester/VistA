@@ -1,4 +1,4 @@
-ZZRGUTCM ;RGI/CBR - Unit Tests - Common functions ;3/7/2013
+ZZRGUTCM ;RGI/CBR - Unit Tests - Common functions ;2018-02-20  9:44 AM
  ;;1.0;UNIT TEST;;Apr 25, 2012;Build 1;
 NEWPAT ;
  N PAT,PATU,PATDFN,ERR
@@ -49,11 +49,11 @@ CHKPRB(IFN,FIELDS,CONDT) ;
  S FLDNO=""
  S R=$$DETAIL(.DBFLDS,IFN)
  F  S FLDNO=$O(FIELDS(FLDNO)) Q:FLDNO=""  D
- . I FLDNO=.05 D CHKEQ^XTMUNIT($P(FIELDS(FLDNO),U,2),$P(DBFLDS(FLDNO),U,2),"Invalid value in field: "_FLDNO) Q
- . I (FLDNO=1.01)&(FIELDS(1.01)="") D CHKEQ^XTMUNIT("1^Unresolved",DBFLDS(FLDNO),"Invalid value in field: "_FLDNO) Q
+ . I FLDNO=.05 D CHKEQ^%ut($P(FIELDS(FLDNO),U,2),$P(DBFLDS(FLDNO),U,2),"Invalid value in field: "_FLDNO) Q
+ . I (FLDNO=1.01)&(FIELDS(1.01)="") D CHKEQ^%ut("1^Unresolved",DBFLDS(FLDNO),"Invalid value in field: "_FLDNO) Q
  . Q:FLDNO=10
- . D CHKEQ^XTMUNIT($P(FIELDS(FLDNO),U),$P(DBFLDS(FLDNO),U),"Invalid value in field: "_FLDNO)
- I $D(CONDT) D CHKEQ^XTMUNIT(CONDT,$P(DBFLDS(1.02),U))
+ . D CHKEQ^%ut($P(FIELDS(FLDNO),U),$P(DBFLDS(FLDNO),U),"Invalid value in field: "_FLDNO)
+ I $D(CONDT) D CHKEQ^%ut(CONDT,$P(DBFLDS(1.02),U))
  Q
  ;
 CHKEDLD(RET) ;
@@ -65,8 +65,8 @@ CHKEDLD(RET) ;
  . S FLD=$P(RET(I),$C(254),2)
  . S IVAL=$P($P(RET(I),$C(254),3),U)
  . S EVAL=$P($P(RET(I),$C(254),3),U,2)
- . I "^.01^.02^.12^.13^1.02^1.08^1.14^1.1^"[("^"_FLD_"^") D CHKEQ^XTMUNIT($P($G(ORG1(FLD)),U),IVAL,"EDLOAD^ORQQPL1: Field "_FLD_" ("_ST_")")
- . I "^.05^"[("^"_FLD_"^") D CHKEQ^XTMUNIT($P($G(ORG1(FLD)),U,2),EVAL,"EDLOAD^ORQQPL1: Field "_FLD_" ("_ST_")")
+ . I "^.01^.02^.12^.13^1.02^1.08^1.14^1.1^"[("^"_FLD_"^") D CHKEQ^%ut($P($G(ORG1(FLD)),U),IVAL,"EDLOAD^ORQQPL1: Field "_FLD_" ("_ST_")")
+ . I "^.05^"[("^"_FLD_"^") D CHKEQ^%ut($P($G(ORG1(FLD)),U,2),EVAL,"EDLOAD^ORQQPL1: Field "_FLD_" ("_ST_")")
  Q
  ;
 SETARY(ARRIN,ARROUT) ;
@@ -163,7 +163,7 @@ ADDLIST(RETURN,LSTNAME,CATNAME,LOC) ;
  S NLST=$$NEWLST(LSTNAME,LOC)
  S NCAT=$$NEWCAT(CATNAME)
  S DIK="^GMPL(125.12,"
- S ITEM="1^33572^Diabetes Insipidus^253.5"
+ S ITEM="1^33572^Diabetes Insipidus^R69." ;253.5
  D NEW(DIK,+NCAT,ITEM)
  S DIK="^GMPL(125.1,"
  S ITEM="1"_U_NCAT_U_"1"
@@ -182,7 +182,9 @@ NEWLST(LNAME,LOC)
  ;
 NEWCAT(HDR) ; Create new group entries in #125.1 and #125.11
  N DIC,DD,DO,X,Y,DIK,ITEM,DLAYGO
- S DIC="^GMPL(125.11,",DIC(0)="L",DIC("DR")="1////"_DT,DLAYGO=125.11
+ I $$PATCH^XPDUTL("GMPL*2.0*49") S DIC("DR")=".02///"_DT_";.03///L"
+ E  S DIC("DR")="1////"_DT
+ S DIC="^GMPL(125.11,",DIC(0)="L",DLAYGO=125.11
  I $L(HDR),'$D(^GMPL(125.11,"B",$$UP^XLFSTR(HDR))) S X=$$UP^XLFSTR(HDR)
  D FILE^DICN G:Y'>0 NGQ
 NGQ S Y=$P(Y,U,1,2)

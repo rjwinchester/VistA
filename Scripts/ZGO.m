@@ -1,6 +1,7 @@
-ZGO ; Save globals to ZWR files organized by FileMan ; 12/3/12 4:06P
+ZGO ; [Public] Save globals to ZWR files organized by FileMan ; 12/3/18 9:21pm
  ;---------------------------------------------------------------------------
- ; Copyright 2011 The Open Source Electronic Health Record Agent
+ ; Copyright 2018 The Open Source Electronic Health Record Agent
+ ; Copyright 2020 Sam Habiel
  ;
  ; Licensed under the Apache License, Version 2.0 (the "License");
  ; you may not use this file except in compliance with the License.
@@ -14,57 +15,126 @@ ZGO ; Save globals to ZWR files organized by FileMan ; 12/3/12 4:06P
  ; See the License for the specific language governing permissions and
  ; limitations under the License.
  ;---------------------------------------------------------------------------
- N  D CONFIG
+ ;
+EN ; [Public] Interactive Entry Point
+ N (ZGODEBUG)
+ D CONFIG
  W "ZWR Global Output, organized by FileMan"
  D ASKDIR Q:DIR["^"
  D DUMPALL
  Q
-SAVEALL(DIR) ; Save all globals to files in host DIR
+ ;
+ ;
+SAVEALL(DIR) ; [Public] Save all globals to files in host DIR
  N CONFIG D CONFIG
  I '$$SLASH(DIR) Q
+ N T1 S T1=$$NOW^XLFDT()
  D DUMPALL
+ N T2 S T2=$$NOW^XLFDT()
+ W !,$$FMDIFF^XLFDT(T2,T1,2)_" SECONDS"
+ K ^TMP($J),^XTMP("ZGO")
  Q
-SAVEONE(DIR,G) ; Save global G to files in host DIR
+ ;
+ ;
+SAVEONE(DIR,G) ; [Public] Save global G to files in host DIR
  N CONFIG D CONFIG
  I '$$SLASH(DIR) Q
+ N T1 S T1=$$NOW^XLFDT()
  D DUMPONE
+ N T2 S T2=$$NOW^XLFDT()
+ W !,$$FMDIFF^XLFDT(T2,T1,2)_" SECONDS"
+ K ^TMP($J),^XTMP("ZGO")
+ Q
+ ;
+ ;
+SINGLEDUMP(DIR) ; [Public] Dump everything into one file
+ N T1 S T1=$$NOW^XLFDT()
+ N CONFIG D CONFIG
+ I '$$SLASH(DIR) Q
+ N GLOBALS D GLOBALS
+ n gDev s gDev=$$OPENGBL("ALL")
+ u gDev
+ N G S G=""
+ F  S G=$O(GLOBALS(G)) Q:G=""  ZWRITE @G ; Better on GT.M
+ ;F  S G=$O(GLOBALS(G)) Q:G=""  D WRITE(gDev,G):$D(@G)#2,DUMP(gDev,G) ; Better on Cache
+ d CLOSE(gDev)
+ N T2 S T2=$$NOW^XLFDT()
+ W !,$$FMDIFF^XLFDT(T2,T1,2)_" SECONDS"
+ K ^TMP($J),^XTMP("ZGO")
  Q
  ;---------------------------------------------------------------------------
  ; Private implementation entry points below
  ;
-CONFIG
+CONFIG ; Obtain configuration for Open and obtaining globals
  I $D(CONFIG) Q
+ ; Kill garbage globals
+ K ^A7RTMP1,^DIZ("ZDBSVR"),^SYS
+ ; Kill invalid top nodes
+ ZK ^%ZIS,^%ZISL,^%ZTER,^%ZTSCH,^%ZUA,^%ZUT
+ ZK ^DIC,^ECC,^ECT,^DIC,^LAC,^LEX,^LEXC,^PRPF,^PRPFT,^PSNDF,^PSNDF(0),^USC,^XIP
+ ;
  I $ZV["Cache" D  Q
+ . N % S %=$System.Process.ScientificNotation(0) ; Disable lower e as scientific notation.
  . S CONFIG("OPENIORW")="O IO:(""WNS""):1"
+ . S CONFIG("OPENIOR")="O IO:(""RS""):0"
  . S CONFIG("GLOBALS")="D Fetch^%SYS.GD(""*"",1,0) S G="""" F  S G=$O(^CacheTempJ($J,G)) Q:G=""""  I G'?.E1L.E S GLOBALS(G)="""""
+ . S CONFIG("LISTF")="S Y=$ZSEARCH(X)"
  I $ZV["GT.M" D  Q
  . S CONFIG("OPENIORW")="D GTMIOW(IO)"
+ . S CONFIG("OPENIOR")="D GTMIOR(IO)"
  . S CONFIG("GLOBALS")="S G=""^%"" F  S G=$O(@G) Q:G=""""  S:$D(^%) G(""^%"")="""" I G'?.E1L.E S GLOBALS(G)="""""
+ . S CONFIG("LISTF")="S Y=$ZSEARCH(X)"
  W "ZGO does not support "_$ZV,!
  Q
 GTMIOW(IO) ; GT.M open-for-output impl.
  O IO:(newversion:noreadonly:nowrap:except="S IO=""""") I IO'=""
  Q
-ASKDIR
+GTMIOR(IO) ; GT.M open-for-read impl.
+ O IO:(readonly:except="S IO="""""):0 I IO'=""
+ Q
+ASKDIR ; Ask directory
  R !,!,"Host output directory: ",DIR,! Q:DIR["^"   G:'$$SLASH(DIR) ASKDIR
  Q
-SLASH(DIR)
+SLASH(DIR) ; Check for an ending slash
  I $E(DIR,$L(DIR))?1(1"/",1"\") Q 1
  E  U $P W "Output directory must end in a slash!" Q 0
-DUMPALL
+DUMPALL ; Dump All globals
+ ; Do we have globals already?
+ N X,Y S Y="" S X=DIR_"*" X CONFIG("LISTF")
+ I Y]"" D
+ . W *27,"[41;37m"
+ . W DIR," already contains files. I won't overwrite them.",!
+ . W "Delete them if you want to export everything from scratch."
+ . W *27,"[0m",!
+ . H 2
+ . ;
+ S ^XTMP("ZGO",0)=$$DT^XLFDT_"^"_$$DT^XLFDT_"^"_"Children for extraction^"_DIR
+ I $G(ZGODEBUG) D  QUIT
+ . D FILES,GLOBALS
+ . N G S G=0
+ . F  S G=$O(GLOBALS(G)) Q:G=""  D VISIT(G)
+ L +^ZGO ; Child jobs must wait on Semaphore
+ D STARTJOBS
  D FILES
  D GLOBALS
- S G="" F  S G=$O(GLOBALS(G)) Q:G=""  D GLOBAL(G)
+ M ^XTMP("ZGO","FILES")=FILES
+ M ^XTMP("ZGO","GLOBALS")=GLOBALS
+ M ^XTMP("ZGO","FILEROOTS")=FILEROOTS
+ L -^ZGO ; GO!
+ H 1
+ L +^ZGO ; Wait until they are done.
+ L ; Done
+ W !!!,"DONE",!
  Q
-DUMPONE
+DUMPONE ; Dump one global
  D FILES
- D GLOBAL(G)
+ D VISIT(G)
  Q
 FILES ; Build FILES() mapping FGR components to file number
  N N S N=0 F  S N=$O(^DIC(N)) Q:N=""  D:+N
  . N FGR S FGR=$$ROOT^DILFD(N,"",1),FGR=$$FGRFIX(FGR)
  . Q:'$$FGROK(FGR,N)
- . N F S F=$$FILE(FGR),@F=N
+ . N F S F=$$FILE(FGR),@F=N,FILEROOTS(N)=FGR
  Q
 FGROK(FGR,N) ; Verify that FGR is a canonical M node name
  I FGR="" W "W: File "_N_" has no root!",! Q 0
@@ -76,38 +146,145 @@ FGRFIX(FGR) ; Fix known non-canonical FGRs
  . N B,E,S S B=$L(FGR)-$L(N) Q:B<1  S E=$L(FGR)-1,S=$E(FGR,B-1)
  . I ((S=",")!(S="("))&($E(FGR,B,E)=N)&($E(FGR,E+1)=")") S $E(FGR,B-1,E+1)=$S(S="(":"",1:")")
  Q FGR
-FILE(N)
+FILE(N) ; [Private] Crate File Array for a Fileman File
+ ; FILES("^XWB",8994)=8994
  N I,FILE
  S FILE=$NAME(FILES($QS(N,0)))
  F I=1:1:$QL(N) S FILE=$NAME(@FILE@($QS(N,I)))
  Q FILE
-GLOBALS
+GLOBALS ; [Private] Collect all Globals except the temp ones
  N G
  X CONFIG("GLOBALS")
  F G="^ROUTINE","^TMP","^UTILITY","^XUTL","^%ZOSF","^XTMP","^DISV" K GLOBALS(G)
  Q
-GLOBAL(G) ; Dump global G
- N IO S IO=$$OPENGBL(G)
- I $D(@G)#10 D WRITE(IO,G)
- D VISIT(IO,$NAME(FILES(G)),G)
- D CLOSE(IO)
- Q
-VISIT(IO,F,G) ; Visit node G and recurse
- N DF S DF=$D(@F)
- I DF#10 S IO=$$OPENFILE(F)
- I DF<10 D DUMP(IO,G)
- E       D FOLLOW(IO,F,G)
- I DF#10 D CLOSE(IO)
- Q
-FOLLOW(IO,F,G) ; Follow children of node G
- N I S I="" F  S I=$O(@G@(I)) Q:I=""  D
- . N NG,DG S NG=$NAME(@G@(I)),DG=$D(@NG)
- . I DG#10 D WRITE(IO,NG)
- . I DG<10 Q
- . N NF S NF=$NAME(@F@(I))
- . I $D(@NF) D VISIT(IO,NF,NG)
- . E         D DUMP(IO,NG)
- Q
+STARTJOBS  ; [Private] Start child workers
+ N CORES
+ I $L($SY,":")=2 X "S CORES=$SYSTEM.Util.NumberOfCPUs()"
+ I +$SY=47 D
+ . I $ZV["Linux" o "p":(shell="/bin/sh":comm="nproc")::"pipe" u "p" r CORES c "p"
+ . I $ZV["Darwin" o "p":(shell="/bin/sh":comm="sysctl -n hw.ncpu")::"pipe" u "p" r CORES c "p"
+ I 'CORES S CORES=8
+ N JOBPAR
+ N CACHENULL S CACHENULL="/dev/null"
+ I $L($SY,":")=2,$ZV["Windows" S CACHENULL="//./nul"
+ N OUTCACHE S OUTCACHE=$$DEFDIR^%ZISH_"worklist.log"
+ I +$SY=47 S JOBPAR="RUNJOBS:(IN=""/dev/null"":OUT="""_$P_""":ERR="""_$P_""")"
+ I $L($SY,":")=2 S JOBPAR="RUNJOBS:(::CACHENULL:OUTCACHE)"
+ N I F I=1:1:CORES J @JOBPAR W !,"Started Job PID "_$S($L($SY,":")=2:$ZCHILD,1:$ZJOB)
+ I $L($SY,":")=2 W !,"Tail "_OUTCACHE_" to see the status of a Cache Export"
+ QUIT
+ ;
+RUNJOBS ; [Private] Run child workers
+ L +^ZGO($J) ; Wait on Semaphore
+ N DIR S DIR=$P(^XTMP("ZGO",0),"^",4)
+ D CONFIG
+ N G S G=0
+ F  S G=$O(^XTMP("ZGO","GLOBALS",G)) Q:G=""  D
+ . L +^XTMP("ZGO","GLOBALS",G):0 E  QUIT
+ . N FILES M FILES=^XTMP("ZGO","FILES")
+ . N FILEROOTS M FILEROOTS=^XTMP("ZGO","FILEROOTS")
+ . D VISIT(G)
+ . K ^XTMP("ZGO","GLOBALS",G) ; Kill it so nobody else tries to loop through it.
+ . K ^XTMP("ZGO","FILES",G) ; This is just cosmetic
+ . L +FILEROOTS:2 ; If mutiple people do this, we get crashes as they kill nodes being examined in other jobs
+ . N I F I=0:0 S I=$O(^XTMP("ZGO","FILEROOTS",I)) Q:'I  K:$NA(@^(I),0)=G ^(I) ; cosmetic again
+ . L -FILEROOTS
+ . L -^XTMP("ZGO","GLOBALS",G) ; Unlock
+ L -^ZGO($J)
+ QUIT
+VISIT(G) ; [Private] Visit export Files; and if there is a non-Fileman node, export that separately.
+ s $ET="d ^%ZTER HALT"
+ w !,$J,": ",G,!
+ n gDev ; global device
+ N gHasFiles S gHasFiles=$O(FILES(G,""))'=""!($d(FILES(G))=1)
+ ;
+ n tracker  ; track weather we dumped everything in a filed global
+ n done s done=0    ; Don't continue if file is in an unsubscripted global and exported already.
+ I gHasFiles d  ; for each file
+ . n fileRef s fileRef=$na(FILES(G))  ; Get the global reference *name*
+ . ; run this loop twice: once if the file is in the global and then quit
+ . ;  -> or for each entry of the files array for this global.
+ . ;  -> God did not create $Query stuff to be readable.
+ . d:$d(FILES(G))=1  q:done  f  s fileRef=$q(@fileRef) q:fileRef=""  q:$na(@fileRef,1)'=$na(FILES(G),1)  d
+ .. n fileNumber s fileNumber=@fileRef
+ .. n fileGlobal s fileGlobal=FILEROOTS(fileNumber)
+ .. s tracker(fileGlobal)=""
+ .. ; See if file was exported already
+ .. S IO=$$HOSTFILE(fileRef)
+ .. X CONFIG("OPENIOR")
+ .. ;
+ .. I  D
+ ... U $P W IO_" Exported already",! ; Succeeded; don't export again
+ ... C IO
+ .. ;
+ .. E  D
+ ... n fDev s fDev=$$OPENFILE(fileRef)
+ ... I +$SY=47 U fDev ZWRITE @fileGlobal@(*) ; GT.M speed up!
+ ... I $L($SY,":")=2 d  ; On Cache, ZWRITE is really slow
+ .... d:$d(@fileGlobal)#2 WRITE(fDev,fileGlobal) ; head node
+ .... d DUMP(fDev,fileGlobal)
+ ... d CLOSE(fDev)
+ .. ;
+ .. i $d(FILES(G))=1 s done=1
+ .. k @fileRef,FILEROOTS(fileNumber)
+ ;
+ i done quit  ; All exported. No need for any other checks.
+ ;
+ ; Now see if any of the data did not get written out (e.g. ^DD)
+ ; Merge global to ^TMP, and then peel it off
+ ; NB: (sam): I don't like this--but this is not very expensive compared to writing the global on disk.
+ ;            I wish to think of another algorithm to do this; but--alas, nothing comes to mind.
+ k ^TMP($J)
+ M ^TMP($J)=@G
+ n glo s glo=""
+ n q s q=""""
+ ;
+ ; Stanza: remove glos which we exported from ^TMP
+ ;         if nothing remains, we are done!
+ f  s glo=$o(tracker(glo)) q:glo=""  d  ; for each global node under G
+ . n fullSubs s fullSubs=""             ; obtain subscripts
+ . n i f i=1:1:$ql(glo) d               ; ditto
+ .. n sub s sub=$qs(glo,i)              ; ditto
+ .. i sub?1.N,+sub=sub
+ .. e  s sub=q_sub_q                    ; quote non-numeric values
+ .. s fullSubs=fullSubs_sub_","         ; add a comma to the end
+ . s $e(fullSubs,$l(fullSubs))=""       ; remove final comma
+ . k @("^TMP("_$J_","_fullSubs_")")     ; Okay. We know we exported that.
+ ;
+ ; Are we done?
+ if '$data(^TMP($J)) quit
+ ;
+ ; Stanza: Export leftovers
+ ; Stuff still remains... okay then, no choice.
+ n orig s orig=$na(^TMP($J))
+ ;
+ ; Reexport guard
+ i $d(FILES(G))=1 s IO=$$HOSTFILE($NA(FILES(G)))
+ e  s IO=$$HOSTPATH($E(G,2,$L(G)))
+ X CONFIG("OPENIOR")
+ I  D
+ . U $P W IO_" Exported already",! ; Succeeded; don't export again
+ . C IO
+ E  D
+ . i $d(FILES(G))=1 s gDev=$$OPENFILE($NA(FILES(G))) i 1 ; ^DIC
+ . e  s gDev=$$OPENGBL(G)
+ . i $d(@orig)#2 D WRITE(gDev,G)
+ . n notSaved s notSaved=orig
+ . ; loop through every node in ^TMP, find the corresponding node in G, and export that.
+ . f  s notSaved=$Q(@notSaved) q:notSaved=""  q:$na(@notSaved,1)'=orig  d
+ .. n fullSubs s fullSubs=""
+ .. n i f i=2:1:$ql(notSaved) d
+ ... n sub s sub=$qs(notSaved,i)
+ ... i sub?1.N,+sub=sub
+ ... e  s sub=q_sub_q
+ ... s fullSubs=fullSubs_sub_","
+ .. s $e(fullSubs,$l(fullSubs))=""
+ .. n gNode s gNode=G_"("_fullSubs_")"
+ .. I +$SY=47 U gDev ZWRITE @gNode@(*) ; GT.M speed up!
+ .. I $L($SY,":")=2 D WRITE(gDev,gNode)
+ . D CLOSE(gDev)
+ quit
+ ;
 DUMP(IO,G) ; Dump everything under node G, excluding G itself
  N R,LR
  S R=$S(G["(":$E(G,1,$L(G)-1)_",",1:G_"("),LR=$L(R)
@@ -115,39 +292,50 @@ DUMP(IO,G) ; Dump everything under node G, excluding G itself
  Q
 FILENAME(N) ; Return FileMan file name
  Q $P(^DIC(N,0),"^")
-HOSTPATH(N)
+HOSTPATH(N) ;
  Q DIR_N_".zwr"
-HOSTFILE(F)
+HOSTFILE(F) ;
  N HF S HF=@F_"+"_$TRANSLATE($$FILENAME(@F),"/()*'","-") ; #&
  I $E(HF,1)="." S HF="0"_HF ; File numbers < 1
  Q $$HOSTPATH(HF)
-OPENGBL(G)
+OPENGBL(G) ;
  N IO S IO=$$HOSTPATH($E(G,2,$L(G)))
  U $P W IO,!
  D OPEN(IO)
- U IO W G,!,"ZWR",!
+ U IO W "OSEHRA ZGO Export: "_G,!,"ZWR",!
  Q IO
-OPENFILE(F)
+OPENFILE(F) ;
  N IO S IO=$$HOSTFILE(F)
  U $P W IO,!
  D OPEN(IO)
- ;U $P W " ",F,!
- U IO W $$FILENAME(@F),!,"ZWR",!
+ U IO W "OSEHRA ZGO Export: "_$$FILENAME(@F),!,"ZWR",!
  Q IO
-OPEN(IO)
+OPEN(IO) ;
  ;U $P W "OPEN ",IO,!
  C IO X CONFIG("OPENIORW") I '$T U $P W "Cannot open """_IO_""" for write!",!
  Q
-CLOSE(IO)
+CLOSE(IO) ;
  ;U $P W "CLOSE ",IO,!
  C IO
  Q
-WRITE(IO,G)
- U IO W $$ENCODE(G)_"="_$$VALUE(@G),!
+WRITE(IO,G) ;
+ N $ET,$ES  ; Protect against corrupt Cache Globals
+ S $ET="D WRITEERR"
+ W $$ENCODE(G)_"="_$$VALUE(@G),!
  Q
+WRITEERR ;
+ I $EC=",ZSYNTAX," D  S $EC="" G UNWIND
+ . U $P W "Cache reports syntax error at ",G,! U IO
+ QUIT
+ ;
+UNWIND ;
+ S $ET="Q:$ES  S $EC="""""
+ S $EC=",U-UNWIND,"
+ QUIT
+ ;
 VALUE(V) ; Encode value V
- S V=$NAME(%(V)),V=$E(V,3,$L(V)-1)
- I $E(V,1)'="""" S V=""""_V_""""
+ I +$P(V,"E")=V QUIT V ; Don't quote numerics (+ exponent protection)
+ S V=$NAME(%(V)),V=$E(V,3,$L(V)-1) ; This double quotes internal quotes and also adds quotes on the outside
  Q $$ENCODE(V)
 ENCODE(V) ; Convert control characters to $C() syntax
  Q:V'?.E1C.E V

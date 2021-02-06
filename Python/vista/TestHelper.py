@@ -25,7 +25,12 @@ Created on Mar 2, 2012
 @copyright PwC
 @license http://www.apache.org/licenses/LICENSE-2.0
 '''
+from __future__ import print_function
 
+from future import standard_library
+standard_library.install_aliases()
+from builtins import str
+from builtins import object
 import sys
 import csv
 import logging
@@ -33,7 +38,7 @@ import argparse
 import os
 import errno
 import datetime
-import ConfigParser
+import configparser
 import traceback
 
 import RemoteConnection
@@ -52,24 +57,15 @@ class TestError(Exception):
         return repr(self.value)
 
 class CSVFileReader(object):
-    ''' The CSVFileReader class extends the object class.
-
-    CSVFileReader provides the getfiledata() method to open a CSV file and return a table or specified row (record)
-    '''
-
-    def getfiledata (self, fname, fhkey, getrow=None):
-        '''This method opens a CSV file with DictReader and returns a table or specified row'''
+    def getfiledata (self, fname):
+        '''This method opens a CSV file with DictReader and returns a table'''
         infile = open(fname)
         csvreader = csv.DictReader(infile, delimiter='|')
         table = {}
         for rowdata in csvreader:
-            key = rowdata.pop(fhkey)
+            key = rowdata.pop('key')
             table[key] = rowdata
-        if getrow is None:
-            return table
-        else:
-            row = {getrow: table[getrow]}
-            return row
+        return table
 
 class TestSuiteDriver(object):
     '''
@@ -120,17 +116,25 @@ class TestSuiteDriver(object):
         package_name = self.test_file[self.test_file.rfind('Packages')+9:self.test_file.rfind('/Testing/RAS/'+test_suite_name)]
 
         #TODO: move config parsing setup out of here
-        config = ConfigParser.RawConfigParser()
+        config = configparser.RawConfigParser()
         read_files = config.read(os.path.join(os.path.dirname(self.test_file), test_suite_name + '.cfg'))
         if read_files.__len__() != 1:
             raise IOError
         if config.getboolean('RemoteDetails', 'RemoteConnect'):
             remote_server = config.get('RemoteDetails', 'ServerLocation')
+            remote_port   = int(config.get('RemoteDetails', 'ServerPort'))
+            if not remote_port:
+                remote_port = 22
 
             #get ssh username/password from local user's config file
+            #NB: TODO: VEN/SMH - package now comes up empty. So I edited the .ATF folder
             userConfig = read_suite_config_file()
             uid = userConfig.get(package_name+'-'+test_suite_name, 'SSHUsername')
             pwd = userConfig.get(package_name+'-'+test_suite_name, 'SSHPassword')
+
+            if not uid:
+                uid = config.get('RemoteDetails','SSHUsername')
+                pwd = config.get('RemoteDetails','SSHPassword')
 
             default_namespace = config.getboolean('RemoteDetails', 'UseDefaultNamespace')
             instance = config.get('RemoteDetails', 'Instance')
@@ -140,12 +144,15 @@ class TestSuiteDriver(object):
                 namespace = ''
 
             logging.info('Using REMOTE SERVER from config: ' + str(remote_server))
+            logging.info('Using REMOTE PORT from config: ' + str(remote_port))
             logging.info('Using INSTANCE from config: ' + str(instance))
             logging.info('Using NAMESPACE from config: ' + str(namespace))
             remote_conn_details = RemoteConnection.RemoteConnectionDetails(remote_server,
+                remote_port,
                 uid,
                 pwd,
                 default_namespace)
+            username = ''
         else:
             remote_conn_details = None
             instance = os.getenv('CACHE_INSTANCE','notused')
@@ -156,7 +163,7 @@ class TestSuiteDriver(object):
         if not os.path.isdir(args.resultdir):
             try:
                 os.makedirs(args.resultdir)
-            except OSError, e:
+            except OSError as e:
                 if e.errno != errno.EEXIST:
                     raise
         #resfile = args.resultdir + '/' + test_suite_name + '.txt'
@@ -165,7 +172,7 @@ class TestSuiteDriver(object):
         if not os.path.isabs(args.resultdir):
             logging.error('EXCEPTION: Absolute Path Required for Result Directory')
             raise
-        result_log = file(resfile, 'w')
+        result_log = open(resfile, 'w')
 
         return test_suite_details(package_name, test_suite_name, result_log, args.resultdir, instance,
                            namespace, username, remote_conn_details, args.coverage_type, args.coverage_subset.split(","))
@@ -252,7 +259,7 @@ class TestDriver(object):
                                    location=location,
                                    remote_conn_details=test_suite_details.remote_conn_details)
         except ImportError as ex:
-           print ex
+           print(ex)
            raise
 
         if test_suite_details.username != '':
@@ -265,15 +272,15 @@ class TestDriver(object):
         if VistA.type is not None and VistA.type =='cache' and test_suite_details.namespace != '':
             try:
                 VistA.ZN(test_suite_details.namespace)
-            except IndexError, no_namechange:
+            except IndexError as no_namechange:
                 pass
             VistA.wait(PROMPT)
 
-        if test_suite_details.remote_conn_details:
-            VistA.wait('ACCESS CODE:')
-            VistA.write(fetch_access_code(test_suite_details, self.testname))
-            VistA.wait('VERIFY CODE:')
-            VistA.write(fetch_verify_code(test_suite_details, self.testname))
+#        if test_suite_details.remote_conn_details:
+#            VistA.wait('ACCESS CODE:')
+#            VistA.write(fetch_access_code(test_suite_details, self.testname))
+#            VistA.wait('VERIFY CODE:')
+#            VistA.write(fetch_verify_code(test_suite_details, self.testname))
 
         return VistA
 
@@ -303,7 +310,7 @@ class test_suite_details(object):
 
 def read_suite_config_file():
     #move to a module for parsing cfg values
-    config = ConfigParser.RawConfigParser()
+    config = configparser.RawConfigParser()
     from os.path import expanduser
     read_files = config.read(expanduser("~/.ATF/roles.cfg"))
     if read_files.__len__() != 1:

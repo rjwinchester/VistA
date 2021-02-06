@@ -14,6 +14,8 @@
 # limitations under the License.
 #---------------------------------------------------------------------------
 
+from builtins import str
+from builtins import range
 import sys,os,re,time
 import TestHelper
 
@@ -31,7 +33,7 @@ def printMenuParentPairs(VistA,outputFile):
   VistA.write("HFS")
   VistA.wait("HOST FILE NAME")
   VistA.write(os.path.normpath(outputFile))
-  VistA.wait("ADDRESS/PARAMETERS")
+  VistA.wait("PARAMETERS")
   if VistA.type=="GTM":
     VistA.write("NEWVERSION:NOREADONLY:VARIABLE")
   else:
@@ -45,28 +47,28 @@ def printMenuTextPairs(VistA,outputFile):
   VistA.write("S DUZ=1 D Q^DI")
   VistA.wait('Select OPTION')
   VistA.write("PRINT FILE ENTRIES")
-  VistA.wait("OUTPUT FROM WHAT FILE")
+  VistA.wait_re("OUTPUT FROM WHAT FILE")
   VistA.write("OPTION")
   index = VistA.multiwait(["CHOOSE","SORT BY"])
   if index == 0:
     VistA.write("1")
-    VistA.wait("SORT BY")
+    VistA.wait_re("SORT BY")
   VistA.write("")
-  VistA.wait("START WITH NAME")
+  VistA.wait_re("START WITH NAME")
   VistA.write("")
-  VistA.wait("FIRST PRINT FIELD")
+  VistA.wait_re("FIRST PRINT FIELD")
   VistA.write(".01")
-  VistA.wait("THEN PRINT FIELD")
+  VistA.wait_re("THEN PRINT FIELD")
   VistA.write("1")
-  VistA.wait("THEN PRINT FIELD")
+  VistA.wait_re("THEN PRINT FIELD")
   VistA.write("")
-  VistA.wait("Heading")
+  VistA.wait_re("Heading")
   VistA.write("")
   VistA.wait("DEVICE")
   VistA.write("HFS")
   VistA.wait("HOST FILE NAME")
   VistA.write(os.path.normpath(outputFile))
-  VistA.wait("ADDRESS/PARAMETERS")
+  VistA.wait("PARAMETERS")
   if VistA.type=="GTM":
     VistA.write("NEWVERSION:NOREADONLY:VARIABLE")
   else:
@@ -105,11 +107,13 @@ def findparentmenus(VistA,goal):
 
 def createOptionParentDictionary(VistA,filepath="blah2.txt"):
   import re
-  if not os.path.exists(filepath):
-    printMenuParentPairs(VistA,filepath)
-  testinfo = file(filepath,"r").readlines()
-  header = re.compile("^OPTION[ ]+PARENTS")
+  if os.path.exists(filepath):
+    os.remove(filepath)
+  printMenuParentPairs(VistA,filepath)
+  testinfo = open(filepath,"r").readlines()
+  header = re.compile("^OPTION\s+PARENTS")
   width = re.compile("PARENTS")
+  space = 0
   for line in testinfo:
     result = header.search(line)
     if result:
@@ -127,11 +131,13 @@ def createOptionParentDictionary(VistA,filepath="blah2.txt"):
 
 def createOptionMenuTextDictionary(VistA,filepath="blah3.txt"):
   import re
-  if not os.path.exists(filepath):
-    printMenuTextPairs(VistA,filepath)
-  testinfo = file(filepath,"r").readlines()
-  header = re.compile("^NAME[ ]+MENU TEXT")
+  if os.path.exists(filepath):
+    os.remove(filepath)
+  printMenuTextPairs(VistA,filepath)
+  testinfo = open(filepath,"r").readlines()
+  header = re.compile("^NAME\s+MENU TEXT")
   width = re.compile("MENU TEXT")
+  space = 0
   for line in testinfo:
     result = header.search(line)
     if result:
@@ -152,9 +158,9 @@ def findMenuPath(VistA,targetmenu,optionprintDirectory):
   parentfile    = os.path.join(optionprintDirectory,"MenuParentMap.txt")
   menutextfile  = os.path.join(optionprintDirectory,"MenuTextMap.txt")
   if not VistA.optionParentDict:
-    VistA.optionParentDict   =createOptionParentDictionary(VistA,parentfile)
+    VistA.optionParentDict = createOptionParentDictionary(VistA,parentfile)
   if not VistA.optionMenuTextDict:
-    VistA.optionMenuTextDict =createOptionMenuTextDictionary(VistA,menutextfile)
+    VistA.optionMenuTextDict = createOptionMenuTextDictionary(VistA,menutextfile)
   test = findparentmenus(VistA,targetmenu)
   menupath = test[1].split("|")
   for menu in menupath:

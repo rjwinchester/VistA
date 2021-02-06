@@ -11,29 +11,42 @@ inherited frmProblems: TfrmProblems
   OnHide = FormHide
   OnMouseMove = FormMouseMove
   OnShow = FormShow
-  ExplicitWidth = 639
-  ExplicitHeight = 409
+  ExplicitWidth = 647
+  ExplicitHeight = 413
   PixelsPerInch = 96
   TextHeight = 13
   inherited shpPageBottom: TShape
     Top = 350
     Width = 631
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
     Constraints.MinHeight = 5
-    ExplicitTop = 358
+    ExplicitTop = 350
     ExplicitWidth = 631
   end
   inherited sptHorz: TSplitter
     Left = 159
     Width = 2
     Height = 350
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
     OnMoved = sptHorzMoved
     ExplicitLeft = 159
     ExplicitWidth = 2
-    ExplicitHeight = 358
+    ExplicitHeight = 350
   end
   inherited pnlLeft: TPanel
     Width = 159
     Height = 350
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    Constraints.MinWidth = 37
     ExplicitWidth = 159
     ExplicitHeight = 350
     object pnlButtons: TPanel
@@ -146,7 +159,6 @@ inherited frmProblems: TfrmProblems
         Align = alBottom
         AutoSize = False
         Caption = 'Enter new problem:'
-        ExplicitTop = 278
       end
       object edProbEnt: TCaptionEdit
         Left = 0
@@ -232,7 +244,7 @@ inherited frmProblems: TfrmProblems
           Align = alTop
           AutoSize = False
           Caption = 'Problems'
-          Constraints.MaxHeight = 13
+          Constraints.MaxHeight = 16
           Constraints.MinHeight = 13
         end
         object lstProbPick: TORListBox
@@ -263,6 +275,11 @@ inherited frmProblems: TfrmProblems
     Left = 161
     Width = 470
     Height = 350
+    Margins.Left = 4
+    Margins.Top = 4
+    Margins.Right = 4
+    Margins.Bottom = 4
+    Constraints.MinWidth = 30
     OnExit = pnlRightExit
     OnResize = pnlRightResize
     ExplicitLeft = 161

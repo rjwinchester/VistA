@@ -15,6 +15,10 @@
 #---------------------------------------------------------------------------
 
 from __future__ import with_statement
+from __future__ import division
+from __future__ import print_function
+from builtins import object
+from past.utils import old_div
 import sys
 import os
 import argparse
@@ -29,7 +33,8 @@ def getBoxVolPair(vistAClient):
   vistAClient.waitForPrompt()
   connection.send("D GETENV^%ZOSV W Y\r")
   vistAClient.waitForPrompt()
-  retValue = connection.before.split('^')[-1].rstrip(' \r\n')
+  retValue = connection.lastconnection
+  retValue = retValue.split('^')[-1].split('\r\n')[0]
   connection.send('\r')
   return retValue
 
@@ -58,7 +63,7 @@ class VistATaskmanUtil(object):
     connection.send("?\r")
     connection.expect("Answer with TASKMAN SITE PARAMETERS BOX-VOLUME PAIR.*?:")
     connection.expect("You may enter a new TASKMAN SITE PARAMETERS")
-    curBoxVol = connection.before.strip(' \r\n')
+    curBoxVol = connection.lastconnection.strip(' \r\n')
     curBoxVol = [x.strip(' ') for x in curBoxVol.split('\r\n')]
     logger.debug("Box:Vol Pair is [%s] " % curBoxVol)
     if boxVolPair not in curBoxVol :
@@ -93,7 +98,7 @@ class VistATaskmanUtil(object):
 
   def waitTaskmanToCurrent(self, vistAClient, timeOut=120):
     DEFAULT_POLL_INTERVAL = 1 # 1 seconds
-    MaxRetry = timeOut/DEFAULT_POLL_INTERVAL
+    MaxRetry = old_div(timeOut,DEFAULT_POLL_INTERVAL)
     startRetry = 0
     connection = vistAClient.getConnection()
     menuUtil = VistAMenuUtil(duz=1)
@@ -116,21 +121,24 @@ class VistATaskmanUtil(object):
                   shutdownActJobs=True):
     connection = vistAClient.getConnection()
     menuUtil = VistAMenuUtil(duz=1)
-    menuUtil.gotoTaskmanMgrUtilMenu(vistAClient)
-    connection.send("Stop Task Manager\r")
-    connection.expect("Are you sure you want to stop TaskMan\? ")
-    connection.send("YES\r")
-    connection.expect("Should active submanagers shut down after finishing their current tasks\? ")
-    if shutdownSubMgrs:
-      connection.send("YES\r")
-    else:
-      connection.send("NO\r")
-    connection.expect("Should active jobs be signaled to stop\? ")
-    if shutdownActJobs:
-      connection.send("YES\r")
-    else:
-      connection.send("NO\r")
-    menuUtil.exitTaskmanMgrUtilMenu(vistAClient)
+    connection.send('D GROUP^ZTMKU("SSUB(NODE)")\n')
+    vistAClient.waitForPrompt()
+    connection.send('D GROUP^ZTMKU("SMAN(NODE)")\n')
+    # menuUtil.gotoTaskmanMgrUtilMenu(vistAClient)
+    # connection.send("Stop Task Manager\r")
+    # connection.expect("Are you sure you want to stop TaskMan\? ")
+    # connection.send("YES\r")
+    # connection.expect("Should active submanagers shut down after finishing their current tasks\? ")
+    # if shutdownSubMgrs:
+      # connection.send("YES\r")
+    # else:
+      # connection.send("NO\r")
+    # connection.expect("Should active jobs be signaled to stop\? ")
+    # if shutdownActJobs:
+      # connection.send("YES\r")
+    # else:
+      # connection.send("NO\r")
+    # menuUtil.exitTaskmanMgrUtilMenu(vistAClient)
     logger.info("Wait 30 seconds for Taskman to stop")
     time.sleep(30)
 
@@ -164,24 +172,20 @@ class VistATaskmanUtil(object):
 
   def stopMailManBackgroundFiler(self, vistAClient):
     connection = vistAClient.getConnection()
-    menuUtil = VistAMenuUtil(duz=1)
-    menuUtil.gotoMailmanLocalDeliveryMgrMenu(vistAClient)
-    connection.send("STOP background filer\r")
+    connection.send("D STOP^XMKPL\n")
     connection.expect("Are you sure you want the Background Filers to stop delivering mail\? ")
     connection.send("YES\r")
-    menuUtil.exitMailmanLocalDeliveryMgrMenu(vistAClient)
-    logger.info("Wait 30 seconds for Mailman backgroud filer to stop")
+    vistAClient.waitForPrompt()
+    logger.info("Wait 30 seconds for Mailman background filer to stop")
     time.sleep(30)
 
   def stopHL7BackgroundFiler(self, vistAClient):
     connection = vistAClient.getConnection()
-    menuUtil = VistAMenuUtil(duz=1)
-    menuUtil.gotoHL7FilerLinkMgrMenu(vistAClient)
-    connection.send("Stop All Messaging Background Processes\r")
-    connection.expect("Okay to shut down all Links and Filers\? ")
-    connection.send("Yes\r")
-    menuUtil.exitHL7FilerLinkMgrMenu(vistAClient)
-    logger.info("Wait 30 seconds for HL7 backgroud filer to stop")
+    connection.send("D LLP^HLCS2(1)\n")
+    vistAClient.waitForPrompt()
+    connection.send("D STOPLM^HLCSLM\n")
+    vistAClient.waitForPrompt()
+    logger.info("Wait 30 seconds for HL7 background filer to stop")
     time.sleep(30)
 
   """ Start taskman, it will not restart taskman if it is already started """
@@ -219,7 +223,7 @@ class VistATaskmanUtil(object):
       if index == 0:
         break
       else:
-        choice = findChoiceNumber(connection.before, curBoxVol)
+        choice = findChoiceNumber(connection.lastconnection, curBoxVol)
         if choice:
           connection.send('%s\r' % choice)
         else:
@@ -232,11 +236,11 @@ class VistATaskmanUtil(object):
     connection.expect("Checking Taskman. ")
     connection.expect("Taskman is ")
     connection.expect("Checking the Status List:")
-    statusString = connection.before.strip(' \r\n')
+    statusString = connection.lastconnection.strip(' \r\n').split('\r\n')[0]
     logger.debug("Status String is %s" % statusString)
     connection.expect("Node        weight  status      time       \$J")
     connection.expect("Checking the Schedule List:")
-    detailedStatus = connection.before.strip(' \r\n')
+    detailedStatus = connection.lastconnection.strip(' \r\n')
     logger.debug("Detailed Status String is %s" % detailedStatus)
     connection.expect("Enter monitor action: UPDATE//")
     return self.__taskmanStatusStringToEnum__(statusString, detailedStatus)
@@ -249,7 +253,7 @@ class VistATaskmanUtil(object):
       return self.TASKMAN_STATUS_SHUTDOWN
 
     if (statusString == "current.." and
-        detailedStatus.find("RUN") >= 0):
+        detailedStatus.find("Main Loop") >= 0):
       return self.TASKMAN_STATUS_RUNNING_CURRENT
 
     if (detailedStatus.find("WAIT") >=0 and
@@ -270,13 +274,13 @@ def main():
                       choices=['Start', 'Stop', 'Shutdown'],
     help='Start:Start Taskman, Stop:Stop Taskman, Shutdown:Shutdown all tasks')
   result = parser.parse_args();
-  print result
+  print(result)
   """ create the VistATestClient"""
   testClient = VistATestClientFactory.createVistATestClientWithArgs(result)
   assert testClient
   with testClient as vistAClient:
     logFilename = getTempLogFile(DEFAULT_OUTPUT_LOG_FILE_NAME)
-    print "Log File is %s" % logFilename
+    print("Log File is %s" % logFilename)
     vistAClient.setLogFile(logFilename)
     taskmanUtil = VistATaskmanUtil()
     actionMap = {"Start": taskmanUtil.startTaskman,

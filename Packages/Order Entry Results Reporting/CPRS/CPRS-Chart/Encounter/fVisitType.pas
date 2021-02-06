@@ -82,7 +82,7 @@ implementation
 {$R *.DFM}
 
 uses
-  fEncounterFrame, uCore, uConst, VA508AccessibilityRouter;
+  fEncounterFrame, uCore, uConst, VA508AccessibilityRouter, VAUtils;
 
 const
   FN_NEW_PERSON = 200;
@@ -291,6 +291,7 @@ begin
     uProviders.PrimaryIdx := idx;
   RefreshProviders;
   lbProviders.SelectByIEN(AIEN);
+  btnPrimary.SetFocus;
 end;
 
 procedure TfrmVisitType.cboPtProviderDblClick(Sender: TObject);

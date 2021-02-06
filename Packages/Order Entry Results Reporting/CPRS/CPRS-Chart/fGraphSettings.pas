@@ -5,7 +5,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ComCtrls, StdCtrls, ExtCtrls, CheckLst, Math, ORCtrls, ORFn, uCore, uGraphs, fBase508Form,
-  VA508AccessibilityManager;
+  System.UITypes, VA508AccessibilityManager;
 
 type
   TfrmGraphSettings = class(TfrmBase508Form)
@@ -23,6 +23,8 @@ type
     cboDateRangeInpatient: TORComboBox;
     cboDateRangeOutpatient: TORComboBox;
     chklstOptions: TCheckListBox;
+    lbl508Save: TVA508StaticText;
+    lbl508Show: TVA508StaticText;
     lblConversions: TLabel;
     lblInpatient: TLabel;
     lblMaxGraphs: TLabel;
@@ -174,11 +176,20 @@ begin
       SetSources(aList, DisplaySource);
       SetSettings(aGraphSetting);
       with spnMaxGraphs do
+      begin
         lblMaxGraphsRef.Caption := inttostr(Min) + ' to ' + inttostr(Max);
+        amgrMain.AccessData[4].AccessText := 'Max Graphs in Display:' + lblMaxGraphsRef.Caption;
+      end;
       with spnMinGraphHeight do
+      begin
         lblMinGraphHeightRef.Caption := inttostr(Min) + ' to ' + inttostr(Max);
+        amgrMain.AccessData[3].AccessText := 'Minimum Graph Height:' + lblMinGraphHeightRef.Caption;
+      end;
       with spnMaxSelect do
+      begin
         lblMaxSelectRef.Caption := inttostr(Min) + ' to ' + inttostr(Max);
+        amgrMain.AccessData[13].AccessText := 'Max Items to Select:' + lblMaxSelectRef.Caption;
+      end;
       Conversion(conv);
       ResizeAnchoredFormToFont(frmGraphSettings);
       ShowModal;
@@ -444,7 +455,7 @@ begin
       end;
     end;
   end;
-  Alltypes.Free;  
+  Alltypes.Free;
 end;
 
 procedure TfrmGraphSettings.FormCreate(Sender: TObject);
@@ -456,6 +467,15 @@ begin
   cboConversions.Enabled := btnPublicSave.Enabled;
   for i := 0 to lstOptions.Items.Count - 1 do
    chklstOptions.Items.Add(Piece(lstOptions.Items[i], '^', 1));
+  if ScreenReaderActive then
+  begin
+    lbl508Save.Enabled := True;
+    lbl508Save.Visible := True;
+    lbl508Save.TabStop := True;
+    lbl508Show.Enabled := True;
+    lbl508Show.Visible := True;
+    lbl508Show.TabStop := True;
+  end;
 end;
 
 procedure TfrmGraphSettings.btnAllClick(Sender: TObject);
@@ -674,7 +694,8 @@ begin
     Perform(WM_NextDlgCtl, 0, 0);
     exit;
   end;
-  if not (Key in ['0'..'9', #8]) then
+  //if not (Key in ['0'..'9', #8]) then
+  if not CharInSet(Key, ['0'..'9', #8]) then
   begin
     Key := #0;
     beep;
@@ -798,7 +819,8 @@ begin
     Perform(WM_NextDlgCtl, 0, 0);
     exit;
   end;
-  if not (Key in ['0'..'9', #8]) then
+  //if not (Key in ['0'..'9', #8]) then
+  if not CharInSet(Key, ['0'..'9', #8]) then
   begin
     Key := #0;
     beep;
@@ -816,7 +838,8 @@ begin
     Perform(WM_NextDlgCtl, 0, 0);
     exit;
   end;
-  if not (Key in ['0'..'9', #8]) then
+  //if not (Key in ['0'..'9', #8]) then
+  if not CharInSet(Key, ['0'..'9', #8]) then
   begin
     Key := #0;
     beep;

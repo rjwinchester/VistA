@@ -19,6 +19,16 @@ type
     MenuItem: TMenuItem;
   end;
 
+  TDLL_Return_Type = (DLL_Success, DLL_Missing, DLL_VersionErr);
+
+  TDllRtnRec = Record
+    DLLName: string;
+    LibName: string;
+    DLL_HWND: HMODULE;
+    Return_Type: TDLL_Return_Type;
+    Return_Message: String;
+  End;
+
 var
   uToolMenuItems: TObjectList = nil;
 
@@ -36,25 +46,41 @@ type
     procedure AddSizesToStrList(theList: TStringList);
   end;
 
+  SettingSizeArray = array of integer;
+
 function DetailPrimaryCare(const DFN: string): TStrings;  //*DFN*
 procedure GetToolMenu;
 procedure ListSymbolTable(Dest: TStrings);
-function MScalar(const x: string): string;
+function MScalar(const x: string): string; deprecated;
 procedure SetShareNode(const DFN: string; AHandle: HWND);  //*DFN*
 function ServerHasPatch(const x: string): Boolean;
+function SiteSpansIntlDateLine: boolean;
+function RPCCheck(aRPC: TStrings):Boolean;
 function ServerVersion(const Option, VerClient: string): string;
 function PackageVersion(const Namespace: string): string;
+
+function ProgramFilesDir: string;
+function ApplicationDirectory: string;
+function VistaCommonFilesDirectory: string;
+function DropADir(DirName: string): string;
+function RelativeCommonFilesDirectory: string;
+function FindDllDir(DllName: string): string;
+function LoadDll(DllName: string): TDllRtnRec;
+function DllVersionCheck(DllName: string; DLLVersion: string): string;
+function GetMOBDLLName(): string;
 
 procedure SaveUserBounds(AControl: TControl);
 procedure SaveUserSizes(SizingList: TStringList);
 procedure SetFormPosition(AForm: TForm);
 procedure SetUserBounds(var AControl: TControl);
 procedure SetUserBounds2(AName: string; var v1, v2, v3, v4: integer);
+//procedure SetUserBoundsArray(AName: string; var SettingArray: SettingSizeArray);
 procedure SetUserWidths(var AControl: TControl);
 procedure SetUserColumns(var AControl: TControl);
 procedure SetUserString(StrName: string; var Str: string);
 function StrUserBounds(AControl: TControl): string;
 function StrUserBounds2(AName: string; v1, v2, v3, v4: integer): string;
+function StrUserBoundsArray(AName: string; SizeArray: SettingSizeArray): string;
 function StrUserWidth(AControl: TControl): string;
 function StrUserColumns(AControl: TControl): string;
 function StrUserString(StrName: string; Str: string): string;
@@ -66,7 +92,7 @@ var
 
 implementation
 
-uses TRPCB, fOrders, math;
+uses TRPCB, fOrders, math, Registry, ORSystem, rCore, System.Generics.Collections;
 
 var
   uBounds, uWidths, uColumns: TStringList;
@@ -79,7 +105,7 @@ end;
 
 const
   SUBMENU_KEY = 'SUBMENU';
-  SUBMENU_KEY_LEN = length(SUBMENU_KEY);  
+  SUBMENU_KEY_LEN = length(SUBMENU_KEY);
   SUB_LEFT = '[';
   SUB_RIGHT = ']';
   MORE_ID = 'MORE^';
@@ -87,7 +113,7 @@ const
 
 procedure GetToolMenu;
 var
-  i, p, LastIdx, count, MenuCount: Integer;
+  i, p, LastIdx, count, MenuCount, SubCount: Integer;
   id, x: string;
   LastItem, item: TToolMenuItem;
   caption, action: string;
@@ -151,14 +177,18 @@ begin
 
     // see if there are more than MAX_TOOLITEMS in the root menu
     // if there are, add automatic sub menus
+    // SubCount tracks items for sub menus and is used as offsent when inserting
+    // More... into the list of menu items
     LastIdx := (MAX_TOOLITEMS - 1);
     count := 0;
     CurrentMenuID := '';
     i := 0;
     LastItem := nil;
     MenuCount := 0;
+    SubCount := 0;
     repeat
       item := TToolMenuItem(uToolMenuItems[i]);
+      if item.SubMenuID <> '' then inc(SubCount);
       if item.SubMenuID = '' then
       begin
         item.SubMenuID := CurrentMenuID;
@@ -173,7 +203,7 @@ begin
           item.SubMenuID := CurrentMenuID;
           CurrentMenuID := item.MenuID;
           LastItem.SubMenuID := CurrentMenuID;
-          uToolMenuItems.Insert(LastIdx, item);
+          uToolMenuItems.Insert(LastIdx + SubCount, item);
           inc(LastIdx,MAX_TOOLITEMS);
           Count := 1;
         end;
@@ -207,20 +237,50 @@ end;
 
 function MScalar(const x: string): string;
 begin
-  with RPCBrokerV do
-  begin
-    ClearParameters := True;
-    RemoteProcedure := 'XWB GET VARIABLE VALUE';
-    Param[0].Value := x;
-    Param[0].PType := reference;
-    CallBroker;
-    Result := Results[0];
+  LockBroker;
+  try
+    with RPCBrokerV do
+    begin
+      ClearParameters := True;
+      RemoteProcedure := 'XWB GET VARIABLE VALUE';
+      Param[0].Value := x;
+      Param[0].PType := reference;
+      CallBroker;
+      Result := Results[0];
+    end;
+  finally
+    UnlockBroker;
   end;
 end;
 
 function ServerHasPatch(const x: string): Boolean;
 begin
   Result := sCallV('ORWU PATCH', [x]) = '1';
+end;
+
+function SiteSpansIntlDateLine: boolean;
+begin
+  Result := sCallV('ORWU OVERDL', []) = '1';
+end;
+
+function RPCCheck(aRPC: TStrings):Boolean; //aRPC format array of RPC's Name^Version
+//All RPC's in the list must come back true/active
+var
+  i: integer;
+begin
+  Result := false;
+  CallV('XWB ARE RPCS AVAILABLE',['L',aRPC]);
+  if RPCBrokerV.Results.Count > 0 then
+    for i := 0 to RPCBrokerV.Results.Count - 1 do
+      begin
+        if RPCBrokerV.Results[i] = '1' then
+          Result := true
+        else
+          begin
+            Result := false;
+            Break;
+          end;
+      end;
 end;
 
 function ServerVersion(const Option, VerClient: string): string;
@@ -237,6 +297,7 @@ function UserFontSize: integer;
 begin
   Result := StrToIntDef(sCallV('ORWCH LDFONT', [nil]),8);
   If Result = 24 then Result := 18; // CQ #12322 removed 24 pt font
+  if Result = 18 then Result := 14; // Same thing as before, can't handle font size anymore
 end;
 
 procedure LoadSizes;
@@ -267,20 +328,41 @@ begin
   sCallV('ORWPT SHARE', [DottedIPStr, IntToHex(AHandle, 8), DFN]);
 end;
 
+function GetControlName(var AControl: TControl): string;
+begin
+  Result := '';
+  try
+    if assigned(AControl) then
+    begin
+      Result := AControl.Name;
+      if (not (AControl is TForm)) and Assigned(AControl.Owner) then
+        Result := AControl.Owner.Name + '.' + Result;
+    end;
+  except
+    Result := '';
+  end;
+end;
+
 procedure SetUserBounds(var AControl: TControl);
 var
   x: string;
 begin
+  x := GetControlName(AControl);
+  if x = '' then
+    exit;
   if uBounds = nil then LoadSizes;
-  x := AControl.Name;
-  if not (AControl is TForm) and (Assigned(AControl.Owner)) then x := AControl.Owner.Name + '.' + x;
   x := uBounds.Values[x];
-  if (x = '0,0,0,0') and (AControl is TForm)
-    then TForm(AControl).WindowState := wsMaximized
-    else
-    begin
+  if (x = '0,0,0,0') and (AControl is TForm) then
+    TForm(AControl).WindowState := wsMaximized
+  else
+  begin
       AControl.Left   := HigherOf(StrToIntDef(Piece(x, ',', 1), AControl.Left), 0);
       AControl.Top    := HigherOf(StrToIntDef(Piece(x, ',', 2), AControl.Top), 0);
+
+      if (AControl is TForm) then
+       TForm(AControl).MakeFullyVisible;
+
+
       if Assigned( AControl.Parent ) then
       begin
         AControl.Width  := LowerOf(StrToIntDef(Piece(x, ',', 3), AControl.Width), AControl.Parent.Width - AControl.Left);
@@ -291,7 +373,7 @@ begin
         AControl.Width  := StrToIntDef(Piece(x, ',', 3), AControl.Width);
         AControl.Height := StrToIntDef(Piece(x, ',', 4), AControl.Height);
       end;
-    end;
+  end;
   //if (x = '0,0,' + IntToStr(Screen.Width) + ',' + IntToStr(Screen.Height)) and
   //  (AControl is TForm) then TForm(AControl).WindowState := wsMaximized;
 end;
@@ -308,14 +390,29 @@ begin
   v4 := StrToIntDef(Piece(x, ',', 4), 0);
 end;
 
+{
+procedure SetUserBoundsArray(AName: string; var SettingArray: SettingSizeArray);
+var
+  i: integer;
+  x: string;
+begin
+  if uBounds = nil then LoadSizes;
+  x := uBounds.Values[AName];
+  SetLength(SettingArray, uBounds.Count);
+  for i := 0 to (uBounds.Count - 1) do begin
+    SettingArray[i] := StrToIntDef(Piece(x, ',', i), 0);
+  end;
+end;
+}
 
 procedure SetUserWidths(var AControl: TControl);
 var
   x: string;
 begin
+  x := GetControlName(AControl);
+  if x = '' then
+    exit;
   if uWidths = nil then LoadSizes;
-  x := AControl.Name;
-  if not (AControl is TForm) and (Assigned(AControl.Owner)) then x := AControl.Owner.Name + '.' + x;
   x := uWidths.Values[x];
   if Assigned (AControl.Parent) then
     AControl.Width := LowerOf(StrToIntDef(x, AControl.Width), AControl.Parent.Width - AControl.Left)
@@ -329,10 +426,11 @@ var
   i, AWidth: Integer;
   couldSet: boolean;
 begin
+  x := GetControlName(AControl);
+  if x = '' then
+    exit;
   couldSet := False;
   if uColumns = nil then LoadSizes;
-  x := AControl.Name;
-  if not (AControl is TForm) and (Assigned(AControl.Owner)) then x := AControl.Owner.Name + '.' + x;
   if AnsiCompareText(x,'frmOrders.hdrOrders')=0 then
     couldSet := True;
   x := uColumns.Values[x];
@@ -355,9 +453,12 @@ end;
 
 procedure SaveUserBounds(AControl: TControl);
 var
-  x: string;
+  x, n: string;
   NewHeight: integer;
 begin
+  n := GetControlName(AControl);
+  if n = '' then
+    exit;
   if (AControl is TForm) and (TForm(AControl).WindowState = wsMaximized) then
     x := '0,0,0,0'
   else
@@ -369,7 +470,7 @@ begin
            IntToStr(Width) + ',' + IntToStr(NewHeight);
       end;
 //  CallV('ORWCH SAVESIZ', [AControl.Name, x]);
-  SizeHolder.SetSize(AControl.Name, x);
+  SizeHolder.SetSize(n, x);
 end;
 
 procedure SaveUserSizes(SizingList: TStringList);
@@ -408,12 +509,16 @@ function StrUserBounds(AControl: TControl): string;
 var
   x: string;
 begin
-  x := AControl.Name;
-  if not (AControl is TForm) and (Assigned(AControl.Owner)) then x := AControl.Owner.Name + '.' + x;
-  with AControl do Result := 'B' + U + x + U + IntToStr(Left) + ',' + IntToStr(Top) + ',' +
-                                               IntToStr(Width) + ',' + IntToStr(Height);
-  if (AControl is TForm) and (TForm(AControl).WindowState = wsMaximized)
-    then Result := 'B' + U + x + U + '0,0,0,0';
+  x := GetControlName(AControl);
+  if x = '' then
+    Result := ''
+  else
+  begin
+    with AControl do Result := 'B' + U + x + U + IntToStr(Left) + ',' + IntToStr(Top) + ',' +
+                                                 IntToStr(Width) + ',' + IntToStr(Height);
+    if (AControl is TForm) and (TForm(AControl).WindowState = wsMaximized) then
+      Result := 'B' + U + x + U + '0,0,0,0';
+  end;
 end;
 
 function StrUserBounds2(AName: string; v1, v2, v3, v4: integer): string;
@@ -422,13 +527,28 @@ begin
                                   IntToStr(v3) + ',' + IntToStr(v4);
 end;
 
+function StrUserBoundsArray(AName: string; SizeArray: SettingSizeArray): string;
+var
+  i: integer;
+begin
+  Result := 'B' + U + AName + U;
+  for i := 0 to (Length(SizeArray) - 1) do begin
+    Result := Result + ',' + IntToStr(SizeArray[i]);
+  end;
+end;
+
 function StrUserWidth(AControl: TControl): string;
 var
   x: string;
 begin
-  x := AControl.Name;
-  if not (AControl is TForm) and (Assigned(AControl.Owner)) then x := AControl.Owner.Name + '.' + x;
-  with AControl do Result := 'W' + U + x + U + IntToStr(Width);
+  x := GetControlName(AControl);
+  if x = '' then
+    Result := ''
+  else
+  begin
+    with AControl do
+      Result := 'W' + U + x + U + IntToStr(Width);
+  end;
 end;
 
 function StrUserColumns(AControl: TControl): string;
@@ -437,22 +557,26 @@ var
   i: Integer;
   shouldSave: boolean;
 begin
-  shouldSave := False;
-  x := AControl.Name;
-  if not (AControl is TForm) and (Assigned(AControl.Owner)) then x := AControl.Owner.Name + '.' + x;
-  if AnsiCompareText(x,'frmOrders.hdrOrders') = 0 then
-    shouldSave := True;
-  Result := 'C' + U + x + U;
-  if AControl is THeaderControl then with THeaderControl(AControl) do
-    for i := 0 to Sections.Count - 1 do
-    begin
-      if shouldSave and (i = 0) then
-        Result := Result + IntToStr(frmOrders.EvtColWidth) + ','
-      else
-        Result := Result + IntToStr(Sections.Items[i].Width) + ',';
-    end;
-  if AControl is TCustomGrid then {nothing for now};
-  if CharAt(Result, Length(Result)) = ',' then Result := Copy(Result, 1, Length(Result) - 1);
+  x := GetControlName(AControl);
+  if x = '' then
+    Result := ''
+  else
+  begin
+    shouldSave := False;
+    if AnsiCompareText(x,'frmOrders.hdrOrders') = 0 then
+      shouldSave := True;
+    Result := 'C' + U + x + U;
+    if AControl is THeaderControl then with THeaderControl(AControl) do
+      for i := 0 to Sections.Count - 1 do
+      begin
+        if shouldSave and (i = 0) then
+          Result := Result + IntToStr(frmOrders.EvtColWidth) + ','
+        else
+          Result := Result + IntToStr(Sections.Items[i].Width) + ',';
+      end;
+    if AControl is TCustomGrid then {nothing for now};
+    if CharAt(Result, Length(Result)) = ',' then Result := Copy(Result, 1, Length(Result) - 1);
+  end;
 end;
 
 function StrUserString(StrName: string; Str: string): string;
@@ -527,6 +651,168 @@ begin
     FSizeList[nameIndex] := ASize;
 end;
 
+function ProgramFilesDir: string;
+var
+  Registry: TRegistry;
+begin
+  Result := '';
+  Registry := TRegistry.Create;
+  try
+    Registry.RootKey := HKEY_LOCAL_MACHINE;
+    Registry.OpenKeyReadOnly('SOFTWARE\Microsoft\Windows\CurrentVersion');
+    if (TOSVersion.Architecture = arIntelX64) then begin
+      Result := Registry.ReadString('ProgramFilesDir (x86)');
+    end else begin
+      Result := Registry.ReadString('ProgramFilesDir');
+    end;
+    Registry.CloseKey;
+    Result := IncludeTrailingPathDelimiter(Result);
+  finally
+    Registry.Free;
+  end;
+end;
+
+function ApplicationDirectory: string;
+begin
+  Result := IncludeTrailingPathDelimiter(ExtractFileDir(Application.ExeName));
+end;
+
+function VistaCommonFilesDirectory: string;
+begin
+  Result := ProgramFilesDir + 'Vista\Common Files\';
+end;
+
+function DropADir(DirName: string): string;
+var
+  i: integer;
+begin
+  Result := DirName;
+  i := Length(Result) - 1;
+  while (i > 0) and (Result[i] <> '\') do dec(i);
+  if (i = 0) then
+    Result := ''
+  else
+    Result := IncludeTrailingPathDelimiter(copy(Result, 1, i));
+end;
+
+function RelativeCommonFilesDirectory: string;
+begin
+  Result := DropADir(ApplicationDirectory) + 'Common Files\';
+end;
+
+function FindDllDir(DllName: string): string;
+begin
+  if FileExists(ApplicationDirectory + DllName) then begin
+    Result := ApplicationDirectory + DllName;
+  end else if FileExists(RelativeCommonFilesDirectory + DllName) then begin
+    Result := RelativeCommonFilesDirectory + DllName;
+  end else if FileExists(VistaCommonFilesDirectory + DllName) then begin
+    Result := VistaCommonFilesDirectory + DllName;
+  end else begin
+    Result := '';
+  end;
+
+end;
+
+var
+  ConfigureLoadOnce: boolean = True;
+  LoadOnce: boolean = False;
+  LoadedDLLs: TList<TDllRtnRec> = nil;
+
+function LoadDll(DllName: string): TDllRtnRec;
+var
+  LibName, TmpStr, HelpTxt: string;
+  i: integer;
+
+  procedure ConfigLoadOnce;
+  begin
+    if ConfigureLoadOnce then
+    begin
+      ConfigureLoadOnce := False;
+      LoadOnce := GetUserParam('OR CPRS DISABLE DLL LOAD ONCE') <> '1';
+      if LoadOnce then
+        LoadedDLLs := TList<TDllRtnRec>.Create;
+    end;
+  end;
+
+  function LoadLib(Rec: TDllRtnRec): HMODULE;
+  begin
+    if Rec.LibName = '' then
+      Result := LoadLibrary(PWideChar(Rec.DllName))
+    else
+      Result := LoadLibrary(PWideChar(Rec.LibName));
+  end;
+
+  procedure IncReferenceCount;
+  begin
+    if Result.Return_Type = DLL_Success then
+      LoadLib(Result);
+  end;
+
+begin
+  ConfigLoadOnce;
+  if LoadOnce then
+  begin
+    for i := 0 to LoadedDLLs.count - 1 do
+      if LoadedDLLs[i].DLLName = DLLName then
+      begin
+        Result := LoadedDLLs[i];
+        IncReferenceCount;
+        exit;
+      end;
+  end;
+
+  LibName := FindDllDir(DllName);
+  Result.DLLName := DLLName;
+  Result.LibName := LibName;
+  Result.DLL_HWND := LoadLib(Result);
+
+  if Result.DLL_HWND <> 0 then
+  Begin
+    // DLL exist
+    Result.Return_Type := DLL_Success;
+    // Now check for the version string
+    TmpStr := DllVersionCheck(DLLName, ClientVersion(LibName));
+    if Piece(TmpStr, U, 1) = '-1' then
+    begin
+      Result.Return_Message := StringReplace(Piece(TmpStr, U, 2), '#13', CRLF,
+        [rfReplaceAll]);
+      // DLL version mismatch
+      Result.Return_Type := DLL_VersionErr;
+    end
+    else
+      Result.Return_Message := '';
+  end
+  else
+  begin
+    Result.Return_Type := DLL_Missing;
+    HelpTxt := GetUserParam('OR CPRS HELP DESK TEXT');
+    if Trim(HelpTxt) <> '' then
+      HelpTxt := CRLF + CRLF + 'Please contact ' + HelpTxt +
+        ' to obtain this file.';
+    TmpStr := 'File must be located in one of these directories:' + CRLF +
+      ApplicationDirectory + CRLF + RelativeCommonFilesDirectory + CRLF +
+      VistaCommonFilesDirectory;
+    Result.Return_Message := DLLName + ' was not found. ' + HelpTxt + CRLF +
+      CRLF + TmpStr;
+  end;
+  if LoadOnce then
+  begin
+    LoadedDLLs.Add(Result);
+    IncReferenceCount;
+  end;
+end;
+
+function DllVersionCheck(DllName: string; DLLVersion: string): string;
+begin
+  Result := sCallV('ORUTL4 DLL', [DllName, DllVersion]);
+end;
+
+function GetMOBDLLName(): string;
+begin
+  Result := GetUserParam('OR MOB DLL NAME');
+end;
+
 initialization
   // nothing for now
 
@@ -536,5 +822,7 @@ finalization
   if uColumns <> nil then uColumns.Free;
   if assigned(uToolMenuItems) then
     FreeAndNil(uToolMenuItems);
+  if assigned(LoadedDLLs) then
+    FreeAndNil(LoadedDLLs);
 
 end.

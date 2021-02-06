@@ -16,23 +16,29 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #----------------------------------------------------------------
+from builtins import object
+from future.utils import iteritems
+from future.utils import itervalues
 import sys
 import types
-from LogManager import logger
 import csv
+import json
 from operator import itemgetter, attrgetter
-#some constants
+
+from LogManager import logger
+from UtilityFunctions import PACKAGE_MAP, PACKAGE_COMPONENT_MAP
+
 NOT_KILLED_EXPLICITLY_VALUE = ">>"
-write = sys.stdout.write
 MUMPS_ROUTINE_PREFIX = "Mumps"
 
 BoolDict = {True:"Y", False:"N"}
 
 LINE_OFFSET_DELIM = ","
+
 #===============================================================================
 # A Class to represent the variable in a _calledRoutine
 #===============================================================================
-class AbstractVariable:
+class AbstractVariable(object):
     def __init__(self, name, prefix, lineOffsets):
         self._name = name
         self._prefix = prefix
@@ -83,16 +89,22 @@ class Routine(object):
         self._nakedGlobals = dict()
         self._markedItems = dict()
         self._labelReference = dict()
+        self._entryPoints    = dict()
+        self._interactionPoints = []
         self._calledRoutines = RoutineDepDict()
         self._callerRoutines = RoutineDepDict()
         self._refGlobals = dict()
         self._dbGlobals = dict()
         self._package = package
-        self._totalCaller = 0
-        self._totalCalled = 0
         self._comments = []
         self._originalName = routineName
         self._hasSourceCode = True
+        self._structuredCode = []
+        self._objType = "Routine"
+
+    def getObjectType(self):
+        return self._objType
+
     def setName(self, routineName):
         self._name = routineName
     def getName(self):
@@ -105,10 +117,7 @@ class Routine(object):
         self._comments.append(comment)
     def getComment(self):
         return self._comments
-    def getTotalCaller(self):
-        return self._totalCaller
-    def getTotalCalled(self):
-        return self._totalCalled
+
     def addLocalVariables(self, localVar):
         varName = localVar.getName()
         if varName not in self._localVariables:
@@ -164,39 +173,98 @@ class Routine(object):
             self._labelReference[varName] = LabelReference
         else:
             self._labelReference[varName].appendLineOffsets(LabelReference.getLineOffsets())
+
     def getExternalReference(self):
         output = dict()
-        for routineDict in self._calledRoutines.itervalues():
-            for (routine, callTagDict) in routineDict.iteritems():
+        for routineDict in itervalues(self._calledRoutines):
+            for (routine, callTagDict) in iteritems(routineDict):
                 routineName = routine.getName()
-                for (callTag, lineOffsets) in callTagDict.iteritems():
+                for (callTag, lineOffsets) in iteritems(callTagDict):
                     output[(routineName, callTag)] = lineOffsets
         return output
-    def addCallDepRoutines(self, depRoutine, callTag, lineOccurences, isCalled=True):
+
+    def getFilteredExternalReference(self,filterList=None):
+        if filterList:
+          output = dict()
+          for routineDict in itervalues(self._calledRoutines):
+              for (routine, callTagDict) in iteritems(routineDict):
+                  if routine.getName() in filterList:
+                    routineName = routine.getName()
+                    for (callTag, lineOffsets) in iteritems(callTagDict):
+                        output[(routineName, callTag)] = lineOffsets
+                  else:
+                    continue
+          return output
+
+    def addCallDepRoutines(self, depRoutine, callTag, lineOccurrences, isCalled=True):
         if isCalled:
             depRoutines = self._calledRoutines
         else:
             depRoutines = self._callerRoutines
         package = depRoutine.getPackage()
+        if package is None:
+            logger.error("No package for " + depRoutine.getName())
+            return
         if package not in depRoutines:
             depRoutines[package] = dict()
         if depRoutine not in depRoutines[package]:
             depRoutines[package][depRoutine] = dict()
-            if isCalled:
-                self._totalCalled += 1
-            else:
-                self._totalCaller += 1
         if callTag not in depRoutines[package][depRoutine]:
-            depRoutines[package][depRoutine][callTag] = lineOccurences.split(LINE_OFFSET_DELIM)
+            depRoutines[package][depRoutine][callTag] = lineOccurrences.split(LINE_OFFSET_DELIM)
         else:
-            depRoutines[package][depRoutine][callTag].extend(lineOccurences.split(LINE_OFFSET_DELIM))
-    def addCalledRoutines(self, routine, callTag, lineOccurences):
-        self.addCallDepRoutines(routine, callTag, lineOccurences, True)
-        routine.addCallerRoutines(self, callTag, lineOccurences)
+            depRoutines[package][depRoutine][callTag].extend(lineOccurrences.split(LINE_OFFSET_DELIM))
+
+    def addCalledRoutines(self, routine, callTag, lineOccurrences):
+        self.addCallDepRoutines(routine, callTag, lineOccurrences, True)
+        routine.addCallerRoutines(self, callTag, lineOccurrences)
+
     def getCalledRoutines(self):
         return self._calledRoutines
-    def addCallerRoutines(self, depRoutine, callTag, lineOccurences):
-        self.addCallDepRoutines(depRoutine, callTag, lineOccurences, False)
+
+    """
+      It removes the "$$" notation from entry points and
+      removes any given paramters.
+    """
+    def __generateEntryList__(self, entries, totalEntries):
+      if type(entries) is list:
+          totalEntries.append(entries[0].replace('$','').split('(',1))
+      else:
+        if '(' in entries:
+          totalEntries.append(entries.replace('$','').split('(',1)[0])
+        else:
+          totalEntries.append(entries.replace('$',''))
+      return totalEntries
+
+    """ Check all values within the entries of the JSON that are specific to the routine
+    that match the current entry point"""
+    def __checkForICR__(self, entryPt, rtnJson):
+      entryPtList=[]
+      icrEntries=[]
+      for icrEntry in rtnJson:
+        if 'COMPONENT/ENTRY POINT' in icrEntry:
+          for entry in icrEntry['COMPONENT/ENTRY POINT']:
+            if 'COMPONENT/ENTRY POINT' in entry:
+              entryPtList = self.__generateEntryList__(entry['COMPONENT/ENTRY POINT'],entryPtList)
+              if entryPt in entryPtList:
+                entryPtList.pop(entryPtList.index(entryPt))
+                icrEntries.append(icrEntry)
+      return icrEntries
+    """  Add an EntryPoint value to a routine, after checking for ICR values"""
+    def addEntryPoint(self, entryPt, comm, icrJSON):
+        icrEntries=[]
+        if entryPt not in self._entryPoints:
+            if icrJSON:
+              icrEntries = self.__checkForICR__(entryPt.split("(")[0], icrJSON)
+            self._entryPoints[entryPt] = { "comments": comm, "icr": icrEntries}
+    def getEntryPoints(self):
+        return self._entryPoints
+    """  Add an EntryPoint value to a routine, after checking for ICR values"""
+    def addInteractionEntry(self, interactionDict):
+        self._interactionPoints.append(interactionDict)
+    def getInteractionEntries(self):
+        return self._interactionPoints
+    def addCallerRoutines(self, depRoutine, callTag, lineOccurrences):
+        self.addCallDepRoutines(depRoutine, callTag, lineOccurrences, False)
     def getCallerRoutines(self):
         return self._callerRoutines
     def setPackage(self, package):
@@ -209,56 +277,7 @@ class Routine(object):
         return self._hasSourceCode
     def setHasSourceCode(self, hasSourceCode):
         self._hasSourceCode = hasSourceCode
-    def printVariables(self, name, variables):
-        write("%s: \n" % name)
-        allVars = sorted(variables.iterkeys())
-        for varName in allVars:
-            var = variables[varName]
-            write("%s %s %s\n" % (var.getPrefix(), varName, var.getLineOffsets()))
-        write("\n")
-    def printExternalReference(self):
-        write("External References:\n")
-        output = self.getExternalReference()
-        allVar = sorted(output.iterkeys(), key = itemgetter(0,1))
-        for nameTag in allVar:
-            value = output[nameTag]
-            write("%s %s\n" % (nameTag[1]+"^"+nameTag[0],value))
-        write("\n")
-    def printCallRoutines(self, isCalledRoutine=True):
-        if isCalledRoutine:
-            callRoutines = self._calledRoutines
-            title = "Called Routines:"
-            write("%s: Total: %d\n" % (title, self._totalCalled))
-        else:
-            callRoutines = self._callerRoutines
-            title = "Caller Routines:"
-            write("%s: Total: %d\n" % (title, self._totalCaller))
-        sortedDepRoutines = sorted(sorted(callRoutines.keys()),
-                                 key=lambda item: len(callRoutines[item]),
-                                 reverse=True)
-        for package in sortedDepRoutines:
-            write ("Package: %s Total: %d" % (package, len(callRoutines[package])))
-            for (routine, tagDict) in callRoutines[package].iteritems():
-                write(" %s " % routine)
-                for (tag, lineOccurences) in tagDict.iteritems():
-                        write("%s: %s\n" % (tag, lineOccurences))
-        write("\n")
-    def printResult(self):
-        write ("Routine Name: %s\n" % (self._name))
-        if self.isRenamed():
-            write("Original Name: %s\n" % self._originalName)
-        if self._package:
-            write("Package Name: %s\n" % self._package.getName())
-        write("Renamed: %s, hasSource: %s\n" % (self.isRenamed(),
-                                              self.hasSourceCode()))
-        self.printVariables("Global Vars", self._globalVariables)
-        self.printVariables("Local Vars", self._localVariables)
-        self.printVariables("Naked Globals", self._nakedGlobals)
-        self.printVariables("Marked Globals", self._markedItems)
-        self.printVariables("Label References", self._labelReference)
-        self.printExternalReference()
-        self.printCallRoutines(True)
-        self.printCallRoutines(False)
+
     #===========================================================================
     # operator
     #===========================================================================
@@ -292,6 +311,45 @@ class Routine(object):
         return self._name != other._name
     def __hash__(self):
         return self._name.__hash__()
+
+#===============================================================================
+# A class to contain an option entry
+#===============================================================================
+class PackageComponent(Routine):
+  def __init__(self,name,number,package):
+    Routine.__init__(self,name,package)
+    self._name = name
+    self._ien = number
+  def __len__(self):
+    return len(self.getName())
+  def getIEN(self):
+    return self._ien
+  def setIEN(self,val):
+    self._ien = val
+  def getName(self):
+    return self._name
+  def setName(self,val):
+    self._name = val
+  def getObjectType(self):
+    return self._objType
+  def addObjectType(self,val):
+    self._objType = val
+#===============================================================================
+# A class to contain an option entry
+#===============================================================================
+class Function(Routine):
+  def __init__(self,name,number,package):
+    Routine.__init__(self,name,package)
+    self._name = name
+    self._ien = number
+  def getIEN(self):
+    return self._ien
+  def setIEN(self,val):
+    self._ien = val
+  def getName(self):
+    return self._name
+  def setName(self,val):
+    self._name = val
 #===============================================================================
 # # class to represent a platform dependent generic _calledRoutine
 #===============================================================================
@@ -311,8 +369,7 @@ class PlatformDependentGenericRoutine(Routine):
         pass
     def hasSourceCode(self):
         return False
-    def printVariables(self, name, variables):
-        pass
+
     def addPlatformRoutines(self, mappingList):
         for item in mappingList:
             if item[0] not in self._platformRoutines:
@@ -326,8 +383,9 @@ class PlatformDependentGenericRoutine(Routine):
 #===============================================================================
 # # class to represent A FileMan File
 #===============================================================================
-class FileManFile(object):
+class FileManFile(Routine):
     def __init__(self, fileNo, fileManName, parentFile = None):
+        Routine.__init__(self, fileManName)
         self._fileNo = None
         self._fileManName = fileManName
         self._parentFile = parentFile
@@ -336,8 +394,12 @@ class FileManFile(object):
         self._description = None # description of fileMan file
         self.setFileNo(fileNo)
         self._fileManDbCallRoutines = None
+        self._fileAttrs = None
+        self._fieldNames = []
     def getFileNo(self):
         return self._fileNo
+    def getFieldNames(self):
+        return self._fieldNames
     def setFileNo(self, fileNo):
         if fileNo:
             try:
@@ -354,15 +416,24 @@ class FileManFile(object):
     def addFileManField(self, FileManField):
         if not self._fields:
             self._fields = dict()
+        if FileManField.getName() not in self._fieldNames:
+          self._fieldNames.append(FileManField.getName())
         self._fields[FileManField.getFieldNo()] = FileManField
     def getAllFileManFields(self):
         return self._fields
+    def hasField(self, fieldNo):
+      if self._fields:
+        return fieldNo in self._fields
+      return False
+    def getField(self, fieldNo):
+      if self._fields:
+        return self._fields.get(fieldNo)
+      return None
     def addFileManSubFile(self, FileManSubFile):
         if not self._subFiles:
             self._subFiles = dict()
         self._subFiles[FileManSubFile.getFileNo()] = FileManSubFile
-    def hasSubFile(self):
-        return self._subFiles and len(self._subFiles) > 0
+
     def getAllSubFiles(self):
         return self._subFiles
     def isRootFile(self):
@@ -371,6 +442,8 @@ class FileManFile(object):
         return not self.isRootFile()
     def getParentFile(self):
         return self._parentFile
+    def setParentFile(self, parentFile):
+        self._parentFile = parentFile
     def getRootFile(self):
         root = self
         while not root.isRootFile():
@@ -387,7 +460,7 @@ class FileManFile(object):
     def getDescription(self):
         return self._description
     def setDescription(self, description):
-        self._description = [x.decode('latin1').encode('utf8') for x in description]
+        self._description = [x for x in description]
     def getFileManDbCallRoutines(self):
         return self._fileManDbCallRoutines
     def addFileManDbCallRoutine(self, routine):
@@ -399,36 +472,7 @@ class FileManFile(object):
         if package not in self._fileManDbCallRoutines:
             self._fileManDbCallRoutines[package] = set()
         self._fileManDbCallRoutines[package].add(routine)
-    def printFileManInfo(self):
-        self.printFileManDescription()
-        self.printFileManFields()
-        self.printFileManSubFiles()
-    def printFileManDescription(self):
-        if not self._description or len(self._description) == 0:
-            return
-        write("\n################################################\n")
-        write("%s %s\n" % (self._fileNo, "Description"))
-        for line in self._description:
-            write(line + "\n")
-    def printFileManFields(self):
-        if not self._fields or len(self._fields) == 0:
-            return
-        write("################################################\n")
-        write("%s: Total # of FileMan Fields: %d\n" % (self._fileNo, len(self._fields)))
-        for field in self._fields.itervalues():
-            field.printResult()
-        write("\n")
-    def printFileManSubFiles(self):
-        if not self._subFiles or len(self._subFiles) == 0:
-            return
-        write("\n################################################\n")
-        write("%s: Total # of FileMan SubFiles: %d\n" % (self._fileNo, len(self._subFiles)))
-        for subFile in self._subFiles.itervalues():
-            write(" %s(%s) " % (subFile.getFileNo(), subFile.getParentFile().getFileNo()))
-        write("\n")
-        for subFile in self._subFiles.itervalues():
-            subFile.printFileManInfo()
-        write("\n")
+
     #===========================================================================
     # operator
     #===========================================================================
@@ -439,7 +483,7 @@ class FileManFile(object):
 #===============================================================================
 # # class to represent a Field in FileMan File
 #===============================================================================
-class FileManField(object):
+class FileManField(json.JSONEncoder):
     FIELD_TYPE_NONE = 0 # Field has No Type, normally just a place hold
     FIELD_TYPE_DATE_TIME = 1
     FIELD_TYPE_NUMBER = 2
@@ -451,13 +495,36 @@ class FileManField(object):
     FIELD_TYPE_VARIABLE_FILE_POINTER = 8
     FIELD_TYPE_SUBFILE_POINTER = 9
     FIELD_TYPE_MUMPS = 10
-    FIELD_TYPE_LAST = 11
+    FIELD_TYPE_BOOLEAN = 11
+    FIELD_TYPE_LAST = 12
+
+    """
+      Enumeration for SPECIFIER
+    """
+    FIELD_SPECIFIED_NONE = 0
+    FIELD_SPECIFIER_REQUIRED = 1
+    FIELD_SPECIFIER_AUDIT= 2
+    FIELD_SPECIFIER_MULTILINE = 3
+    FIELD_SPECIFIER_LAYGO_NOT_ALLOWED = 4
+    FIELD_SPECIFIER_OUTPUT_TRANSFORM = 5
+    FIELD_SPECIFIER_EDITING_NOT_ALLOWD = 6
+    FIELD_SPECIFIER_NO_WORD_WRAPPING = 7
+    FIELD_SPECIFIER_IGORE_PIPE = 8
+    FIELD_SPECIFIER_NEW_ENTRY_NO_ASK = 9
+    FIELD_SPECIFIER_MULTIPLE_ASKED = 10
+    FIELD_SPECIFIER_UNEDITABLE = 11
+    FIELD_SPECIFIER_AUDIT_EDIT_DELETE = 12
+    FIELD_SPECIFIER_EDIT_PROG_ONLY = 13
+    FIELD_SPECIFIER_POINTER_SCREEN = 14
+
     def __init__(self, fieldNo, name, fType ,location = None):
         self._fieldNo = None
         self.setFieldNo(fieldNo)
         self._name = name
         self._loc = location
         self._type = fType
+        self._subType = None
+        self._specifier = None
         self._typeName = None
         self._indexName = None
         self._propList = None # store extra information is name value pair format
@@ -482,6 +549,22 @@ class FileManField(object):
         return self._loc
     def getType(self):
         return self._type
+    def getSubType(self):
+        return self._subType
+    def setSubType(self, subType):
+        self._subType = subType
+    def addSubType(self, subType):
+        if not self._subType:
+           self._subType = []
+        self._subType.append(subType)
+    def hasSubType(self, subType):
+        if self._subType:
+            return subType in self._subType
+        return False
+    def getSpecifier(self):
+        return self._specifier
+    def setSpecifier(self, specifier):
+        self._specifier = specifier
     def getFieldNo(self):
         return self._fieldNo
     def setType(self, fType):
@@ -529,16 +612,7 @@ class FileManField(object):
         return None
     def getPropList(self):
         return self._propList
-    def printResult(self):
-        write("%r\n" % self)
-        self.printPropList()
-    def printPropList(self):
-        if not self._propList or len(self._propList) <= 0:
-            return
-        for (name, values) in self._propList:
-            write("%s:  " % name)
-            for value in values:
-                write("%s\n" % value)
+
     # type checking method
     def isFilePointerType(self):
         return self._type == self.FIELD_TYPE_FILE_POINTER
@@ -556,10 +630,13 @@ class FileManField(object):
     def __str__(self):
         return self._fieldNo
     def __repr__(self):
-        return ("%s, %s, %s, %s" % (self.getFieldNo(),
+        return ("%s, %s, %s, %s, %s, %s, %s" % (self.getFieldNo(),
                                     self.getName(),
                                     self.getLocation(),
-                                    self.getTypeName()))
+                                    self.getTypeName(),
+                                    self.getType(),
+                                    self.getSubType(),
+                                    self.getSpecifier()))
 #===============================================================================
 # # A series of subclass of FileManField based on type
 #===============================================================================
@@ -588,11 +665,7 @@ class FileManSetTypeField(FileManField):
     def setSetMembers(self, memList):
         self._setMembers = memList
     def __repr__(self):
-        return ("%s, %s, %s, %s, %s" % (self.getFieldNo(),
-                                      self.getName(),
-                                      self.getLocation(),
-                                      self.getTypeName(),
-                                      self._setMembers))
+        return "%s, %s" % (FileManField.__repr__(self), self._setMembers)
 
 class FileManFreeTextTypeField(FileManField):
     def __init__(self, fieldNo, name, fType ,location = None):
@@ -610,12 +683,9 @@ class FileManWordProcessingTypeField(FileManField):
     def getNoWrap(self):
         return self._isNoWrap
     def __repr__(self):
-        return ("%s, %s, %s, %s, %s, %s" % (self.getFieldNo(),
-                                      self.getName(),
-                                      self.getLocation(),
-                                      self.getTypeName(),
-                                      self._isNoWrap,
-                                      self._ignorePipe))
+        return ("%s, %s, %s" % (FileManField.__repr__(self),
+                                self._isNoWrap,
+                                self._ignorePipe))
 
 class FileManComputedTypeField(FileManField):
     def __init__(self, fieldNo, name, fType ,location = None):
@@ -629,16 +699,12 @@ class FileManFilePointerTypeField(FileManField):
         FileManField.__init__(self, fieldNo, name, fType ,location)
         self._filePointedTo = None
     def setPointedToFile(self, filePointedTo):
-        assert isinstance(filePointedTo, FileManFile)
         self._filePointedTo = filePointedTo
     def getPointedToFile(self):
         return self._filePointedTo
     def __repr__(self):
-        return ("%s, %s, %s, %s, %s" % (self.getFieldNo(),
-                                      self.getName(),
-                                      self.getLocation(),
-                                      self.getTypeName(),
-                                      self._filePointedTo))
+        return ("%s, %s" % (FileManField.__repr__(self),
+                            self._filePointedTo))
 
 class FileManVariablePointerTypeField(FileManField):
     def __init__(self, fieldNo, name, fType ,location = None):
@@ -653,11 +719,7 @@ class FileManVariablePointerTypeField(FileManField):
     def getPointedToFiles(self):
         return self._pointedToFiles
     def __repr__(self):
-        return ("%s, %s, %s, %s, %s" % (self.getFieldNo(),
-                                      self.getName(),
-                                      self.getLocation(),
-                                      self.getTypeName(),
-                                      self._pointedToFiles))
+        return ("%s, %s" % (FileManField.__repr__(self), self._pointedToFiles))
 
 class FileManSubFileTypeField(FileManField):
     def __init__(self, fieldNo, name, fType ,location = None):
@@ -665,24 +727,19 @@ class FileManSubFileTypeField(FileManField):
         FileManField.__init__(self, fieldNo, name, fType ,location)
         self._pointedToSubFile= None
     def setPointedToSubFile(self, pointedToSubFile):
-        assert isinstance(pointedToSubFile, FileManFile)
-        assert not pointedToSubFile.isRootFile()
         self._pointedToSubFile = pointedToSubFile
     def getPointedToSubFile(self):
         return self._pointedToSubFile
     def __repr__(self):
-        return ("%s, %s, %s, %s, %s" % (self.getFieldNo(),
-                                      self.getName(),
-                                      self.getLocation(),
-                                      self.getTypeName(),
-                                      self._pointedToSubFile))
+        return ("%s, %s" % (FileManField.__repr__(self),
+                            self._pointedToSubFile))
 
 class FileManMumpsTypeField(FileManField):
     def __init__(self, fieldNo, name, fType ,location = None):
         assert fType == self.FIELD_TYPE_MUMPS
         FileManField.__init__(self, fieldNo, name, fType ,location)
 
-class FileManFieldFactory:
+class FileManFieldFactory(object):
     _creationTuple_ = (FileManNoneTypeField, FileManDateTimeTypeField,
                        FileManNumberTypeField, FileManSetTypeField,
                        FileManFreeTextTypeField, FileManWordProcessingTypeField,
@@ -693,7 +750,13 @@ class FileManFieldFactory:
     def createField(fieldNo, name, fType, location = None):
         assert (fType >= FileManField.FIELD_TYPE_NONE and
                 fType < FileManField.FIELD_TYPE_LAST)
-        return FileManFieldFactory._creationTuple_[fType](fieldNo, name, fType, location)
+        if fType < len(FileManFieldFactory._creationTuple_):
+          return FileManFieldFactory._creationTuple_[fType](fieldNo,
+                                                            name,
+                                                            fType,
+                                                            location)
+        else:
+          return FileManField(fieldNo, name, fType, location)
 #===============================================================================
 # # class to represent a global variable inherits FileManFile
 #===============================================================================
@@ -712,6 +775,8 @@ class Global(FileManFile):
         self._totalReferencedRoutines = 0
         self._totalReferencedGlobals = 0
         self._totalReferredGlobals = 0
+        self._objType = "Global"
+
     def setName(self, globalName):
         self._name = globalName
     def getName(self):
@@ -789,36 +854,10 @@ class Global(FileManFile):
         return self.getFileNo() != None
     def getPackage(self):
         return self._package
-    def printResult(self):
-        write("Name:[%s], FileNo:[%s]: FileManName:[%s], Package:[%s]\n" %
-              (self._name, self._fileNo, self._fileManName, self._package))
-        #self.printReferencedRoutines()
-        self.printFileManFileDependencies()
-        if self.isFileManFile:
-            self.printFileManInfo()
-    def printReferencedRoutines(self):
-        write("Referenced By Routines: %d\n" % self._totalReferencedRoutines)
-        for (package, routineSet) in self._referencesRoutines.iteritems():
-            write("Package: %s Total: %d" % (package, len(routineSet)))
-            for routine in routineSet:
-                write(" %s" % routine)
-            write("\n")
-        write("################################################\n")
-    def printFileManFileDependencies(self):
-        write("Pointed By FileMan Files: %d\n" % self._totalReferredGlobals)
-        for (package, filePointerDict) in self._filePointedBy.iteritems():
-            write("Package: %s Total: %d" % (package, len(filePointerDict)))
-            for (Global, detailList) in filePointerDict.iteritems():
-                write(" %s:%s" % (Global.getFileNo(), detailList))
-            write("\n")
-        write("################################################\n")
-        write("Pointers to FileMan Files: %d\n" % self._totalReferencedGlobals)
-        for (package, filePointerDict) in self._filePointers.iteritems():
-            write("Package: %s Total: %d" % (package, len(filePointerDict)))
-            for (Global, detailList) in filePointerDict.iteritems():
-                write(" %s:%s" % (Global.getFileNo(), detailList))
-            write("\n")
-        write("\n")
+
+    def getObjectType(self):
+        return self._objType
+
     #===========================================================================
     # operator
     #===========================================================================
@@ -879,19 +918,33 @@ class Package(object):
         self._routines = dict()
         self._globals = dict()
         self._namespaces = []
+        self._objects = dict()
+        for componentType in PACKAGE_COMPONENT_MAP:
+            self._objects[componentType] = dict()
         self._globalNamespace = []
         self._routineDependencies = dict()
         self._routineDependents = dict()
+        self._globalRoutineDependencies = dict()
+        self._globalRoutineDependendents = dict()
+        self._objectDependencies = dict()
+        self._objectDependents = dict()
         self._globalDependencies = dict()
+        self._globalGlobalDependencies = dict()
+        self._globalGlobalDependendents = dict()
         self._globalDependents = dict()
         self._fileManDependencies = dict()
         self._fileManDependents = dict()
+        self._descr = [] # a list of description sentense from Package File
         """ fileman db call related dependencies """
         self._fileManDbDependencies = dict()
         self._fileManDbDependents = dict()
         self._origName = packageName
         self._docLink = ""
         self._docMirrorLink = ""
+        self.rpcs = []
+        self.hl7 = []
+        self.protocol = []
+        self.hlo = []
     def addRoutine(self, Routine):
         self._routines[Routine.getName()] = Routine
         Routine.setPackage(self)
@@ -904,10 +957,25 @@ class Package(object):
         return self._routines
     def getAllGlobals(self):
         return self._globals
-    def getRoutine(self, routineName):
-        return self._routines.get[routineName]
+
+    #**************************************
+    #* Package object functions
+    #**************************************
+    def getPackageComponent(self, type, ien):
+        return self._objects[type][ien]
+
+    def getAllPackageComponents(self, type="*"):
+      if type == "*":
+          return self._objects
+      return self._objects[type]
+
+    def addPackageComponent(self, type, value):
+        value.addObjectType(type)
+        self._objects[type][value.getIEN()] = value
+
     def hasRoutine(self, routineName):
         return routineName in self._routines
+
     def getName(self):
         return self._name
     def getOriginalName(self):
@@ -915,13 +983,63 @@ class Package(object):
     def setOriginalName(self, origName):
         self._origName = origName
     def generatePackageDependencies(self):
+        self.generatePackageComponentBasedDependencies()
         self.generateRoutineBasedDependencies()
         self.generateFileManFileBasedDependencies()
+
+    def generatePackageComponentBasedDependencies(self):
+        allObjs = self.getAllPackageComponents()
+        for key in allObjs:
+          for obj in allObjs[key]:
+            calledRoutines = allObjs[key][obj].getCalledRoutines()
+            for package in calledRoutines:
+                if package and package != self:
+                    if package not in self._objectDependencies:
+                        # the first set consists of all caller _calledRoutine in the self package
+                        # the second set consists of all called routines in dependency package
+                        self._objectDependencies[package] = (set(), set())
+                    self._objectDependencies[package][0].add(allObjs[key][obj])
+                    self._objectDependencies[package][1].update(calledRoutines[package])
+                    if self not in package._objectDependents:
+                        # the first set consists of all called _calledRoutine in the package
+                        # the second set consists of all caller routines in that package
+                        package._objectDependents[self] = (set(), set())
+                    package._objectDependents[self][0].add(allObjs[key][obj])
+                    package._objectDependents[self][1].update(calledRoutines[package])
+
     def generateRoutineBasedDependencies(self):
         # build routine based dependencies
-        for routine in self._routines.itervalues():
+        for globalEntry in itervalues(self._globals):
+            calledRoutines =  globalEntry.getCalledRoutines()
+            for package in calledRoutines:
+                if package and package != self:
+                    if package not in self._globalRoutineDependencies:
+                        # the first set consists of all caller _calledRoutine in the self package
+                        # the second set consists of all called routines in dependency package
+                        self._globalRoutineDependencies[package] = (set(), set())
+                    self._globalRoutineDependencies[package][0].add(globalEntry)
+                    self._globalRoutineDependencies[package][1].update(calledRoutines[package])
+                    if self not in package._globalRoutineDependendents:
+                        # the first set consists of all called _calledRoutine in the package
+                        # the second set consists of all caller routines in that package
+                        package._globalRoutineDependendents[self] = (set(), set())
+                    package._globalRoutineDependendents[self][0].add(globalEntry)
+                    package._globalRoutineDependendents[self][1].update(calledRoutines[package])
+            referredGlobals = globalEntry.getReferredGlobal()
+            for globalVar in itervalues(referredGlobals):
+                package = globalVar.getPackage()
+                if package != self:
+                    if package not in self._globalGlobalDependencies:
+                        self._globalGlobalDependencies[package] = (set(), set())
+                    self._globalGlobalDependencies[package][0].add(globalEntry)
+                    self._globalGlobalDependencies[package][1].add(globalVar)
+                    if self not in package._globalGlobalDependendents:
+                        package._globalGlobalDependendents[self] = (set(), set())
+                    package._globalGlobalDependendents[self][0].add(globalEntry)
+                    package._globalGlobalDependendents[self][1].add(globalVar)
+        for routine in itervalues(self._routines):
             calledRoutines = routine.getCalledRoutines()
-            for package in calledRoutines.iterkeys():
+            for package in calledRoutines:
                 if package and package != self:
                     if package not in self._routineDependencies:
                         # the first set consists of all caller _calledRoutine in the self package
@@ -937,7 +1055,7 @@ class Package(object):
                     package._routineDependents[self][1].update(calledRoutines[package])
             referredGlobals = routine.getReferredGlobal()
             # based on referred Globals
-            for globalVar in referredGlobals.itervalues():
+            for globalVar in itervalues(referredGlobals):
                 package = globalVar.getPackage()
                 if package != self:
                     if package not in self._globalDependencies:
@@ -950,7 +1068,7 @@ class Package(object):
                     package._globalDependents[self][1].add(globalVar)
             # based on fileman db calls
             filemanDbCallGbls = routine.getFilemanDbCallGlobals()
-            for filemanDbGbl, tags in filemanDbCallGbls.itervalues():
+            for filemanDbGbl, tags in itervalues(filemanDbCallGbls):
                 # find the package associated with the global
                 package = filemanDbGbl.getRootFile().getPackage()
                 if package != self:
@@ -962,14 +1080,15 @@ class Package(object):
                         package._fileManDbDependents[self] = (set(), set())
                     package._fileManDbDependents[self][0].add(routine)
                     package._fileManDbDependents[self][1].add(filemanDbGbl)
+
     def generateFileManFileBasedDependencies(self):
         # build fileman file based dependencies
         self.__correctFileManFilePointerDependencies__()
-        for Global in self._globals.itervalues():
+        for Global in itervalues(self._globals):
             if not Global.isFileManFile(): # only care about the file man file now
                 continue
             pointerToFiles = Global.getAllReferredFileManFiles()
-            for package in pointerToFiles.iterkeys():
+            for package in pointerToFiles:
                 if package != self:
                     if package not in self._fileManDependencies:
                         self._fileManDependencies[package] = (set(), set())
@@ -979,19 +1098,21 @@ class Package(object):
                         package._fileManDependents[self] = (set(), set())
                     package._fileManDependents[self][0].add(Global)
                     package._fileManDependents[self][1].update(pointerToFiles[package])
+
     # this routine will correct any inconsistence caused by parsing logic
     def __correctFileManFilePointerDependencies__(self):
-        for Global in self._globals.itervalues():
+        for Global in itervalues(self._globals):
             if not Global.isFileManFile(): # only care about the file man file now
                 continue
             self.__checkIndividualFileManPointers__(Global)
+
     def __checkIndividualFileManPointers__(self, Global, subFile = None):
         currentGlobal = Global
         if subFile: currentGlobal = subFile
         allFileManFields = currentGlobal.getAllFileManFields()
         # get all fields of the current global
         if allFileManFields:
-            for field in allFileManFields.itervalues():
+            for field in itervalues(allFileManFields):
                 if field.isFilePointerType():
                     fileManFile = field.getPointedToFile()
                     self.__checkFileManPointerField__(field, fileManFile, Global, subFile)
@@ -1001,14 +1122,13 @@ class Package(object):
                     for fileManFile in fileManFiles:
                         self.__checkFileManPointerField__(field, fileManFile, Global, subFile)
                     continue
-        else:
-            logger.debug("[%s] does not have any fields" % currentGlobal)
         if not subFile:
             # get all subfiles of current globals
             allSubFiles = Global.getAllSubFiles()
             if not allSubFiles: return
-            for subFile in allSubFiles.itervalues():
+            for subFile in itervalues(allSubFiles):
                 self.__checkIndividualFileManPointers__(Global, subFile)
+
     def __checkFileManPointerField__(self, field, fileManFile, Global, subFile = None):
         if not fileManFile:
             logger.warning("Invalid fileMan File pointed to by field:[%s], Global:[%s], subFile:[%s]" % (field, Global, subFile))
@@ -1025,14 +1145,26 @@ class Package(object):
             logger.warning("FileMan file[%r] does not pointed to by [%r] at [%s]:[%s]" % (fileManFile, Global, fieldNo, subFileNo))
             fileManFile.addPointedToByFile(Global, fieldNo, subFileNo)
             return
+    def getPackageComponentDependencies(self):
+        return self._objectDependencies
+    def getPackageComponentDependents(self):
+        return self._objectDependents
     def getPackageRoutineDependencies(self):
         return self._routineDependencies
+    def getPackageGlobalRoutineDependencies(self):
+        return self._globalRoutineDependencies
+    def getPackageGlobalRoutineDependendents(self):
+        return self._globalRoutineDependendents
     def getPackageRoutineDependents(self):
         return self._routineDependents
     def getPackageGlobalDependencies(self):
         return self._globalDependencies
     def getPackageGlobalDependents(self):
         return self._globalDependents
+    def getPackageGlobalGlobalDependencies(self):
+        return self._globalGlobalDependencies
+    def getPackageGlobalGlobalDependents(self):
+        return self._globalGlobalDependendents
     def getPackageFileManFileDependencies(self):
         return self._fileManDependencies
     def getPackageFileManFileDependents(self):
@@ -1059,81 +1191,6 @@ class Package(object):
         self._docLink = docLink
     def setMirrorLink(self, docMirrorLink):
         self._docMirrorLink = docMirrorLink
-    def printRoutineDependency(self, dependencyList=True):
-        if dependencyList:
-            header = "Routine Dependencies list"
-            depPackages = self._routineDependencies
-        else:
-            header = "Routine Dependents list"
-            depPackages = self._routineDependents
-        write("Package %s: \n" % header)
-        for package, depRoutineTuple in depPackages.iteritems():
-            write(" %s: Total caller Routines: %d [ " % (package, len(depRoutineTuple[0])))
-            for routine in depRoutineTuple[0]:
-                write (" %s " % (routine))
-            write("]\n")
-            write(" %s: Total called Rouintes: %d [ " % (package, len(depRoutineTuple[1])))
-            for routine in depRoutineTuple[1]:
-                write (" %s " % (routine))
-            write("]\n")
-        write("\n")
-    def printGlobalDependency(self, dependencyList=True):
-        if dependencyList:
-            header = "Global Dependencies list"
-            depPackages = self._globalDependencies
-        else:
-            header = "Global Dependents list"
-            depPackages = self._globalDependents
-        write("Package %s: \n" % header)
-        for package, depGlobalTuple in depPackages.iteritems():
-            write(" %s: Total Caller Routines: %d [ " % (package, len(depGlobalTuple[0])))
-            for globalVar in depGlobalTuple[0]:
-                write (" %s " % (globalVar))
-            write("]\n")
-            write(" %s: Total Referred Globals: %d [ " % (package, len(depGlobalTuple[1])))
-            for globalVar in depGlobalTuple[1]:
-                write (" %s " % (globalVar))
-            write("]\n")
-        write("\n")
-    def printFileManFileDependency(self, dependencyList=True):
-        if dependencyList:
-            header = "FileMan File Dependencies list"
-            depPackages = self._fileManDependencies
-        else:
-            header = "FileMan File Dependents list"
-            depPackages = self._fileManDependents
-        write("Package %s: \n" % header)
-        for package, depFileManTuple in depPackages.iteritems():
-            write(" %s: Total Files Pointed To By: %d [ " % (package, len(depFileManTuple[0])))
-            for globalVar in depFileManTuple[0]:
-                write (" %s " % (globalVar))
-            write("]\n")
-            write(" %s: Total File Pointer To : %d [ " % (package, len(depFileManTuple[1])))
-            for globalVar in depFileManTuple[1]:
-                write (" %s " % (globalVar))
-            write("]\n")
-        write("\n")
-    def printResult(self):
-        write("Package :%s, total Num of Routines: %d, Total Num of Globals: %d\n" %
-              (self, len(self._routines), len(self._globals)))
-        if len(self._origName) > 0:
-            write("Original Name is: %s\n" % self._origName)
-        if len(self._namespaces) > 0:
-            write("Namespaces: ")
-            for namespace in self._namespaces:
-                write(" [%s]" % namespace)
-            write("\n")
-        if len(self._globalNamespace) > 0:
-            write("Global Namespaces:")
-            for namespace in self._globalNamespace:
-                write(" [%s]" % namespace)
-            write("\n")
-        self.printRoutineDependency(True)
-        self.printRoutineDependency(False)
-        self.printGlobalDependency(True)
-        self.printGlobalDependency(False)
-        self.printFileManFileDependency(True)
-        self.printFileManFileDependency(False)
     #===========================================================================
     # operator
     #===========================================================================
@@ -1170,30 +1227,30 @@ class Package(object):
 ##===============================================================================
 ## Class represent a detailed call info NOT USED
 ##===============================================================================
-class RoutineCallDetails:
-    def __init__(self, callTag, lineOccurences):
+class RoutineCallDetails(object):
+    def __init__(self, callTag, lineOccurrences):
         self._callDetails = callTag
-        self._lineOccurences = []
-        lineOccurs = lineOccurences.split(LINE_OFFSET_DELIM)
-        self._lineOccurences.extend(lineOccurs)
+        self._lineOccurrences = []
+        lineOccurs = lineOccurrences.split(LINE_OFFSET_DELIM)
+        self._lineOccurrences.extend(lineOccurs)
         self._isExtrinsic = callTag.startswith("$$")
     def getCallTag(self):
         return self._callDetails
-    def getLineOccurence(self):
-        return self._lineOccurences
+    def getLineOccurrence(self):
+        return self._lineOccurrences
     def isExtrinsic(self):
         return self._isExtrinsic
-    def appendLineOccurence(self, lineOccurences):
-        self._lineOccurences.extend(lineOccurences)
+    def appendLineOccurrence(self, lineOccurrences):
+        self._lineOccurrences.extend(lineOccurrences)
 #===============================================================================
 # A Class represent the call information between routine and called routine
 #===============================================================================
 class RoutineCallInfo(dict):
-    def addCallDetail(self, callTag, lineOccurences):
+    def addCallDetail(self, callTag, lineOccurrences):
         if callTag not in self:
-            self[callTag] = lineOccurences.split(LINE_OFFSET_DELIM)
+            self[callTag] = lineOccurrences.split(LINE_OFFSET_DELIM)
         else:
-            self[callTag].extend(lineOccurences.split(LINE_OFFSET_DELIM))
+            self[callTag].extend(lineOccurrences.split(LINE_OFFSET_DELIM))
 #===============================================================================
 # A Class represent all called/caller _calledRoutine Dictionary
 #===============================================================================
@@ -1210,7 +1267,7 @@ class PackageDependencyRoutineList(dict):
 #===============================================================================
 # A Wrapper class represents all Cross Reference Information
 #===============================================================================
-class CrossReference:
+class CrossReference(object):
     def __init__(self):
         self._allPackages = dict()
         self._allRoutines = dict()
@@ -1225,6 +1282,8 @@ class CrossReference:
         self._platformDepRoutines = dict() # [name, package, mapping list]
         self._platformDepRoutineMappings = dict() # [platform dep _calledRoutine -> generic _calledRoutine]
         self._allFileManSubFiles = dict() # store all fileman subfiles
+        self._packageMap = PACKAGE_MAP # initialize package map with special cases
+
     def getAllRoutines(self):
         return self._allRoutines
     def getAllPackages(self):
@@ -1251,6 +1310,7 @@ class CrossReference:
     def addRoutineByName(self, routineName):
         if not self.hasRoutine(routineName):
             self._allRoutines[routineName] = Routine(routineName)
+
     def getRoutineByName(self, routineName):
         newRtnName = routineName
         if self.routineNeedRename(routineName):
@@ -1258,12 +1318,16 @@ class CrossReference:
         if self.isPlatformDependentRoutineByName(newRtnName):
             return self.getPlatformDependentRoutineByName(newRtnName)
         return self._allRoutines.get(newRtnName)
+
     def getPackageByName(self, packageName):
         return self._allPackages.get(packageName)
+
     def getGlobalByName(self, globalName):
         return self._allGlobals.get(globalName)
+
     def getGlobalByFileNo(self, globalFileNo):
         return self._allFileManGlobals.get(float(globalFileNo))
+
     def addRoutineToPackageByName(self, routineName, packageName, hasSourceCode=True):
         if packageName not in self._allPackages:
             self._allPackages[packageName] = Package(packageName)
@@ -1273,12 +1337,11 @@ class CrossReference:
         if not hasSourceCode:
             routine.setHasSourceCode(hasSourceCode)
         self._allPackages[packageName].addRoutine(routine)
+
     def addNonFileManGlobalByName(self, globalName):
         if self.getGlobalByName(globalName): return # already exists
         topLevelName = getTopLevelGlobalName(globalName)
         (namespace, package) = self.categorizeGlobalByNamespace(topLevelName)
-        logger.debug("Global: %s, namespace: %s, package: %s" %
-                     (globalName, namespace, package))
         if not package:
             package = self.getPackageByName("Uncategorized")
             self.addToOrphanGlobalByName(globalName)
@@ -1348,6 +1411,7 @@ class CrossReference:
         return self._renameRoutines.get(routineName)
     def isMumpsRoutine(self, routineName):
         return routineName in self._mumpsRoutines
+
     def addPlatformDependentRoutineMapping(self, routineName,
                                            packageName,
                                            mappingList):
@@ -1361,31 +1425,71 @@ class CrossReference:
         self._allPackages[packageName].addRoutine(routine)
         for item in mappingList:
             self._platformDepRoutineMappings[item[0]] = routineName
+
     def isPlatformDependentRoutineByName(self, routineName):
         return routineName in self._platformDepRoutineMappings
+
     def isPlatformGenericRoutineByName(self, routineName):
         return routineName in self._platformDepRoutines
+
     def getGenericPlatformDepRoutineNameByName(self, routineName):
         return self._platformDepRoutineMappings.get(routineName)
+
     def getGenericPlatformDepRoutineByName(self, routineName):
         genericName = self._platformDepRoutineMappings.get(routineName)
         if genericName:
             return self._platformDepRoutines[genericName]
         return None
+
     def getPlatformDependentRoutineByName(self, routineName):
         genericRoutine = self.getGenericPlatformDepRoutineByName(routineName)
         if genericRoutine:
-            assert isinstance(genericRoutine, PlatformDependentGenericRoutine)
             return genericRoutine.getPlatformDepRoutineInfoByName(routineName)[0]
         return None
+
+    def mapPackageNames(self):
+        # map 'PACKAGE NAME' to 'package name' (with some special cases)
+        for pkgName in self.getAllPackages():
+            package = self.getPackageByName(pkgName)
+            if package is not None:
+                originalPkgName = package.getOriginalName()
+                pkgName = self.normalizePackageName(pkgName)
+                self._addMappedPackage(originalPkgName, pkgName)
+
+    def addMappedPackage(self, originalPkgName, pkgName):
+        package = self.getPackageByName(pkgName)
+        if package is not None:
+            self._addMappedPackage(originalPkgName, pkgName)
+
+    def _addMappedPackage(self, originalPkgName, pkgName):
+        if originalPkgName not in self._packageMap:
+            self._packageMap[originalPkgName] = pkgName
+        elif self._packageMap[originalPkgName] != pkgName and \
+             originalPkgName not in PACKAGE_MAP:
+            logger.warning('[%s] mapped to [%s] and [%s]',
+                            originalPkgName,
+                            self._packageMap[originalPkgName], pkgName)
+
+    def getMappedPackageName(self, pkgName):
+        if pkgName in self._packageMap:
+            return self._packageMap[pkgName]
+        else:
+            return None
+
+    def normalizePackageName(self, name):
+        return name.replace('/', ' ').replace('\'','').replace(',','') \
+                   .replace('.','').replace('&', 'and')
+
     # should be using trie structure for quick find, but
     # as python does not have trie and seems to be OK now
     def categorizeRoutineByNamespace(self, routineName):
         return self.__categorizeVariableNameByNamespace__(routineName)
+
     def categorizeGlobalByNamespace(self, globalName):
         return self.__categorizeVariableNameByNamespace__(globalName, True)
+
     def __categorizeVariableNameByNamespace__(self, variableName, isGlobal = False):
-        for package in self._allPackages.itervalues():
+        for package in itervalues(self._allPackages):
             hasMatch = False
             matchNamespace = ""
             if isGlobal:
@@ -1406,155 +1510,30 @@ class CrossReference:
             if hasMatch:
                 return (matchNamespace, package)
         return (None, None)
-    def routineHasSourceCodeByName(self, routineName):
-        routine = self.getRoutineByName(routineName)
-        return routine and routine.hasSourceCode()
+
     def __generatePlatformDependentRoutineDependencies__(self):
-        for genericRoutine in self._platformDepRoutines.itervalues():
+        for genericRoutine in itervalues(self._platformDepRoutines):
             genericRoutine.setHasSourceCode(False)
             callerRoutines = genericRoutine.getCallerRoutines()
-            for routineDict in callerRoutines.itervalues():
-                for routine in routineDict.keys():
+            for routineDict in itervalues(callerRoutines):
+                # The routineDict is changed in the loop, so we must use a copy
+                # of the keys for iteration
+                for routine in list(routineDict.keys()):
                     routineName = routine.getName()
                     if self.isPlatformDependentRoutineByName(routineName):
                         value = routineDict.pop(routine)
                         newRoutine = self.getGenericPlatformDepRoutineByName(routineName)
                         routineDict[newRoutine] = value
+
     def __fixPlatformDependentRoutines__(self):
         for routineName in self._platformDepRoutineMappings:
             if routineName in self._allRoutines:
                 logger.info("Removing Routine: %s" % routineName)
                 self._allRoutines.pop(routineName)
+
     def generateAllPackageDependencies(self):
+        logger.progress("Generate all package dependencies")
         self.__fixPlatformDependentRoutines__()
         self.__generatePlatformDependentRoutineDependencies__()
-        for package in self._allPackages.itervalues():
+        for package in itervalues(self._allPackages):
             package.generatePackageDependencies()
-
-def testPackage():
-    packageA = Package("A")
-    packageB = Package("B")
-    anotherA = Package("A")
-    routineA = Routine("A")
-    assert isinstance(packageA, Package)
-    assert not isinstance(routineA, Package)
-    assert packageA != packageB
-    assert packageA == anotherA
-    assert routineA != packageA
-
-def testRoutine():
-    #===========================================================================
-    # Test Routine operator overrides
-    #===========================================================================
-    RoutineA = Routine("A")
-    RoutineB = Routine("B")
-    anotherA = Routine("A")
-    packageA = Package("A")
-    assert isinstance(RoutineA, Routine)
-    assert not isinstance(packageA, Routine)
-    assert not RoutineA == RoutineB
-    assert RoutineA != RoutineB
-    assert RoutineA == anotherA
-    assert not packageA == RoutineA
-    #===========================================================================
-    # Test Routine
-    #===========================================================================
-    packageA = Package("Imaging")
-    packageB = Package("VA FileMan")
-    rMAGDHWA = Routine("MAGDHWA", packageA)
-    # add local variables
-    lVar = LocalVariable("DEL", ">> ",
-                         "MSH+1,MSH+2,MSH+3,PID+5,PID+13,PID+14,PID+18,PID+19,PID+20,PID+21,PID+22,PID+23,PID+24,PID+32,PID+35,PID+37,PID+39")
-    rMAGDHWA.addLocalVariables(lVar)
-    lVar = LocalVariable("DEL", ">> ",
-                          "PID+41,PID+43,PID+45,ORC+5,ORC+8,ORC+10,OBR+3,OBR+5,OBR+8,OBR+12,OBR+19,OBR+23,OBR+28,OBR+32,OBR+37,ZSV+3,ZSV+4")
-    rMAGDHWA.addLocalVariables(lVar)
-    lVar = LocalVariable("DEL", ">> ", "ALLERGY+5")
-    print ("lineOffsets: %s"  % lVar.getLineOffsets())
-    rMAGDHWA.addLocalVariables(lVar)
-    lVar = LocalVariable("DEL", ">> ", "ALLERGY+7,POSTINGS+7,POSTINGS+9")
-    print ("lineOffsets: %s"  % lVar.getLineOffsets())
-    rMAGDHWA.addLocalVariables(lVar)
-    # add global variables
-    gVar = GlobalVariable("^MAG(2006.5839","   ", "NEWTIU+5,NEWTIU+6,NEWTIU+17!,NEWTIU+18,NEWTIU+19*,NEWTIU+20")
-    gVar1 = GlobalVariable('''^%ZOSF("TRAP"''',"   ", "TIUXLINK+11")
-    rMAGDHWA.addGlobalVariables(gVar)
-    rMAGDHWA.addGlobalVariables(gVar1)
-    # add called routines
-    calledRoutine = Routine("DIQ", packageB)
-    lineOccurences = '''ORC+8,OBR+4,OBR+5,OBR+7,OBR+8,OBR+10,OBR+16,OBR+27,OBR+28,OBR+36,OBR+37'''
-    rMAGDHWA.addCalledRoutines(calledRoutine, "$$GET1", lineOccurences)
-
-    calledRoutine = Routine("VADPT", Package("Registration"))
-    lineOccurences = "PID+7"
-    rMAGDHWA.addCalledRoutines(calledRoutine, "ADD", lineOccurences)
-    rMAGDHWA.addCalledRoutines(calledRoutine, "DEM", lineOccurences)
-    rMAGDHWA.addCalledRoutines(calledRoutine, "INP", lineOccurences)
-
-    rMAGDHWA.printResult()
-
-def testGlobal():
-    globalA = Global("A")
-    globalB = Global("B")
-    anotherA = Global("A")
-    routineA = Routine("A")
-    assert isinstance(globalA, Global)
-    assert not isinstance(routineA, Global)
-    assert globalA != globalB
-    assert globalA == anotherA
-    assert routineA != globalA
-    # Testing fileMan global referencing
-    pTestA = Package("TestA")
-    pTestB = Package("TestB")
-    gPackage = Global("Package", "9.4", pTestA, "Package Test")
-    gDialog = Global("Dialog", ".84", pTestB, "Dialog Test")
-    gInstall = Global("Install", "9.7", pTestB, "Install Test")
-    gBuild = Global("Build", "9.6", pTestA, "Build Test")
-    gPackage.addPointedToByFile(gDialog, "0.1")
-    gPackage.addPointedToByFile(gInstall, "45.1")
-    gPackage.addPointedToByFile(gBuild, "23.1")
-    gPackage.addPointedToByFile(gBuild, "23.4", "9.611")
-    gBuild.addPointedToByFile(gPackage, ".03")
-    gBuild.addPointedToByFile(gPackage, "34.56", "9.423")
-    assert gBuild.hasPointerToFileManFile(gPackage, "23.1", None)
-    assert gBuild.hasPointerToFileManFile(gPackage, "23.4", "9.611")
-    gPackage.printResult()
-    gBuild.printResult()
-
-def testParsePlatformDependentRoutines(fileName):
-    routineFile = open(fileName, "rb")
-    sniffer = csv.Sniffer()
-    dialect = sniffer.sniff(routineFile.read(128))
-    routineFile.seek(0)
-    hasHeader = sniffer.has_header(routineFile.read(128))
-    routineFile.seek(0)
-    result = csv.reader(routineFile, dialect)
-    currentName = ""
-    routineDict = dict()
-    index = 0
-    for line in result:
-        if hasHeader and index == 0:
-            index += 1
-            continue
-        if len(line[0]) > 0:
-            currentName = line[0]
-            if line[0] not in routineDict:
-                routineDict[currentName] = []
-            routineDict[currentName].append(line[-1])
-        routineDict[currentName].append([line[1], line[2]])
-    print ("Total # is %d" % len(routineDict))
-    for (routine, platform) in routineDict.iteritems():
-        print ("Routine: %s, Package %s" % (routine, platform[0]))
-        print ("Total platform: %d %s" % (len(platform[1:]), platform[1:]))
-#===============================================================================
-# Test Constants
-#===============================================================================
-PLATFORM_DEPENDENT_ROUTINE_CSV = "C:/Users/jason.li/git/OSEHRA-Automated-Testing/Dox/PlatformDependentRoutine.csv"
-#===============================================================================
-# Main _calledRoutine
-#===============================================================================
-if __name__ == '__main__':
-    testPackage()
-    testRoutine()
-    testGlobal()
-#    testParsePlatformDependentRoutines(PLATFORM_DEPENDENT_ROUTINE_CSV)

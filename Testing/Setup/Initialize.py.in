@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2011 The Open Source Electronic Health Record Agent
+# Copyright 2011-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -17,6 +17,7 @@ import sys
 sys.path = ['${VISTA_SOURCE_DIR}/Python/vista'] + sys.path
 
 from OSEHRAHelper import ConnectToMUMPS,PROMPT
+import OSEHRASetup
 
 VistA=ConnectToMUMPS("${logfile}","${VISTA_CACHE_INSTANCE}","${VISTA_CACHE_NAMESPACE}")
 if ('${VISTA_CACHE_USERNAME}' and '${VISTA_CACHE_PASSWORD}'):
@@ -24,7 +25,7 @@ if ('${VISTA_CACHE_USERNAME}' and '${VISTA_CACHE_PASSWORD}'):
 if VistA.type=='cache':
   try:
     VistA.ZN('${VISTA_CACHE_NAMESPACE}')
-  except IndexError,no_namechange:
+  except IndexError as no_namechange:
     pass
 VistA.wait(PROMPT)
 VistA.write('S DUZ=1')
@@ -32,7 +33,7 @@ VistA.wait(PROMPT)
 VistA.write('D Q^DI')
 VistA.wait('Select OPTION:')
 VistA.write('1')
-VistA.wait('INPUT TO WHAT FILE')
+VistA.wait_re('INPUT TO WHAT FILE')
 VistA.write('DEVICE')
 VistA.wait('EDIT WHICH FIELD')
 VistA.write('$I')
@@ -52,5 +53,6 @@ VistA.wait('Select DEVICE NAME:')
 VistA.write('')
 VistA.wait('Select OPTION:')
 VistA.write('')
+OSEHRASetup.addMPILocalNumber(VistA)
 VistA.wait(PROMPT)
 VistA.write('h')

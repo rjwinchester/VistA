@@ -46,6 +46,27 @@ KIDS_SINGLE_FILE_ASSOCIATION_DICT = {
   "LEX_2_93.GBLs": "LEX*2.0*93",
   "LEX_2_94.GBLs": "LEX*2.0*94",
   "LEX_2_95.GBLs": "LEX*2.0*95",
+  "LEX_2_102.GBLs": "LEX*2.0*102",
+  "LEX_2_105.GBLs": "LEX*2.0*105",
+  "LEX_2_107.GBLs": "LEX*2.0*107",
+  "LEX_2_108.GBLs": "LEX*2.0*108",
+  "LEX_2_109.GBLs": "LEX*2.0*109",
+  "LEX_2_111.GBLs": "LEX*2.0*111",
+  "LEX_2_112.GBLs": "LEX*2.0*112",
+  "LEX_2_113.GBLs": "LEX*2.0*113",
+  "LEX_2_115.GBLs": "LEX*2.0*115",
+  "LEX_2_116.GBLs": "LEX*2.0*116",
+  "LEX_2_117.GBLs": "LEX*2.0*117",
+  "LEX_2_118.GBLs": "LEX*2.0*118",
+  "LEX_2_119.GBLs": "LEX*2.0*119",
+  "LEX_2_120.GBLs": "LEX*2.0*120",
+  "LEX_2_121.GBLs": "LEX*2.0*121",
+  "LEX_2_122.GBLs": "LEX*2.0*122",
+  "LEX_2_123.GBLs": "LEX*2.0*123",
+  "LEX_2_124.GBLs": "LEX*2.0*124",
+  "LEX_2_125.GBLs": "LEX*2.0*125",
+  "LEX_2_126.GBLs": "LEX*2.0*126",
+  "LEX_2_127.GBLs": "LEX*2.0*127"
 }
 
 """

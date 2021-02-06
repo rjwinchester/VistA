@@ -4,7 +4,7 @@ interface
 
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
-  StdCtrls, ORFn, rCore, Hash, ORCtrls, fBase508Form, VA508AccessibilityManager;
+  StdCtrls, ORFn, rCore, XWBHash, ORCtrls, fBase508Form, VA508AccessibilityManager;
 
 type
   TfrmSignItem = class(TfrmBase508Form)
@@ -26,6 +26,9 @@ procedure SignatureForItem(FontSize: Integer; const AText, ACaption: string; var
 implementation
 
 {$R *.DFM}
+
+uses
+  VAUtils;
 
 const
   TX_INVAL_MSG = 'Not a valid electronic signature code.  Enter a valid code or press Cancel.';

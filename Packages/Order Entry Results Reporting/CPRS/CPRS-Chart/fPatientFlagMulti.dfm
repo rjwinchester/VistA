@@ -3,7 +3,7 @@ inherited frmFlags: TfrmFlags
   Top = 122
   Width = 589
   Height = 607
-  VertScrollBar.Range = 116
+  VertScrollBar.Range = 179
   Caption = 'Patient Record Flags'
   Position = poMainFormCenter
   OnClose = FormClose
@@ -12,87 +12,115 @@ inherited frmFlags: TfrmFlags
   OnShow = FormShow
   ExplicitWidth = 589
   ExplicitHeight = 607
-  PixelsPerInch = 96
-  TextHeight = 13
+  PixelsPerInch = 120
+  TextHeight = 16
   object Panel1: TPanel [0]
     Left = 0
     Top = 0
-    Width = 581
-    Height = 573
+    Width = 571
+    Height = 562
+    Margins.Left = 5
+    Margins.Top = 5
+    Margins.Right = 5
+    Margins.Bottom = 5
     Align = alClient
     TabOrder = 0
     object Splitter3: TSplitter
       Left = 1
-      Top = 73
-      Width = 579
-      Height = 4
+      Top = 113
+      Width = 569
+      Height = 6
       Cursor = crVSplit
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alTop
-      ExplicitLeft = 0
-      ExplicitTop = 38
-      ExplicitWidth = 494
+      ExplicitWidth = 714
     end
     object lblFlags: TLabel
       Left = 1
-      Top = 77
-      Width = 579
-      Height = 13
+      Top = 119
+      Width = 569
+      Height = 16
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alTop
       Caption = 'Category II Flags'
       Layout = tlCenter
-      ExplicitWidth = 79
+      ExplicitWidth = 101
     end
     object Splitter1: TSplitter
       Left = 1
-      Top = 153
-      Width = 579
-      Height = 4
+      Top = 231
+      Width = 569
+      Height = 6
       Cursor = crVSplit
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alTop
-      ExplicitTop = 31
-      ExplicitWidth = 494
+      ExplicitTop = 235
+      ExplicitWidth = 714
     end
     object lblCat1: TLabel
       Left = 1
       Top = 1
-      Width = 579
-      Height = 13
+      Width = 569
+      Height = 20
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alTop
       Caption = 'Category I Flags'
       Color = clBtnFace
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -11
+      Font.Height = -16
       Font.Name = 'MS Sans Serif'
       Font.Style = [fsBold]
       ParentColor = False
       ParentFont = False
+      Transparent = False
       Layout = tlCenter
-      ExplicitWidth = 93
+      ExplicitWidth = 137
     end
     object Splitter2: TSplitter
       Left = 1
-      Top = 416
-      Width = 579
-      Height = 4
+      Top = 321
+      Width = 569
+      Height = 6
       Cursor = crVSplit
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alBottom
       MinSize = 45
-      ExplicitTop = 157
+      ExplicitTop = 470
+      ExplicitWidth = 714
     end
     object memFlags: TRichEdit
       Left = 1
-      Top = 157
-      Width = 579
-      Height = 259
+      Top = 237
+      Width = 569
+      Height = 84
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alClient
       Font.Charset = ANSI_CHARSET
       Font.Color = clWindowText
-      Font.Height = -11
+      Font.Height = -16
       Font.Name = 'Courier New'
       Font.Style = []
       HideScrollBars = False
-      Constraints.MinHeight = 30
+      Constraints.MinHeight = 46
       Lines.Strings = (
         '')
       ParentFont = False
@@ -101,68 +129,90 @@ inherited frmFlags: TfrmFlags
       TabOrder = 0
       WantReturns = False
       WordWrap = False
+      Zoom = 100
     end
     object lstFlagsCat2: TORListBox
       Left = 1
-      Top = 90
-      Width = 579
-      Height = 63
+      Top = 135
+      Width = 569
+      Height = 96
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alTop
-      Constraints.MinHeight = 30
-      ItemHeight = 13
+      Constraints.MinHeight = 46
       ParentShowHint = False
       ShowHint = True
       TabOrder = 3
       OnClick = lstFlagsCat2Click
+      Caption = ''
       ItemTipColor = clWindow
       LongList = False
       Pieces = '2'
     end
     object lstFlagsCat1: TORListBox
       Left = 1
-      Top = 14
-      Width = 579
-      Height = 59
+      Top = 21
+      Width = 569
+      Height = 92
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alTop
       BevelKind = bkTile
       BevelOuter = bvRaised
-      Constraints.MinHeight = 30
+      Constraints.MinHeight = 46
       Font.Charset = DEFAULT_CHARSET
       Font.Color = clWindowText
-      Font.Height = -11
+      Font.Height = -16
       Font.Name = 'MS Sans Serif'
       Font.Style = [fsBold]
-      ItemHeight = 13
+      ItemHeight = 20
       ParentFont = False
       ParentShowHint = False
       ShowHint = True
       TabOrder = 2
       OnClick = lstFlagsCat1Click
+      Caption = ''
       ItemTipColor = clWindow
       LongList = False
       Pieces = '2'
     end
     object pnlNotes: TPanel
       Left = 1
-      Top = 420
-      Width = 579
-      Height = 152
+      Top = 327
+      Width = 569
+      Height = 234
+      Margins.Left = 5
+      Margins.Top = 5
+      Margins.Right = 5
+      Margins.Bottom = 5
       Align = alBottom
       TabOrder = 1
       object lblNoteTitle: TLabel
         Left = 1
         Top = 1
-        Width = 577
-        Height = 13
+        Width = 567
+        Height = 16
+        Margins.Left = 5
+        Margins.Top = 5
+        Margins.Right = 5
+        Margins.Bottom = 5
         Align = alTop
         Caption = 'lblNoteTitle'
-        ExplicitWidth = 53
+        ExplicitWidth = 69
       end
       object lvPRF: TCaptionListView
         Left = 1
-        Top = 14
-        Width = 577
-        Height = 106
+        Top = 17
+        Width = 567
+        Height = 168
+        Margins.Left = 5
+        Margins.Top = 5
+        Margins.Right = 5
+        Margins.Bottom = 5
         Align = alClient
         Columns = <
           item
@@ -181,7 +231,7 @@ inherited frmFlags: TfrmFlags
             AutoSize = True
             Caption = 'Author'
           end>
-        Constraints.MinHeight = 50
+        Constraints.MinHeight = 78
         HideSelection = False
         ReadOnly = True
         RowSelect = True
@@ -189,22 +239,32 @@ inherited frmFlags: TfrmFlags
         ViewStyle = vsReport
         OnClick = lvPRFClick
         OnKeyDown = lvPRFKeyDown
+        AutoSize = False
+        HideTinyColumns = True
       end
       object pnlBottom: TORAutoPanel
         Left = 1
-        Top = 120
-        Width = 577
-        Height = 31
+        Top = 185
+        Width = 567
+        Height = 48
+        Margins.Left = 5
+        Margins.Top = 5
+        Margins.Right = 5
+        Margins.Bottom = 5
         Align = alBottom
         TabOrder = 1
         DesignSize = (
-          577
-          31)
+          567
+          48)
         object btnClose: TButton
-          Left = 494
-          Top = 5
-          Width = 77
-          Height = 21
+          Left = 439
+          Top = 8
+          Width = 119
+          Height = 32
+          Margins.Left = 5
+          Margins.Top = 5
+          Margins.Right = 5
+          Margins.Bottom = 5
           Anchors = [akRight, akBottom]
           Cancel = True
           Caption = 'Close'

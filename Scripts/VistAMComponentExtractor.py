@@ -1,6 +1,6 @@
 #!/usr/bin/env python
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -15,7 +15,10 @@
 # limitations under the License.
 #---------------------------------------------------------------------------
 
+from __future__ import print_function
 from __future__ import with_statement
+from builtins import object
+import codecs
 import sys
 import os
 import subprocess
@@ -43,13 +46,19 @@ ROUTINE_EXTRACT_EXCLUDE_LIST = (
    "TTTSCAN"
 )
 
+""" List of routine names that are to be included again after the above has excluded a set of them """
+ROUTINE_EXTRACT_EXCEPTION_LIST = (
+  "%ut*",
+)
+
 """ Extract routines/globals from a VistA instance and import
     to the git repository
 """
-class VistADataExtractor:
+class VistADataExtractor(object):
   def __init__(self, vistARepoDir, outputResultDir,
                outputLogDir, routineOutDir=None,
-               gitBranch=None, generateReadMe=False):
+               gitBranch=None, generateReadMe=False,
+               serialExport=False):
     assert os.path.exists(vistARepoDir)
     assert os.path.exists(outputResultDir)
     assert os.path.exists(outputLogDir)
@@ -58,8 +67,8 @@ class VistADataExtractor:
     self._outputResultDir = outputResultDir
     self._packagesDir = os.path.join(self._vistARepoDir, "Packages")
     assert os.path.exists(self._packagesDir)
-    self._packagesCSV = os.path.normpath(os.path.join(SCRIPTS_DIR,
-                                                 "../Packages.csv"))
+    self._packagesCSV = os.path.normpath(os.path.join(self._vistARepoDir,
+                                                 "Packages.csv"))
     assert os.path.exists(self._packagesCSV)
     self._routineOutputFile = os.path.join(self._outputResultDir, "Routines.ro")
     self._globalOutputDir = os.path.join(self._outputResultDir, "Globals")
@@ -70,6 +79,7 @@ class VistADataExtractor:
     self._routineOutDir = routineOutDir
     self._generateReadMe = generateReadMe
     self._gitBranch = gitBranch
+    self._serialExport = serialExport
   def extractData(self, vistATestClient):
     self.__setupLogging__(vistATestClient)
     self.__switchBranch__()
@@ -96,18 +106,25 @@ class VistADataExtractor:
                                  DEFAULT_LOGGING_FILENAME))
 
   def __stopTaskman__(self, vistATestClient):
+    connection = vistATestClient.getConnection()
+    connection.send("S DUZ=.5 D ^XUP\n")
+    connection.expect("OPTION")
+    connection.send("\n")
+    vistATestClient.waitForPrompt()
     taskmanUtil = VistATaskmanUtil()
     taskmanUtil.shutdownAllTasks(vistATestClient)
 
   def __extractRoutines__(self, vistATestClient):
     # do not export ZGO, ZGI and xobw.* routines for now
-    excludeList = ROUTINE_EXTRACT_EXCLUDE_LIST
+    excludeList   = ROUTINE_EXTRACT_EXCLUDE_LIST
+    exceptionList = ROUTINE_EXTRACT_EXCEPTION_LIST
     vistARoutineExport = VistARoutineExport()
     logger.info("Extracting All Routines from VistA instance to %s" %
                 self._routineOutputFile)
     vistARoutineExport.exportAllRoutines(vistATestClient,
                                          self._routineOutputFile,
-                                         excludeList)
+                                         excludeList,
+                                         exceptionList)
 
   def __importZGORoutine__(self, vistATestClient):
     logger.info("Import ZGO routine to VistA instance")
@@ -127,7 +144,7 @@ class VistADataExtractor:
       os.remove(file)
     logger.info("Exporting all globals from VistA instance")
     vistAGlobalExport = VistAGlobalExport()
-    vistAGlobalExport.exportAllGlobals(vistATestClient, self._globalOutputDir)
+    vistAGlobalExport.exportAllGlobals(vistATestClient, self._globalOutputDir, self._serialExport)
 
   def __removePackagesTree__(self):
     logger.info("Removing all files under %s" % self._packagesDir)
@@ -148,7 +165,7 @@ class VistADataExtractor:
     logfile = os.path.join(self._outputLogDir, "unpackro.log")
     logger.info("Unpack routines from %s to %s" %
                 (routinesOutputFile, outputDir))
-    with open(routinesOutputFile, 'r') as routineFile: # open as txt
+    with codecs.open(routinesOutputFile, 'r', encoding='ISO-8859-1', errors='ignore') as routineFile: # open as txt
       with open(logfile, 'w') as logFile:
         unpack(routineFile, out=logFile, odir=outputDir)
 
@@ -175,14 +192,14 @@ class VistADataExtractor:
     from PopulatePackages import populate
     curDir = os.getcwd()
     os.chdir(self._packagesDir)
-    populate(open(self._packagesCSV, "rb"))
+    populate(open(self._packagesCSV, "r"))
     os.chdir(curDir)
 
   def __chmodGlobalOutput__(self):
     allZWRFiles = glob.glob(os.path.join(self._globalOutputDir,
                                          "*.zwr"))
     for file in allZWRFiles:
-      os.chmod(file, 0644)
+      os.chmod(file, 0o644)
 
   def __generatePackageReadMes__(self):
     # assume runs from the scripts directory
@@ -222,6 +239,8 @@ def main():
                       help='path to the top directory to store the log files')
   parser.add_argument('-ro', '--routineOutDir', default=None,
                 help='path to the directory where GT. M stores routines')
+  parser.add_argument('-sx', '--serialize', default=False, action="store_true",
+                      help = 'export the globals serially (Needed on on single-user Cache instace)')
   result = parser.parse_args();
   print (result)
   outputDir = result.outputDir
@@ -234,7 +253,8 @@ def main():
     vistADataExtractor = VistADataExtractor(result.vistARepo,
                                             outputDir,
                                             result.logDir,
-                                            result.routineOutDir)
+                                            result.routineOutDir,
+                                            serialExport = result.serialize)
     vistADataExtractor.extractData(testClient)
 
 def test1():

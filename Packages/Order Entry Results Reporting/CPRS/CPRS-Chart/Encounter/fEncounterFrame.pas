@@ -574,7 +574,6 @@ var
 begin
   inherited;
   // do validation for vitals & anything else here
-
   //process vitals
   if FormListContains(CT_VitNm) then
   begin
@@ -717,21 +716,21 @@ begin
       frmVisitType.fraVisitRelated.GetRelated(uEncPCEData);
       Providers.Merge(uProviders);
     end;
-
+    //ZZZZZZBELLC
     if FormListContains(CT_DiagNm) then
-      SetDiagnoses(frmDiagnoses.lbGrid.Items);
+      SetDiagnoses(frmDiagnoses.lstCaptionList.ItemsStrings);
     if FormListContains(CT_ProcNm) then
-      SetProcedures(frmProcedures.lbGrid.Items);
+     SetProcedures(frmProcedures.lstCaptionList.ItemsStrings);
     if FormListContains(CT_ImmNm) then
-      SetImmunizations(frmImmunizations.lbGrid.Items);
+       SetImmunizations(frmImmunizations.lstCaptionList.ItemsStrings);
     if FormListContains(CT_SkinNm) then
-      SetSkinTests(frmSkinTests.lbGrid.Items);
+       SetSkinTests(frmSkinTests.lstCaptionList.ItemsStrings);
     if FormListContains(CT_PedNm) then
-      SetPatientEds(frmPatientEd.lbGrid.Items);
+      SetPatientEds(frmPatientEd.lstCaptionList.ItemsStrings);
     if FormListContains(CT_HlthNm) then
-      SetHealthFactors(frmHealthFactors.lbGrid.Items);
+      SetHealthFactors(frmHealthFactors.lstCaptionList.ItemsStrings);
     if FormListContains(CT_XamNm) then
-      SetExams(frmExams.lbGrid.Items);
+      SetExams(frmExams.lstCaptionList.ItemsStrings);
   end;
 end;
 

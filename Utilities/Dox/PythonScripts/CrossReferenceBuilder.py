@@ -15,9 +15,12 @@
 # WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
 # See the License for the specific language governing permissions and
 # limitations under the License.
+#---------------------------------------------------------------------------
 
-import os
+from builtins import object
 import argparse
+from InitCrossReferenceGenerator import createInitialCrossRefGenArgParser
+from InitCrossReferenceGenerator import parseCrossReferenceGeneratorArgs
 from CallerGraphParser import parseAllCallGraphLog
 from CallerGraphParser import createCallGraphLogAugumentParser
 from DataDictionaryParser import parseDataDictionaryLogFile
@@ -26,53 +29,59 @@ from FileManDbCallParser import parseFileManDBJSONFile
 from FileManDbCallParser import createFileManDBFileAugumentParser
 
 def createCrossReferenceLogArgumentParser():
+    initCrossRefParser = createInitialCrossRefGenArgParser()
     callLogArgParser = createCallGraphLogAugumentParser()
     dataDictLogArgParser = createDataDictionaryAugumentParser()
     filemanDBJsonArgParser = createFileManDBFileAugumentParser()
     parser = argparse.ArgumentParser(add_help=False,
-                                     parents=[callLogArgParser,
+                                     parents=[initCrossRefParser,
+                                              callLogArgParser,
                                               dataDictLogArgParser,
                                               filemanDBJsonArgParser])
+    parser.add_argument('-o', '--outDir', required=True,
+                        help='Output Web Page directory')
+    parser.add_argument('-lf', '--logFileDir', required=True,
+                        help='Logfile directory')
     return parser
+
 class CrossReferenceBuilder(object):
     def __init__(self):
         pass
-    def buildCrossReferenceWithArgs(self, arguments):
+
+    def buildCrossReferenceWithArgs(self, arguments, icrJson=None,
+                                    inputTemplateDeps=None,
+                                    sortTemplateDeps=None,
+                                    printTemplateDeps=None):
         return self.buildCrossReference(arguments.xindexLogDir,
                                         arguments.MRepositDir,
                                         arguments.patchRepositDir,
                                         arguments.fileSchemaDir,
-                                        arguments.filemanDbJson)
+                                        arguments.filemanDbJson,
+                                        icrJson,
+                                        arguments.outDir,
+                                        inputTemplateDeps=inputTemplateDeps,
+                                        sortTemplateDeps=sortTemplateDeps,
+                                        printTemplateDeps=printTemplateDeps)
+
     def buildCrossReference(self, xindexLogDir, MRepositDir,
-                            patchRepositDir, fileSchemaDir=None,
-                            filemanDbJson=None):
-        logParser = parseAllCallGraphLog(xindexLogDir,
-                                         MRepositDir,
-                                         patchRepositDir)
-        if fileSchemaDir:
-            parseDataDictionaryLogFile(logParser.getCrossReference(),
-                                       fileSchemaDir)
-        if filemanDbJson:
-            parseFileManDBJSONFile(logParser.getCrossReference(),
-                                   filemanDbJson)
-        logParser.getCrossReference().generateAllPackageDependencies()
-        return logParser.getCrossReference()
-    def buildCrossReferenceFromMongoDB(self):
-        pass
+                            patchRepositDir, fileSchemaDir,
+                            filemanDbJson, icrJson,
+                            outdir, inputTemplateDeps,
+                            sortTemplateDeps, printTemplateDeps):
 
-def main():
-    crossRefParse = createCrossReferenceLogArgumentParser()
-    parser = argparse.ArgumentParser(
-          description='VistA Cross-Reference Builder',
-          parents=[crossRefParse])
-    result = parser.parse_args()
-    from LogManager import initConsoleLogging
-    initConsoleLogging()
-    crossRefBlder = CrossReferenceBuilder()
-    crossRefBlder.buildCrossReferenceWithArgs(result)
+        crossRef = parseCrossReferenceGeneratorArgs(MRepositDir,
+                                                    patchRepositDir)
+        crossRef.outDir = outdir
+        crossRef._inputTemplateDeps = inputTemplateDeps
+        crossRef._sortTemplateDeps = sortTemplateDeps
+        crossRef._printTemplateDeps = printTemplateDeps
 
-"""
-    main entry
-"""
-if __name__ == '__main__':
-    main()
+        crossRef = parseDataDictionaryLogFile(crossRef, fileSchemaDir).getCrossReference()
+
+        crossRef = parseAllCallGraphLog(xindexLogDir, crossRef, icrJson).getCrossReference()
+
+
+        crossRef = parseFileManDBJSONFile(crossRef, filemanDbJson).getCrossReference()
+
+        crossRef.generateAllPackageDependencies()
+        return crossRef

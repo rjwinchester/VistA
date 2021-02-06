@@ -4,7 +4,7 @@ unit rPCE;
 
 interface
 
-uses SysUtils, Classes, ORNet, ORFn, uPCE, UBACore, ORClasses;
+uses SysUtils, Classes, ORNet, ORFn, uPCE, UBACore, ORClasses, windows;
 
 const
   LX_ICD = 12;
@@ -46,7 +46,14 @@ type
     CVDflt:   Boolean;        // default if prompting Comabt Veteran
     SHDAllow: Boolean;        // prompt for Shipboard Hazard and Defense
     SHDDflt:  Boolean;        // default if prompting Shipboard Hazard and Defense
+    CLAllow:  Boolean;        // prompt for camp lejeune
+    CLDflt:   Boolean;        // default if propmpting camp lejeune
   end;
+
+type
+  TPCECodeDescriptions = record
+    codeList : TORStringList;
+    end;
 
   TPCEListCodesProc = procedure(Dest: TStrings; SectionIndex: Integer);
 
@@ -55,6 +62,7 @@ type
 
 function GetVisitCat(InitialCat: char; Location: integer; Inpatient: boolean): char;
 function GetDiagnosisText(Narrative: String; Code: String): String;
+function GetFreqOfText(SearchStr: String): integer;
 
 {assign and read values from fPCEData}
 //function SetRPCEncouterInfo(PCEData: TPCEData): boolean;
@@ -74,7 +82,8 @@ procedure LoadcboOther(Dest: TStrings; Location, fOtherApp: Integer);
 
 { Lexicon Lookup Calls }
 function  LexiconToCode(IEN, LexApp: Integer; ADate: TFMDateTime = 0): string;
-procedure ListLexicon(Dest: TStrings; const x: string; LexApp: Integer; ADate: TFMDateTime = 0; Extend: Boolean = false);
+procedure ListLexicon(Dest: TStrings; const x: string; LexApp: Integer; ADate: TFMDateTime = 0; AExtend: Boolean = False; AI10Active: Boolean = False);
+//procedure GetI10Alternatives(Dest: TStrings; SCTCode: string);
 function  IsActiveICDCode(ACode: string; ADate: TFMDateTime = 0): boolean;
 function  IsActiveCPTCode(ACode: string; ADate: TFMDateTime = 0): boolean;
 function  IsActiveSCTCode(ACode: string; ADate: TFMDateTime = 0): boolean;
@@ -93,6 +102,7 @@ function UpdateVisitTypeModifierList(Dest: TStrings; Index: integer): string;
 
 procedure ListDiagnosisSections(Dest: TStrings);
 procedure ListDiagnosisCodes(Dest: TStrings; SectionIndex: Integer);
+procedure UpdateDiagnosisObj(CodeNarr: String; ItemIndex: Integer);
 
 procedure ListExamsSections(Dest: TStrings);
 procedure ListExamsCodes(Dest: TStrings; SectionIndex: Integer);
@@ -134,6 +144,7 @@ procedure LoadHFLevelItems(Dest: TStrings);
 procedure LoadXAMResultsItems(Dest: TStrings);
 procedure LoadHistLocations(Dest: TStrings);
 procedure AddProbsToDiagnoses;
+procedure RefreshPLDiagnoses;
 
 //GAF
 function GAFOK: boolean;
@@ -163,11 +174,12 @@ function IsNonCountClinic(ALocation: integer): boolean;
 
 implementation
 
-uses TRPCB, rCore, uCore, uConst, fEncounterFrame, UBAGlobals, UBAConst;
+uses uGlobalVar, TRPCB, rCore, uCore, uConst, fEncounterFrame, UBAGlobals, UBAConst, rMisc, fDiagnoses;
 
 var
   uLastLocation:  Integer;
   uLastDFN:       String;
+  uLastEncDt:     TFMDateTime;
   uVTypeLastLoc:  Integer;
   uVTypeLastDate: double = 0;
   uDiagnoses:     TStringList;
@@ -204,6 +216,7 @@ var
   uLastChkOutLoc: integer = -2;
   uLastIsClinicLoc: integer = 0;
   uLastIsClinic: boolean = FALSE;
+  uPCECodeDescriptions: TPCECodeDescriptions;
 //  uHNCOK:         integer = -1;
 
 function GetVisitCat(InitialCat: char; Location: integer; Inpatient: boolean): char;
@@ -227,8 +240,45 @@ begin
 end;
 
 function GetDiagnosisText(Narrative: String; Code: String): String;
+var
+idx: integer;
+str: string;
 begin
-  Result := sCallV('ORWPCE GET DX TEXT', [Narrative, Code]);
+//  Result := sCallV('ORWPCE GET DX TEXT', [Narrative, Code]);
+  if uPCECodeDescriptions.codeList <> nil then
+    begin
+       idx := uPCECodeDescriptions.codeList.IndexOfPieces([Code, Narrative], 1);
+       if idx = -1 then
+        begin
+          Result := sCallV('ORWPCE GET DX TEXT', [Narrative, Code]);
+          str := Code + U + Narrative + U + Result;
+          uPCECodeDescriptions.codeList.add(str);
+        end
+        else
+          begin
+            str := uPCECodeDescriptions.codeList[idx];
+            if (Code = Piece(str, U, 1)) and (Narrative = Piece(str, U, 2)) then Result := Piece(str, U, 3)
+            else
+              begin
+                Result := sCallV('ORWPCE GET DX TEXT', [Narrative, Code]);
+                str := Code + U + Narrative + U + Result;
+                uPCECodeDescriptions.codeList.add(str);
+              end;
+
+          end;
+    end
+  else
+    begin
+      uPCECodeDescriptions.codeList := TORStringList.Create;
+      Result := sCallV('ORWPCE GET DX TEXT', [Narrative, Code]);
+      str := Code + U + Narrative + U + Result;
+      uPCECodeDescriptions.codeList.add(str);
+    end;
+end;
+
+function GetFreqOfText(SearchStr: String): integer;
+begin
+  Result := StrToInt(sCallV('ORWLEX GETFREQ', [SearchStr]));
 end;
 
 { Lexicon Lookup Calls }
@@ -245,23 +295,33 @@ begin
   Result := Piece(sCallV('ORWPCE LEXCODE', [IEN, CodeSys, ADate]), U, 1);
 end;
 
-procedure ListLexicon(Dest: TStrings; const x: string; LexApp: Integer; ADate: TFMDateTime = 0; Extend: Boolean = false);
+procedure ListLexicon(Dest: TStrings; const x: string; LexApp: Integer; ADate: TFMDateTime = 0; AExtend: Boolean = False; AI10Active: Boolean = False);
 var
   CodeSys: string;
   ExtInt: integer;
 begin
   case LexApp of
-  LX_ICD: CodeSys := 'ICD';
-  LX_CPT: CodeSys := 'CHP';
-  LX_SCT: CodeSys := 'GMPX';
+    LX_ICD: CodeSys := 'ICD';
+    LX_CPT: CodeSys := 'CHP';
+    LX_SCT: CodeSys := 'GMPX';
   end;
-  if Extend then
+  if AExtend then
     ExtInt := 1
   else
     ExtInt := 0;
-  CallV('ORWPCE4 LEX', [x, CodeSys, ADate, ExtInt]);
+  if (LexApp = LX_ICD) and AExtend and AI10Active then
+    CallV('ORWLEX GETI10DX', [x, ADate])
+  else
+    CallV('ORWPCE4 LEX', [x, CodeSys, ADate, ExtInt, True]);
   FastAssign(RPCBrokerV.Results, Dest);
 end;
+
+//TODO: Code for I10 mapped alternatives - remove if not reinstated as requirement
+{procedure GetI10Alternatives(Dest: TStrings; SCTCode: string);
+begin
+  CallV('ORWLEX GETALTS', [SCTCode, 'SCT']);
+  FastAssign(RPCBrokerV.Results, Dest);
+end;}
 
 function  IsActiveICDCode(ACode: string; ADate: TFMDateTime = 0): boolean;
 begin
@@ -308,10 +368,12 @@ var
   i: integer;
   uTempList: TStringList;
   EncDt: TFMDateTime;
-  
 begin
   uLastLocation := uEncLocation;
   EncDt := Trunc(uEncPCEData.VisitDateTime);
+  if uEncPCEData.VisitCategory = 'E' then EncDt := Trunc(FMNow);
+  uLastEncDt := EncDt;
+  EncLoadDateTime := Now;
 
   //add problems to the top of diagnoses.
   uTempList := TstringList.Create;
@@ -330,7 +392,8 @@ begin
         UBACore.BADxList.Clear; //BAPHII 1.3.10
      end;
 
-    tCallV(uTempList,     'ORWPCE DIAG',  [uEncLocation, EncDt]);  //BAPHII 1.3.10
+    CallVistA('ORWPCE DIAG', [uEncLocation, EncDT, Patient.DFN], uTempList);
+    //tCallV(uTempList,     'ORWPCE DIAG',  [uEncLocation, EncDt]);  //BAPHII 1.3.10
     uDiagnoses.add(utemplist.strings[0]);  //BAPHII 1.3.10
     AddProbsToDiagnoses;  //BAPHII 1.3.10
    // BA 25  AddProviderPatientDaysDx(uDxLst, IntToStr(Encounter.Provider), Patient.DFN);
@@ -454,9 +517,9 @@ var
   i: Integer;
   x: string;
 begin
- //// if (uLastLocation <> uEncLocation) then LoadEncounterForm;
- // if (uLastDFN <> patient.DFN) then LoadEncounterForm;// commented out for CIDC needs.
-  LoadEncounterForm;
+  if (uLastLocation <> uEncLocation) or (uLastDFN <> patient.DFN) or (uLastEncDt <> Trunc(uEncPCEData.VisitDateTime))
+  or PLUpdated or IsDateMoreRecent(PLUpdateDateTime, EncLoadDateTime) then RefreshPLDiagnoses;
+  if PLUpdated then PLUpdated := False;
   for i := 0 to uDiagnoses.Count - 1 do if CharAt(uDiagnoses[i], 1) = U then
   begin
     x := Piece(uDiagnoses[i], U, 2);
@@ -470,7 +533,7 @@ procedure ListDiagnosisCodes(Dest: TStrings; SectionIndex: Integer);
     diagnosis <TAB> ICDInteger <TAB> .ICDDecimal <TAB> ICD Code }
 var
   i: Integer;
-  t, c, f: string;
+  t, c, f, p, ICDCSYS: string;
 begin
   Dest.Clear;
   i := SectionIndex + 1;           // first line after the section name
@@ -479,11 +542,12 @@ begin
     c := Piece(uDiagnoses[i], U, 1);
     t := Piece(uDiagnoses[i], U, 2);
     f := Piece(uDiagnoses[i], U, 3);
-
+    p := Piece(uDiagnoses[i], U, 4);
+    ICDCSYS := Piece(uDiagnoses[i], U, 5);
     //identify inactive codes.
     if (Pos('#', f) > 0) or (Pos('$', f) > 0) then
       t := '#  ' + t;
-    Dest.Add(c + U + t + U + c + U + f);
+    Dest.Add(c + U + t + U + c + U + f + U + p + U + ICDCSYS);
 
     Inc(i);
   end;
@@ -493,10 +557,12 @@ procedure AddProbsToDiagnoses;
 var
   i: integer;                 //loop index
   EncDT: TFMDateTime;
+  ICDVersion: String;
 begin
   //get problem list
   EncDT := Trunc(uEncPCEData.VisitDateTime);
   uLastDFN := patient.DFN;
+  ICDVersion := piece(Encounter.GetICDVersion, U, 1);
   tCallV(uProblems, 'ORWPCE ACTPROB', [Patient.DFN, EncDT]);
   if uProblems.count > 0 then
   begin
@@ -504,11 +570,12 @@ begin
     uDiagnoses.add(U + DX_PROBLEM_LIST_TXT);
     for i := 1 to (uProblems.count-1) do //start with 1 because strings[0] is the count of elements.
     begin
-      // DON'T INCLUDE 799.9 CODES
-      if (piece(uProblems.Strings[i],U,3) = '799.9') then continue;
-      // add problems to udiagnosis 
+      //filter out 799.9 and inactive codes when ICD-9 is active
+       if (ICDVersion = 'ICD') and ((piece(uProblems.Strings[i],U,3) = '799.9') or (piece(uProblems.Strings[i],U,13) = '#')) then continue;
+      // otherwise add all active problems (including 799.9, R69, and inactive codes) to udiagnosis
       uDiagnoses.add(piece(uProblems.Strings[i], U, 3) + U + piece(uProblems.Strings[i], U, 2) + U +
-                       piece(uProblems.Strings[i], U, 13));
+                       piece(uProblems.Strings[i], U, 13) + U + piece(uProblems.Strings[i], U, 1) + U +
+                       piece(uProblems.Strings[i], U, 14));
     end;
 
     //1.3.10
@@ -535,6 +602,40 @@ begin
 
   end;
 end;
+
+procedure RefreshPLDiagnoses;
+var
+  i: integer;
+  uDiagList: TStringList;
+  EncDt: TFMDateTime;
+begin
+  EncDt := Trunc(uEncPCEData.VisitDateTime);
+  if uEncPCEData.VisitCategory = 'E' then EncDt := Trunc(FMNow);
+
+  //add problems to the top of diagnoses.
+  uDiagList := TStringList.Create;
+  try
+    uDiagnoses.clear;
+    CallVistA('ORWPCE DIAG', [uEncLocation, EncDT, Patient.DFN], uDiagList);
+    uDiagnoses.add(uDiaglist.Strings[0]);
+    AddProbsToDiagnoses;
+    for i := 1 to (uDiagList.Count-1) do
+      uDiagnoses.add(uDiaglist.Strings[i]);
+
+  finally
+    uDiagList.free;
+  end;
+end;
+
+procedure UpdateDiagnosisObj(CodeNarr: String; ItemIndex: Integer);
+//CodeNarr format = ICD-9/10 code ^ Narrative ^ ICD-9/10 code ^ # and/or $ ^ Problem IEN ^ ICD coding system (10D or ICD)
+var
+  i: Integer;
+begin
+  i := ItemIndex + 1;
+  uDiagnoses[i] := Pieces(CodeNarr, U, 1, 2) + U + U + Piece(CodeNarr, U, 5) + U + Piece(CodeNarr, U, 6);
+end;
+
 {Immunizations-----------------------------------------------------------------}
 procedure LoadImmReactionItems(Dest: TStrings);
 begin
@@ -795,7 +896,7 @@ begin
         OK := FALSE;
         repeat
           idx := uModifiers.IndexOfPiece(Code, U, 3, LastIdx);
-          if(idx > 0) then
+          if(idx >= 0) then
           begin
             if(pos(U + IntToStr(idx) + U, OKMods)>0) then
             begin
@@ -847,7 +948,7 @@ begin
         OK := FALSE;
         repeat
           idx := uModifiers.IndexOfPiece(Code, U, 3, LastIdx);
-          if(idx > 0) then
+          if(idx >= 0) then
           begin
             if(pos(U + IntToStr(idx) + U, OKMods)>0) then
             begin
@@ -1079,6 +1180,13 @@ begin
     CVDflt   := Piece(Piece(x, ';', 7), U, 2) = '1';
     SHDAllow := Piece(Piece(x, ';', 8), U, 1) = '1';
     SHDDflt  := Piece(Piece(x, ';', 8), U, 2) = '1';
+    // Camp Lejeune
+    if IsLejeuneActive then
+    begin
+     CLAllow := Piece(Piece(x, ';', 9), U, 1) = '1';
+     CLDflt  := Piece(Piece(x, ';', 9), U, 2) = '1';
+    end;
+
   end;
 end;
 
@@ -1111,8 +1219,16 @@ begin
 end;
 
 procedure SavePCEData(PCEList: TStringList; ANoteIEN, ALocation: integer);
+var
+alist: TStrings;
 begin
-  CallV('ORWPCE SAVE', [PCEList, ANoteIEN, ALocation]);
+//  CallV('ORWPCE SAVE', [PCEList, ANoteIEN, ALocation]);
+  aList := TStringList.create;
+  try
+    CallVistA('ORWPCE SAVE', [PCEList, ANoteIEN, ALocation], alist);
+  finally
+    FreeAndNil(aList);
+  end;
 end;
 
 {-----------------------------------------------------------------------------}
@@ -1143,26 +1259,31 @@ begin
   end;
   if(AList.Count > 0) then
   begin
-    with RPCBrokerV do
-    begin
-      ClearParameters := True;
-      RemoteProcedure := 'ORWPCE HASCPT';
-      Param[0].PType := list;
-      with Param[0] do
+    LockBroker;
+    try
+      with RPCBrokerV do
       begin
-        for i := 0 to AList.Count-1 do
-          Mult[inttostr(i+1)] := AList[i];
-      end;
-      CallBroker;
-      for i := 0 to RPCBrokerV.Results.Count-1 do
-      begin
-        if(Piece(RPCBrokerV.Results[i],'=',2) = '1') then
+        ClearParameters := True;
+        RemoteProcedure := 'ORWPCE HASCPT';
+        Param[0].PType := list;
+        with Param[0] do
         begin
-          Result := TRUE;
-          break;
+          for i := 0 to AList.Count-1 do
+            Mult[inttostr(i+1)] := AList[i];
         end;
+        CallBroker;
+        for i := 0 to RPCBrokerV.Results.Count-1 do
+        begin
+          if(Piece(RPCBrokerV.Results[i],'=',2) = '1') then
+          begin
+            Result := TRUE;
+            break;
+          end;
+        end;
+        FastAddStrings(RPCBrokerV.Results, uHasCPT);
       end;
-      FastAddStrings(RPCBrokerV.Results, uHasCPT);
+    finally
+      UnlockBroker;
     end;
   end;
 end;
@@ -1334,17 +1455,22 @@ procedure RecentGAFScores(const Limit: integer);
 begin
   if(GAFOK) then
   begin
-    with RPCBrokerV do
-    begin
-      ClearParameters := True;
-      RemoteProcedure := 'ORWPCE LOADGAF';
-      Param[0].PType := list;
-      with Param[0] do
+    LockBroker;
+    try
+      with RPCBrokerV do
       begin
-        Mult['"DFN"'] := Patient.DFN;
-        Mult['"LIMIT"'] := IntToStr(Limit);
+        ClearParameters := True;
+        RemoteProcedure := 'ORWPCE LOADGAF';
+        Param[0].PType := list;
+        with Param[0] do
+        begin
+          Mult['"DFN"'] := Patient.DFN;
+          Mult['"LIMIT"'] := IntToStr(Limit);
+        end;
+        CallBroker;
       end;
-      CallBroker;
+    finally
+      UnlockBroker;
     end;
   end;
 end;
@@ -1354,23 +1480,28 @@ begin
   Result := FALSE;
   if(GAFOK) then
   begin
-    with RPCBrokerV do
-    begin
-      ClearParameters := True;
-      RemoteProcedure := 'ORWPCE SAVEGAF';
-      Param[0].PType := list;
-      with Param[0] do
+    LockBroker;
+    try
+      with RPCBrokerV do
       begin
-        Mult['"DFN"'] := Patient.DFN;
-        Mult['"GAF"'] := IntToStr(Score);
-        Mult['"DATE"'] := FloatToStr(GAFDate);
-        Mult['"STAFF"'] := IntToStr(Staff);
+        ClearParameters := True;
+        RemoteProcedure := 'ORWPCE SAVEGAF';
+        Param[0].PType := list;
+        with Param[0] do
+        begin
+          Mult['"DFN"'] := Patient.DFN;
+          Mult['"GAF"'] := IntToStr(Score);
+          Mult['"DATE"'] := FloatToStr(GAFDate);
+          Mult['"STAFF"'] := IntToStr(Staff);
+        end;
+        CallBroker;
       end;
-      CallBroker;
+      if(RPCBrokerV.Results.Count > 0) and
+        (RPCBrokerV.Results[0] = '1') then
+        Result := TRUE;
+    finally
+      UnlockBroker;
     end;
-    if(RPCBrokerV.Results.Count > 0) and
-      (RPCBrokerV.Results[0] = '1') then
-      Result := TRUE;
   end;
 end;
 
@@ -1480,6 +1611,7 @@ end;
 
 initialization
   uLastLocation := 0;
+  uLastEncDt    := 0;
   uVTypeLastLoc := 0;
   uVTypeLastDate := 0;
   uDiagnoses     := TStringList.Create;

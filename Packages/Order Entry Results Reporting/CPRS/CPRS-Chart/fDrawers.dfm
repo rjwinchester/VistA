@@ -135,7 +135,6 @@ inherited frmDrawers: TfrmDrawers
       Spacing = 2
       OnClick = sbTemplatesClick
       OnResize = sbResize
-      ExplicitTop = -6
     end
   end
   object pnlOrdersButton: TKeyClickPanel [3]

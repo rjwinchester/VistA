@@ -3,112 +3,123 @@ inherited frmOrdersTS: TfrmOrdersTS
   Top = 77
   Caption = 'Release Orders'
   ClientHeight = 351
-  ClientWidth = 456
+  ClientWidth = 457
   Constraints.MinHeight = 365
   Constraints.MinWidth = 310
   OnClose = FormClose
   OnCreate = FormCreate
-  ExplicitWidth = 464
-  ExplicitHeight = 385
+  OnResize = nil
+  ExplicitWidth = 473
+  ExplicitHeight = 389
   PixelsPerInch = 96
   TextHeight = 13
   object pnlMiddle: TPanel [0]
     Left = 0
-    Top = 60
-    Width = 456
+    Top = 81
+    Width = 457
     Height = 56
     Align = alTop
     Constraints.MinHeight = 45
     TabOrder = 1
+    ExplicitWidth = 456
     object grpChoice: TGroupBox
       Left = 1
       Top = 1
-      Width = 454
+      Width = 455
       Height = 54
       Align = alClient
       Constraints.MinHeight = 45
       TabOrder = 0
+      ExplicitWidth = 454
       DesignSize = (
-        454
+        455
         54)
-      object radReleaseNow: TRadioButton
-        Left = 20
-        Top = 13
-        Width = 333
-        Height = 17
-        Caption = '  &Release new orders immediately'
-        Enabled = False
-        TabOrder = 0
-        OnClick = radReleaseNowClick
-      end
       object radDelayed: TRadioButton
         Left = 20
-        Top = 29
+        Top = 5
         Width = 329
         Height = 21
         Caption = '  &Delay release of new order(s) until'
-        TabOrder = 1
+        TabOrder = 0
         OnClick = radDelayedClick
       end
       object cmdOK: TButton
-        Left = 355
+        Left = 356
         Top = 9
         Width = 75
         Height = 20
         Anchors = [akRight, akBottom]
         Caption = 'OK'
         Default = True
-        TabOrder = 2
+        TabOrder = 1
         OnClick = cmdOKClick
+        ExplicitLeft = 355
       end
       object cmdCancel: TButton
-        Left = 355
+        Left = 356
         Top = 31
         Width = 75
         Height = 20
         Anchors = [akRight, akBottom]
         Cancel = True
         Caption = 'Cancel'
-        TabOrder = 3
+        TabOrder = 2
         OnClick = cmdCancelClick
+        ExplicitLeft = 355
+      end
+      object radReleaseNow: TRadioButton
+        Left = 16
+        Top = 21
+        Width = 333
+        Height = 17
+        Caption = '  &Release new orders immediately'
+        Enabled = False
+        TabOrder = 3
+        Visible = False
+        OnClick = radReleaseNowClick
       end
     end
   end
   object pnlTop: TPanel [1]
     Left = 0
     Top = 0
-    Width = 456
-    Height = 60
+    Width = 457
+    Height = 81
     Align = alTop
-    Anchors = [akLeft, akTop, akRight, akBottom]
     AutoSize = True
     BorderStyle = bsSingle
     TabOrder = 0
+    ExplicitWidth = 456
     object lblPtInfo: TVA508StaticText
       Name = 'lblPtInfo'
       Left = 1
       Top = 1
-      Width = 450
+      Width = 451
       Height = 34
       Align = alTop
       Alignment = taLeftJustify
+      Caption = ''
       Constraints.MinHeight = 34
       TabOrder = 0
       ShowAccelChar = True
+      ExplicitWidth = 450
     end
     object pnldif: TPanel
       Left = 1
       Top = 35
-      Width = 450
-      Height = 20
-      Align = alTop
-      Anchors = [akLeft, akTop, akRight, akBottom]
+      Width = 451
+      Height = 41
+      Align = alClient
       TabOrder = 1
+      ExplicitWidth = 450
+      DesignSize = (
+        451
+        41)
       object Image1: TImage
         Left = 1
         Top = 1
         Width = 24
-        Height = 18
+        Height = 39
         Align = alLeft
         AutoSize = True
         Enabled = False
@@ -127,64 +138,67 @@ inherited frmOrdersTS: TfrmOrdersTS
           8888888887700F88888888888888888887700FFFFFFFFFFFFFFFFFFFFF708000
           00000000000000000008}
         Transparent = True
-        ExplicitHeight = 36
+        ExplicitHeight = 18
       end
-      object lblUseAdmit: TVA508StaticText
-        Name = 'lblUseAdmit'
-        Left = 34
-        Top = 4
-        Width = 329
-        Height = 15
-        Alignment = taLeftJustify
-        Caption = 
-          'Use Admit: if patient is newly admitted to the hospital or nursi' +
-          'ng home.'
+      object memHelp: TRichEdit
+        Left = 31
+        Top = 0
+        Width = 355
+        Height = 40
+        ParentCustomHint = False
+        TabStop = False
+        Anchors = [akLeft, akTop, akRight, akBottom]
+        Color = clBtnFace
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        HideScrollBars = False
+        ParentFont = False
+        ReadOnly = True
+        ScrollBars = ssVertical
         TabOrder = 0
-        ShowAccelChar = True
       end
-      object lblUseTransfer: TVA508StaticText
-        Name = 'lblUseTransfer'
-        Left = 34
-        Top = 21
-        Width = 363
-        Height = 15
-        Alignment = taLeftJustify
-        Caption = 
-          'Use Transfer: if inpatient will move from one ward or treating t' +
-          'eam to another.'
+      object btnHelp: TButton
+        Left = 386
+        Top = 0
+        Width = 64
+        Height = 38
+        Anchors = [akTop, akRight, akBottom]
+        Caption = 'More Help'
         TabOrder = 1
-        Visible = False
-        ShowAccelChar = True
+        OnClick = btnHelpClick
       end
     end
   end
   object pnlBottom: TPanel [2]
     Left = 0
-    Top = 116
-    Width = 456
-    Height = 235
+    Top = 137
+    Width = 457
+    Height = 214
     Align = alClient
     TabOrder = 2
-    ExplicitTop = 112
-    ExplicitHeight = 239
+    ExplicitWidth = 456
     inline fraEvntDelayList: TfraEvntDelayList
       Left = 1
       Top = 1
-      Width = 454
-      Height = 233
+      Width = 455
+      Height = 212
       Align = alClient
       AutoScroll = True
       TabOrder = 0
+      TabStop = True
       Visible = False
       ExplicitLeft = 1
       ExplicitTop = 1
       ExplicitWidth = 454
-      ExplicitHeight = 237
+      ExplicitHeight = 212
       inherited pnlDate: TPanel
-        Left = 349
-        Height = 233
+        Left = 350
+        Height = 212
         ExplicitLeft = 349
-        ExplicitHeight = 237
+        ExplicitHeight = 212
         inherited lblEffective: TLabel
           Left = 453
           Width = 71
@@ -197,24 +211,25 @@ inherited frmOrdersTS: TfrmOrdersTS
         end
       end
       inherited pnlList: TPanel
-        Width = 349
-        Height = 233
+        Width = 350
+        Height = 212
         ExplicitWidth = 349
-        ExplicitHeight = 237
+        ExplicitHeight = 212
         inherited lblEvntDelayList: TLabel
-          Width = 347
-          ExplicitWidth = 80
+          Width = 348
+          Caption = 'Delay Orders Until:'
+          ExplicitWidth = 88
         end
         inherited mlstEvents: TORListBox
-          Width = 347
-          Height = 197
+          Width = 348
+          Height = 176
           OnDblClick = cmdOKClick
           OnChange = fraEvntDelayListmlstEventsChange
           ExplicitWidth = 347
-          ExplicitHeight = 201
+          ExplicitHeight = 176
         end
         inherited edtSearch: TCaptionEdit
-          Width = 347
+          Width = 348
           ExplicitWidth = 347
         end
       end
@@ -227,9 +242,6 @@ inherited frmOrdersTS: TfrmOrdersTS
         'Status = stsDefault')
       (
         'Component = grpChoice'
-        'Status = stsDefault')
-      (
-        'Component = radReleaseNow'
         'Status = stsDefault')
       (
         'Component = radDelayed'
@@ -271,13 +283,16 @@ inherited frmOrdersTS: TfrmOrdersTS
         'Component = frmOrdersTS'
         'Status = stsDefault')
       (
-        'Component = lblUseTransfer'
-        'Status = stsDefault')
-      (
         'Component = lblPtInfo'
         'Status = stsDefault')
       (
-        'Component = lblUseAdmit'
+        'Component = radReleaseNow'
+        'Status = stsDefault')
+      (
+        'Component = memHelp'
+        'Status = stsDefault')
+      (
+        'Component = btnHelp'
         'Status = stsDefault'))
   end
 end

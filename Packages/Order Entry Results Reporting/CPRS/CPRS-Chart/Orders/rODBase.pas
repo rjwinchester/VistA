@@ -6,6 +6,7 @@ uses SysUtils, Windows, Classes, ORNet, ORFn, uCore, uConst, rOrders;
 
 type
   TPrompt = class
+  public
     ID:        string;
     IEN:       Integer;
     Sequence:  Double;
@@ -20,6 +21,7 @@ type
   end;
 
   TResponse = class
+  public
     PromptIEN: Integer;
     PromptID:  string;
     Instance:  Integer;
@@ -28,6 +30,7 @@ type
   end;
 
   TDialogItem = class
+  public
     ID:        string;
     Required:  Boolean;
     Hidden:    Boolean;
@@ -89,7 +92,7 @@ function ResolveScreenRef(const ARef: string): string;
 function SubsetOfEntries(const StartFrom: string; Direction: Integer;
   const XRef, GblRef, ScreenRef: string): TStrings;
 function SubSetOfOrderItems(const StartFrom: string; Direction: Integer;
-  const XRef: string): TStrings;
+  const XRef: string; QuickOrderDlgIen: Integer): TStrings;
 function GetDefaultCopay(AnOrderID: string): String;
 procedure SetDefaultCoPayToNewOrder(AnOrderID, CoPayInfo:string);
 procedure ValidateNumericStr(const x, Dom: string; var ErrMsg: string);
@@ -107,7 +110,9 @@ procedure PutQuickOrder(var NewIEN: Integer; const CRC, DisplayName: string; DGr
 { Medication Calls }
 function AmountsForIVFluid(AnIEN: Integer; FluidType: Char): string;
 procedure AppendMedRoutes(Dest: TStrings);
-procedure CheckAuthForMeds(var x: string);
+
+//CQ 21724 - Nurses should be able to order supplies - jcs
+procedure CheckAuthForMeds(var x: string; dlgID: string = '');
 function DispenseMessage(AnIEN: Integer): string;
 procedure LookupRoute(const AName: string; var ID, Abbreviation: string);
 function MedIsSupply(AnIEN: Integer): Boolean;
@@ -120,6 +125,7 @@ function OIForMedIn(AnIEN: Integer): TStrings;
 function ODForIVFluids: TStrings;
 function ODForMedOut: TStrings;
 function OIForMedOut(AnIEN: Integer): TStrings;
+function ODForSD: TStrings;
 function RatedDisabilities: string;
 //function ValidIVRate(const x: string): Boolean;
 procedure ValidateIVRate(var x: string);
@@ -270,20 +276,25 @@ end;
 procedure PutQuickOrder(var NewIEN: Integer; const CRC, DisplayName: string; DGroup: Integer;
   ResponseList: TList);
 begin
-  with RPCBrokerV do
-  begin
-    ClearParameters := True;
-    RemoteProcedure := 'ORWDXQ DLGSAVE';
-    Param[0].PType := literal;
-    Param[0].Value := CRC;
-    Param[1].PType := literal;
-    Param[1].Value := DisplayName;
-    Param[2].PType := literal;
-    Param[2].Value := IntToStr(DGroup);
-    SetupORDIALOG(Param[3], ResponseList);
-    CallBroker;
-    if Results.Count = 0 then Exit;  // error creating order
-    NewIEN := StrToIntDef(Results[0], 0);
+  LockBroker;
+  try
+    with RPCBrokerV do
+    begin
+      ClearParameters := True;
+      RemoteProcedure := 'ORWDXQ DLGSAVE';
+      Param[0].PType := literal;
+      Param[0].Value := CRC;
+      Param[1].PType := literal;
+      Param[1].Value := DisplayName;
+      Param[2].PType := literal;
+      Param[2].Value := IntToStr(DGroup);
+      SetupORDIALOG(Param[3], ResponseList);
+      CallBroker;
+      if Results.Count = 0 then Exit;  // error creating order
+      NewIEN := StrToIntDef(Results[0], 0);
+    end;
+  finally
+    UnlockBroker;
   end;
 end;
 
@@ -448,105 +459,110 @@ var
   i, inc, len, numLoop, remain: Integer;
   ocStr, tmpStr, x, y, z: string;
 begin
-  with RPCBrokerV do
-  begin
-    ClearParameters := True;
-    RemoteProcedure := 'ORWDX SAVE';
-    Param[0].PType := literal;
-    Param[0].Value := Patient.DFN;  //*DFN*
-    Param[1].PType := literal;
-    Param[1].Value := IntToStr(Encounter.Provider);
-    Param[2].PType := literal;
-    (*if loc > 0 then Param[2].Value := IntToStr(Loc)
-    else Param[2].Value := IntToStr(Encounter.Location);*)
-    Param[2].Value := IntToStr(Encounter.Location);
-    Param[3].PType := literal;
-    Param[3].Value := ConstructOrder.DialogName;
-    Param[4].PType := literal;
-    Param[4].Value := IntToStr(ConstructOrder.DGroup);
-    Param[5].PType := literal;
-    Param[5].Value := IntToStr(ConstructOrder.OrderItem);
-    Param[6].PType := literal;
-    Param[6].Value := AnOrder.EditOf;        // null if new order, otherwise ORIFN of original
-    if (ConstructOrder.DGroup = IVDisp) or (ConstructOrder.DialogName = 'PSJI OR PAT FLUID OE') then
-      SetupORDIALOG(Param[7], ConstructOrder.ResponseList, True)
-    else
-      SetupORDIALOG(Param[7], ConstructOrder.ResponseList);
-    if Length(ConstructOrder.LeadText)  > 0
-      then Param[7].Mult['"ORLEAD"']  := ConstructOrder.LeadText;
-    if Length(ConstructOrder.TrailText) > 0
-      then Param[7].Mult['"ORTRAIL"'] := ConstructOrder.TrailText;
-    Param[7].Mult['"ORCHECK"'] := IntToStr(ConstructOrder.OCList.Count);
-    with ConstructOrder do for i := 0 to OCList.Count - 1 do
+  LockBroker;
+  try
+    with RPCBrokerV do
     begin
-      // put quotes around everything to prevent broker from choking
-      y := '"ORCHECK","' + Piece(OCList[i], U, 1) + '","' + Piece(OCList[i], U, 3) +
-        '","' + IntToStr(i+1) + '"';
-      //Param[7].Mult[y] := Pieces(OCList[i], U, 2, 4);
-      OCStr :=  Pieces(OCList[i], U, 2, 4);
-      len := Length(OCStr);
-      if len > 255 then
-        begin
-          numLoop := len div 255;
-          remain := len mod 255;
-          inc := 0;
-          while inc <= numLoop do
-            begin
-              tmpStr := Copy(OCStr, 1, 255);
-              OCStr := Copy(OCStr, 256, Length(OcStr));
-              Param[7].Mult[y + ',' + InttoStr(inc)] := tmpStr;
-              inc := inc +1;
-            end;
-          if remain > 0 then  Param[7].Mult[y + ',' + inttoStr(inc)] := OCStr;
-
-        end
+      ClearParameters := True;
+      RemoteProcedure := 'ORWDX SAVE';
+      Param[0].PType := literal;
+      Param[0].Value := Patient.DFN;  //*DFN*
+      Param[1].PType := literal;
+      Param[1].Value := IntToStr(Encounter.Provider);
+      Param[2].PType := literal;
+      (*if loc > 0 then Param[2].Value := IntToStr(Loc)
+      else Param[2].Value := IntToStr(Encounter.Location);*)
+      Param[2].Value := IntToStr(Encounter.Location);
+      Param[3].PType := literal;
+      Param[3].Value := ConstructOrder.DialogName;
+      Param[4].PType := literal;
+      Param[4].Value := IntToStr(ConstructOrder.DGroup);
+      Param[5].PType := literal;
+      Param[5].Value := IntToStr(ConstructOrder.OrderItem);
+      Param[6].PType := literal;
+      Param[6].Value := AnOrder.EditOf;        // null if new order, otherwise ORIFN of original
+      if (ConstructOrder.DGroup = IVDisp) or (ConstructOrder.DGroup = ClinIVDisp) or (ConstructOrder.DialogName = 'PSJI OR PAT FLUID OE') then
+        SetupORDIALOG(Param[7], ConstructOrder.ResponseList, True)
       else
-       Param[7].Mult[y] := OCStr;
-    end;
-    if ConstructOrder.DelayEvent in ['A','D','T','M','O'] then
-      Param[7].Mult['"OREVENT"'] := ConstructOrder.PTEventPtr;
-    if ConstructOrder.LogTime > 0
-      then Param[7].Mult['"ORSLOG"'] := FloatToStr(ConstructOrder.LogTime);
-    Param[7].Mult['"ORTS"'] := IntToStr(Patient.Specialty);  // pass in treating specialty for ORTS
-    Param[8].PType := literal;
-    Param[8].Value := ConstructOrder.DigSig;
-    if Constructorder.IsIMODialog then
-    begin
-      Param[9].PType := literal;                       //IMO
-      Param[9].Value := FloatToStr(Encounter.DateTime);
-    end else
-    begin
-      Param[9].PType := literal;                       //IMO
-      Param[9].Value := '';
-    end;
-    Param[10].PType := literal;
-    Param[10].Value := OrderSource;
-    Param[11].PType := literal;
-    Param[11].Value := IntToStr(Constructorder.IsEventDefaultOR);
-
-    CallBroker;
-    if Results.Count = 0 then Exit;          // error creating order
-    x := Results[0];
-    Results.Delete(0);
-    y := '';
-
-    while (Results.Count > 0) and (CharAt(Results[0], 1) <> '~') and (CharAt(Results[0], 1) <> '|') do
+        SetupORDIALOG(Param[7], ConstructOrder.ResponseList);
+      if Length(ConstructOrder.LeadText)  > 0
+        then Param[7].Mult['"ORLEAD"']  := ConstructOrder.LeadText;
+      if Length(ConstructOrder.TrailText) > 0
+        then Param[7].Mult['"ORTRAIL"'] := ConstructOrder.TrailText;
+      Param[7].Mult['"ORCHECK"'] := IntToStr(ConstructOrder.OCList.Count);
+      with ConstructOrder do for i := 0 to OCList.Count - 1 do
       begin
-        y := y + Copy(Results[0], 2, Length(Results[0])) + CRLF;
-        Results.Delete(0);
-      end;
-    if Length(y) > 0 then y := Copy(y, 1, Length(y) - 2);  // take off last CRLF
-    z := '';
-    if (Results.Count > 0) and (Results[0] = '|') then
-      begin
-        Results.Delete(0);
-        while (Results.Count > 0) and (CharAt(Results[0], 1) <> '~') and (CharAt(Results[0], 1) <> '|') do
+        // put quotes around everything to prevent broker from choking
+        y := '"ORCHECK","' + Piece(OCList[i], U, 1) + '","' + Piece(OCList[i], U, 3) +
+          '","' + IntToStr(i+1) + '"';
+        //Param[7].Mult[y] := Pieces(OCList[i], U, 2, 4);
+        OCStr :=  Pieces(OCList[i], U, 2, 4);
+        len := Length(OCStr);
+        if len > 255 then
           begin
-            z := z + Copy(Results[0], 2, Length(Results[0]));
-            Results.Delete(0);
-          end;
+            numLoop := len div 255;
+            remain := len mod 255;
+            inc := 0;
+            while inc <= numLoop do
+              begin
+                tmpStr := Copy(OCStr, 1, 255);
+                OCStr := Copy(OCStr, 256, Length(OcStr));
+                Param[7].Mult[y + ',' + InttoStr(inc)] := tmpStr;
+                inc := inc +1;
+              end;
+            if remain > 0 then  Param[7].Mult[y + ',' + inttoStr(inc)] := OCStr;
+
+          end
+        else
+         Param[7].Mult[y] := OCStr;
       end;
-    SetOrderFields(AnOrder, x, y, z);
+      if CharInSet(ConstructOrder.DelayEvent, ['A','D','T','M','O']) then
+        Param[7].Mult['"OREVENT"'] := ConstructOrder.PTEventPtr;
+      if ConstructOrder.LogTime > 0
+        then Param[7].Mult['"ORSLOG"'] := FloatToStr(ConstructOrder.LogTime);
+      Param[7].Mult['"ORTS"'] := IntToStr(Patient.Specialty);  // pass in treating specialty for ORTS
+      Param[8].PType := literal;
+      Param[8].Value := ConstructOrder.DigSig;
+      if (Constructorder.IsIMODialog) or (ConstructOrder.DGroup = ClinDisp) or (ConstructOrder.DGroup = ClinIVDisp) then
+      begin
+        Param[9].PType := literal;                       //IMO
+        Param[9].Value := FloatToStr(Encounter.DateTime);
+      end else
+      begin
+        Param[9].PType := literal;                       //IMO
+        Param[9].Value := '';
+      end;
+      Param[10].PType := literal;
+      Param[10].Value := OrderSource;
+      Param[11].PType := literal;
+      Param[11].Value := IntToStr(Constructorder.IsEventDefaultOR);
+
+      CallBroker;
+      if Results.Count = 0 then Exit;          // error creating order
+      x := Results[0];
+      Results.Delete(0);
+      y := '';
+
+      while (Results.Count > 0) and (CharAt(Results[0], 1) <> '~') and (CharAt(Results[0], 1) <> '|') do
+        begin
+          y := y + Copy(Results[0], 2, Length(Results[0])) + CRLF;
+          Results.Delete(0);
+        end;
+      if Length(y) > 0 then y := Copy(y, 1, Length(y) - 2);  // take off last CRLF
+      z := '';
+      if (Results.Count > 0) and (Results[0] = '|') then
+        begin
+          Results.Delete(0);
+          while (Results.Count > 0) and (CharAt(Results[0], 1) <> '~') and (CharAt(Results[0], 1) <> '|') do
+            begin
+              z := z + Copy(Results[0], 2, Length(Results[0]));
+              Results.Delete(0);
+            end;
+        end;
+      SetOrderFields(AnOrder, x, y, z);
+    end;
+  finally
+    UnlockBroker;
   end;
 end;
 
@@ -585,31 +601,36 @@ begin
 end;
 
 function SubSetOfOrderItems(const StartFrom: string; Direction: Integer;
-  const XRef: string): TStrings;
+  const XRef: string; QuickOrderDlgIen: Integer): TStrings;
 { returns a pointer to a list of orderable items matching an S.xxx cross reference (for use in
   a long list box) -  The return value is  a pointer to RPCBrokerV.Results, so the data must
   be used BEFORE the next broker call! }
 begin
-  CallV('ORWDX ORDITM', [StartFrom, Direction, XRef]);
+  CallV('ORWDX ORDITM', [StartFrom, Direction, XRef, QuickOrderDlgIen]);
   Result := RPCBrokerV.Results;
 end;
 
 function GetDefaultCopay(AnOrderID: string): String;
 begin
-  with RPCBrokerV do
-  begin
-    ClearParameters := True;
-    RemoteProcedure := 'ORWDPS4 CPLST';
-    Param[0].PType := literal;
-    Param[0].Value := Patient.DFN;
-    Param[1].PType := list;
-    Param[1].Mult['1'] := AnOrderID;
+  LockBroker;
+  try
+    with RPCBrokerV do
+    begin
+      ClearParameters := True;
+      RemoteProcedure := 'ORWDPS4 CPLST';
+      Param[0].PType := literal;
+      Param[0].Value := Patient.DFN;
+      Param[1].PType := list;
+      Param[1].Mult['1'] := AnOrderID;
+    end;
+    CallBroker;
+    if RPCBrokerV.Results.Count > 0 then
+      Result := RPCBrokerV.Results[0]
+    else
+      Result := '';
+  finally
+    UnlockBroker;
   end;
-  CallBroker;
-  if RPCBrokerV.Results.Count > 0 then
-    Result := RPCBrokerV.Results[0]
-  else
-    Result := '';
 end;
 
 procedure SetDefaultCoPayToNewOrder(AnOrderID, CoPayInfo:string);
@@ -684,13 +705,18 @@ begin
   CPExems := CoPayValue[1] + CoPayValue[2] + CoPayValue[3] + CoPayValue[4]
            + CoPayValue[5] + CoPayValue[6] + CoPayValue[7];
   CPExems := AnOrderId + '^' + CPExems;
-  with RPCBrokerV do
-  begin
-    ClearParameters := True;
-    RemoteProcedure := 'ORWDPS4 CPINFO';
-    Param[0].PType := list;
-    Param[0].Mult['1'] := CPExems;
-    CallBroker;
+  LockBroker;
+  try
+    with RPCBrokerV do
+    begin
+      ClearParameters := True;
+      RemoteProcedure := 'ORWDPS4 CPINFO';
+      Param[0].PType := list;
+      Param[0].Mult['1'] := CPExems;
+      CallBroker;
+    end;
+  finally
+    UnlockBroker;
   end;
 end;
 
@@ -747,9 +773,11 @@ begin
   FastAddStrings(uMedRoutes, Dest);
 end;
 
-procedure CheckAuthForMeds(var x: string);
+procedure CheckAuthForMeds(var x: string; dlgID: string = '');
 begin
-  x := Piece(sCallV('ORWDPS32 AUTH', [Encounter.Provider]), U, 2);
+  //CQ 21724 - Nurses should be able to order supplies, pass in dlgID
+  //from fODMeds - jcs
+  x := Piece(sCallV('ORWDPS32 AUTH', [Encounter.Provider, dlgID]), U, 2);
 end;
 
 function DispenseMessage(AnIEN: Integer): string;
@@ -847,6 +875,12 @@ function OIForMedOut(AnIEN: Integer): TStrings;
 { Returns init values for outpatient meds order item.  The results must be used immediately. }
 begin
   CallV('ORWDPS32 OISLCT', [AnIEN, PST_OUTPATIENT, Patient.DFN]);
+  Result := RPCBrokerV.Results;
+end;
+
+function ODForSD: TStrings;
+begin
+  CallV('ORWDSD1 ODSLCT', [PATIENT.DFN, Encounter.Location]);
   Result := RPCBrokerV.Results;
 end;
 

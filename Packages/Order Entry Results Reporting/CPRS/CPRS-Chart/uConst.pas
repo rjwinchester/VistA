@@ -35,6 +35,9 @@ const
   UM_NSSOTHER     = (WM_USER + 9250);  // used by NSS for auto-display schedule builder
   UM_MISC         = (WM_USER + 9251);  // used for misc stuff across forms
   UM_508          = (WM_USER + 9508);  // used for 508 messages at 508 base form level
+  UM_REMINDERS    = (WM_USER + 9252);  // in fReminderDialog
+  UM_OBJDESTROY   = (WM_USER + 9253);  // used in uOwnerWrapper & fFrame
+  UM_NOTELIMIT    = (WM_USER + 9254);  // used to redraw the richedit's editable rect
 
   { Tab Indexes, moved from fFrame }
   CT_NOPAGE   = -1;                             // chart tab - none selected
@@ -124,12 +127,13 @@ const
   OD_MEDINPT   = 130;
   OD_MEDS      = 135;
   OD_MEDOUTPT  = 140;
-  OD_MEDNONVA = 145;
+  OD_MEDNONVA  = 145;
   OD_NURSING   = 150;
   OD_MISC      = 151;
   OD_GENERIC   = 152;
   OD_IMAGING   = 160;
   OD_VITALS    = 171;  // use 170 for ORWD GENERIC VITALS, 171 for GMRVOR
+  OD_RTC       = 175;
   OD_MEDIV     = 180;
   OD_TEXTONLY  = 999;
   OM_NAV       = 1001;
@@ -139,6 +143,8 @@ const
   OM_ALLERGY   = 1105;
   OM_HTML      = 1200;
   OD_AUTOACK   = 9999;
+  OD_CLINICMED = 1444;
+  OD_CLINICINF = 1555;
 
   { Ordering role }
   OR_NOKEY     = 0;
@@ -233,6 +239,10 @@ const
   NF_MEDICATIONS_EXPIRING_OUTPT    = 72;
   NF_DEA_AUTO_DC_CS_MED_ORDER      = 74;
   NF_DEA_CERT_REVOKED              = 75;
+  NF_RX_RENEWAL_REQUEST            = 73;
+  NF_LAPSED_ORDER                  = 78;
+  NF_HIRISK_ORDER                  = 79;
+  NF_RTC_CANCEL_ORDERS             = 91;
   NF_DCSUMM_UNSIGNED_NOTE          = 901;
   NF_CONSULT_UNSIGNED_NOTE         = 902;
   NF_NOTES_UNSIGNED_NOTE           = 903;
@@ -275,9 +285,9 @@ const
 
   { Surgery View Contexts }
   SR_RECENT     = 0;
-  SR_ALL        = 1;
-  SR_BY_DATE    = 5;                             
-  SR_CUSTOM     = 6;
+  SR_ALL        = -1;
+  SR_BY_DATE    = -5;
+  SR_CUSTOM     = -6;
 
   { Surgery TreeView Icons }
   IMG_SURG_BLANK     = 0;
@@ -307,6 +317,7 @@ const
   IMG_ID_CHILD      = 9;
   IMG_ID_CHILD_ADD  = 10;
   IMG_ADDENDUM      = 11;
+  IMG_ORPHANED      = 15;
 
   { Consults Treeview Icons }
   IMG_GMRC_TOP_LEVEL     = 0;
@@ -375,6 +386,7 @@ const
 
   MAX_ENTRY_WIDTH = 80;   //Change in 23.9 for D/S, Consult, and Surgery Notes AGP
   MAX_PROGRESSNOTE_WIDTH = 80;
+  MAX_CONSULT_WIDTH = 74; //Added in v31.b for template wrapping in consult orders
 
   //Group Name
    NONVAMEDGROUP = 'Non-VA Meds';
@@ -406,6 +418,9 @@ const
   TX_SCHFAIL   = 'Order for controlled substance could not be completed.' + CRLF +
                  'Provider is not authorized to prescribe medications' + CRLF +
                  'in Federal Schedule ';
+  TX_SCH_ONE   = 'Order for controlled substance could not be completed.' + CRLF +
+                 'Electronic prescription of medications in Federal Schedule 1 is prohibited.' + CRLF + CRLF +
+                 'Valid Schedule 1 investigational medications require paper prescription.';
   TX_NO_DETOX  = 'Order for controlled substance could not be completed.' + CRLF +
                  'Provider does not have a valid Detoxification/Maintenance ID' + CRLF +
                  'number on record and is ineligible to sign the order.';
@@ -420,6 +435,9 @@ const
   TX_INSTRUCT  = CRLF + CRLF + 'Click RETRY to select another provider.' + CRLF + 'Click CANCEL to cancel the current order.';
   TC_DEAFAIL   = 'Order not completed';
 
+  CampLejeunePatch = 'OR*3.0*407';
+
+  ORPHANED_NOTE_TEXT = 'This note was linked to another note that is no longer available. There is no action required, this message is for informational purposes, only.';
 var
   ScrollBarWidth: integer = 0;
 
@@ -427,10 +445,8 @@ implementation
 
 uses
   Windows;
-  
+
 initialization
   ScrollBarWidth := GetSystemMetrics(SM_CXVSCROLL);
 
 end.
-
-

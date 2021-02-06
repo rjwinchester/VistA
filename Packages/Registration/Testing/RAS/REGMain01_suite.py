@@ -79,7 +79,7 @@ def reg_test001(test_suite_details):
         reg.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -111,7 +111,7 @@ def reg_test002(test_suite_details):
         reg.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -145,7 +145,7 @@ def reg_test003(test_suite_details):
         reg.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -168,30 +168,11 @@ def reg_test004(test_suite_details):
         reg.lodger_checkout(ssn='323554567')
         reg.lodger_checkout(ssn='123455678')
         # DRG Calculation
-        reg.wwgeneric(dlist=[[['Option:'], ['bed control menu']],
-                              [['Option:'], ['DRG Calculation']],
-                              [['Effective Date:'], ['t']],
-                              [['Choose Patient from PATIENT file'], ['Yes']],
-                              [['PATIENT NAME:'], ['123455678']],
-                              [['Transfer to an acute care facility'], ['No']],
-                              [['Discharged against medical advice'], ['No']],
-                              [['PRINCIPAL diagnosis'], ['787.1']],
-                              [['YES//'], ['YES']],
-                              [['SECONDARY diagnosis'], ['786.50']],
-                              [['YES//'], ['YES']],
-                              [['SECONDARY diagnosis'], ['']],
-                              [['Operation/Procedure'], ['31.93']],
-                              [['Yes//'], ['YES']],
-                              [['Operation/Procedure'], ['']],
-                              [['Diagnosis Related Group: +[0-9]+', 'Average Length of Stay\(ALOS\): +[0-9.]+', 'Weight: +[0-9.]+', 'Low Day\(s\): +[0-9]+', 'High Days: +[0-9]+', '392- ESOPHAGITIS'], []],
-                              [['Effective Date'], ['']],
-                              [['Choose Patient from PATIENT file'], ['']],
-                              [['Select PATIENT NAME:'], ['']],
-                              [['Bed Control Menu'], ['']]])
+        reg.drg_calc(ssn='123455678',diag='787.1', ICD10diag='R12.',sdiag='786.50',ICD10sdiag='R07.9',oper='31.93',ICD10oper='0C7S0DZ')
         reg.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -210,7 +191,7 @@ def reg_test005(test_suite_details):
         reg.signon()
         reg.adt_menu_smoke(ssn='323554567')
         reg.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -231,7 +212,7 @@ def reg_test006(test_suite_details):
         reg.discharge_patient(ssn='444678924', dtime='NOW')
         reg.det_inpatient_inquiry(ssn='444678924', item='1', vlist=['DIRECT', '2-B', 'ALEXANDER,ROBER', 'SMITH,MARY'])
         reg.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -267,7 +248,7 @@ def reg_test007(test_suite_details):
         reg.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -286,28 +267,7 @@ def reg_logflow(test_suite_details):
         reg.logflow(['DGPMV', 'DGSWITCH'])
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
-        test_driver.exception_handling(test_suite_details, e)
-    else:
-        test_driver.try_else_handling(test_suite_details)
-    finally:
-        test_driver.finally_handling(test_suite_details)
-
-def setup_ward(test_suite_details):
-    ''' Set up ward for ADT testing '''
-    testname = sys._getframe().f_code.co_name
-    test_driver = TestHelper.TestDriver(testname)
-
-    test_driver.pre_test_run(test_suite_details)
-    try:
-        VistA1 = test_driver.connect_VistA(test_suite_details)
-        reg = ADTActions(VistA1)
-        reg.signon()
-        reg.adt_setup()
-        reg.signoff()
-
-        test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -328,7 +288,7 @@ def startmon(test_suite_details):
         VistA1.startCoverage(test_suite_details.coverage_subset)
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -354,7 +314,7 @@ def stopmon(test_suite_details):
         VistA1.stopCoverage(path, test_suite_details.coverage_type)
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)

@@ -47,7 +47,7 @@ implementation
 {$R *.DFM}
 
 uses
-  rOptions, uOptions, rCore, rTIU, rDCSumm;
+  rOptions, uOptions, rCore, rTIU, rDCSumm, VAUtils;
 
 procedure DialogOptionsNotes(topvalue, leftvalue, fontsize: integer; var actiontype: Integer);
 // create the form and make it modal, return an action
@@ -158,11 +158,11 @@ begin
     Perform(WM_NextDlgCtl, 0, 0);
     exit;
   end;
-  if not (Key in ['0'..'9', #8]) then
+  if not CharInSet(Key, ['0'..'9', #8]) then
   begin
     Key := #0;
     beep;
-  end;  
+  end;
 end;
 
 procedure TfrmOptionsNotes.txtAutoSaveExit(Sender: TObject);
@@ -191,8 +191,16 @@ end;
 
 procedure TfrmOptionsNotes.cboCosignerNeedData(Sender: TObject;
   const StartFrom: String; Direction, InsertAt: Integer);
+var
+  aResults: TStringList;
 begin
-  cboCosigner.ForDataUse(rpcGetCosigners(StartFrom, Direction));
+  aResults := TStringList.Create;
+  try
+    rpcGetCosigners(StartFrom, Direction, aResults);
+    cboCosigner.ForDataUse(aResults);
+  finally
+    FreeAndNil(aResults);
+  end;
 end;
 
 procedure TfrmOptionsNotes.cboCosignerExit(Sender: TObject);

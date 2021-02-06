@@ -20,7 +20,9 @@
 #---------------------------------------------------------------------------
 
 import sys
+import codecs
 import os
+import re
 
 def unpack(ro, out=sys.stdout, odir=None):
     # Write out the two header lines for human reference.
@@ -30,7 +32,7 @@ def unpack(ro, out=sys.stdout, odir=None):
     m = None
 
     for line in ro:
-        if line == '\n':
+        if re.match('^[\n\r]+$', line):
             # Routine terminated by blank line
             if m:
                 m.close()
@@ -46,7 +48,7 @@ def unpack(ro, out=sys.stdout, odir=None):
             rname = name+'.m'
             if odir:
               rname = os.path.join(odir, rname)
-            m = open(rname,'w')
+            m = codecs.open(rname,'w', encoding='ISO-8859-1', errors='ignore')
             # Report the new routine name for human reference.
             out.write('%s\n' % name)
     if m:

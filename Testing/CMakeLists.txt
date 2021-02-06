@@ -20,70 +20,24 @@ if(NOT GREP_EXECUTABLE)
   mark_as_advanced(CLEAR GREP_EXECUTABLE)
 endif()
 
-if("${CMAKE_VERSION}" VERSION_LESS 2.8.2)
-  find_program(GIT_EXECUTABLE NAMES git)
-  if(NOT GIT_EXECUTABLE)
-    mark_as_advanced(CLEAR GIT_EXECUTABLE)
-  endif()
-else()
-  find_package(Git)
-endif()
-
-find_package(PythonInterp)
-if(NOT PYTHONINTERP_FOUND)
-   mark_as_advanced(CLEAR PYTHON_EXECUTABLE)
-endif()
-
-set(BUILD_TESTING "ON" CACHE INTERNAL "Always build testing")
-
 #options that will show up on the CMake Gui that allows customization of the project
 option(TEST_VISTA_XINDEX_WARNINGS_AS_FAILURES "Use warnings as a failure condition for XINDEX tests?" OFF)
 option(TEST_VISTA_FRESH "Overwrite the database file during build phase of testing? To remove this option, delete the CMake Cache" OFF)
 
 
-set(VISTA_TCP_HOST "127.0.0.1" CACHE STRING "Server address of the machine that will have the VistA TCP listener")
-set(VISTA_TCP_PORT "9210" CACHE STRING "Port number of the opened TCP listener." )
-set(TEST_VISTA_OUTPUT_DIR "${VISTA_BINARY_DIR}/Testing/Temporary/" CACHE PATH "Path to results directory Defaults to /Testing/Temporary/ within the Binary Dir.")
-
-#-----------------------------------------------------------------------------
-# Find InterSystems Cache
-#-----------------------------------------------------------------------------
-if(WIN32)
-  # The InterSystems Cache installation directory appears only under instance
-  # names which we do not know yet.  Try all of them.
-  foreach(query "HKLM\\SOFTWARE\\InterSystems\\Cache\\Configurations"
-      "HKLM\\SOFTWARE\\Wow6432Node\\InterSystems\\Cache\\Configurations")
-    execute_process(COMMAND reg query "${query}" OUTPUT_VARIABLE out ERROR_VARIABLE err)
-    string(REGEX REPLACE "\r?\n" ";" configs "${out}")
-    foreach(config ${configs})
-      list(APPEND _Cache_PATHS "[${config}\\Directory]/bin")
-    endforeach()
-  endforeach()
-  # Hard-coded guesses.
-  list(APPEND _Cache_PATHS
-    "C:/InterSystems/Cache/bin"
-    "C:/InterSystems/TryCache/bin"
-    )
-else()
-# append hard-coded guesses for linux
-  list(APPEND _Cache_PATHS
-    "/usr/bin"
-    "/usr/local/bin"
-  )
-endif()
-foreach(tool ccontrol CTerm)
-  string(TOUPPER ${tool} toolupper)
-  find_program(${toolupper}_EXECUTABLE NAMES ${tool} DOC "Path to Cache ${tool}" PATHS ${_Cache_PATHS})
-  mark_as_advanced(${toolupper}_EXECUTABLE)
-endforeach()
-
-#-----------------------------------------------------------------------------
-# Find FIS-GT.M
-#-----------------------------------------------------------------------------
-if(UNIX)
-  set(GTM_DIST "$ENV{gtm_dist}" CACHE PATH "GT.M Distribution Directory")
-  if( NOT GTM_DIST AND "$ENV{gtm_dist}")
-    set_property(CACHE GTM_DIST PROPERTY VALUE "$ENV{gtm_dist}")
+#Execute the python script which checks for PExpect
+execute_process(COMMAND "${PYTHON_EXECUTABLE}"  "${CMAKE_CURRENT_SOURCE_DIR}/pexpectTest.py" RESULT_VARIABLE return OUTPUT_VARIABLE ERROR)
+if ("${ERROR}" MATCHES "No Pexpect")
+  set(reqFile "requirements.txt")
+  if(WIN32)
+    set(reqFile "requirements-windows.txt")
+  endif()
+  if (NOT ${VIRTUAL_ENV})
+    set(PIP_USER_OPTION "--user")
+  endif()
+  execute_process(COMMAND "${PYTHON_EXECUTABLE}" "-m" "pip" "install" "-r" "${VISTA_SOURCE_DIR}/${reqFile}" ${PIP_USER_OPTION} RESULT_VARIABLE return OUTPUT_VARIABLE ERROR)
+  if(NOT return EQUAL 0)
+    message(FATAL_ERROR "PExpect not found or pip is not installed to attempt PExpect installation. Error: ${ERROR}")
   endif()
 endif()
 
@@ -95,18 +49,14 @@ SET(UNITTEST_LOG_DIR "${SCRIPT_OUTPUT_DIR}/Log")
 file(MAKE_DIRECTORY "${UNITTEST_LOG_DIR}")
 include(CommonFunctions)
 
-if(GTM_DIST)
-  include(UseGTM)
-elseif(CCONTROL_EXECUTABLE)
-  include(UseCache)
-endif()
+set(TEST_VISTA_OUTPUT_DIR "${CMAKE_BINARY_DIR}/Testing/Temporary/" CACHE PATH
+      "Path to results directory Defaults to /Testing/Temporary/ within the Binary Dir.")
 
 #---------------------------------------------------------------------------------#
 ##### SECTION TO GENERATE FILES FOR COVERAGE (Using CMake V 2.8.9 and Higher) #####
 #---------------------------------------------------------------------------------#
 
 if(${CMAKE_VERSION} VERSION_GREATER 2.8.8)
-
   if(EXISTS "${TEST_VISTA_OUTPUT_DIR}/Coverage/routines.ro")
     file(REMOVE "${TEST_VISTA_OUTPUT_DIR}/Coverage/routines.ro")
   endif()
@@ -157,7 +107,7 @@ if(${CMAKE_VERSION} VERSION_GREATER 2.8.8)
       file(WRITE ${VISTA_BINARY_DIR}/gtm_coverage.mcov "packages:${TEST_VISTA_OUTPUT_DIR}/Coverage/CoverageSource\r\ncoverage_dir:${TEST_VISTA_OUTPUT_DIR}/Coverage")
     endif()
 
-    add_test(COV_PrepareSource ${PYTHON_EXECUTABLE} "${CMAKE_SOURCE_DIR}/Scripts/VistACoveragePrep.py" ${ARGUMENTS})
+    add_test(COV_PrepareSource ${PYTHON_EXECUTABLE} "${VISTA_SOURCE_DIR}/Scripts/VistACoveragePrep.py" ${ARGUMENTS})
   endif()
 endif()
 
@@ -167,6 +117,7 @@ endif()
 
 option(TEST_VISTA_XINDEX "Run XINDEX on every routine in every package" ON)
 if(TEST_VISTA_XINDEX)
+  option(TEST_VISTA_XINDEX_IGNORE_EXCEPTIONS "Ignore the XINDEXExceptions when parsing XINDEX result?" OFF )
   FindPackages(${VISTA_SOURCE_DIR})
   list(APPEND PACKAGES "Uncategorized")
   foreach(package_file_name ${PACKAGES})
@@ -250,7 +201,6 @@ option(TEST_VISTA_SETUP "Prepopulate the database with sample data including use
 if(TEST_VISTA_SETUP)
   set(logfile "${VISTA_BINARY_DIR}/Testing/Log/PostImport.log")
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Setup/PostImportSetupScript.py.in" "${CMAKE_CURRENT_BINARY_DIR}/Setup/PostImportSetupScript.py")
-  configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Setup/importPats.py.in" "${CMAKE_CURRENT_BINARY_DIR}/Setup/importPats.py")
   configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Setup/ClinicSetup.py.in" "${CMAKE_CURRENT_BINARY_DIR}/Setup/ClinicSetup.py")
 endif()
 if((TEST_VISTA_FUNCTIONAL_SIK OR TEST_VISTA_FUNCTIONAL_RAS) AND TEST_VISTA_SETUP)
@@ -259,11 +209,6 @@ if((TEST_VISTA_FUNCTIONAL_SIK OR TEST_VISTA_FUNCTIONAL_RAS) AND TEST_VISTA_SETUP
   option(TEST_VISTA_COVERAGE_READABLE "On Cache, output the coverage report in a summary table" ON)
   file(MAKE_DIRECTORY "${TEST_VISTA_OUTPUT_DIR}/Coverage")
 endif()
-# this option is reserved for dashboard submission
-if (TEST_VISTA_OTJ_SUBMISSION)
-  add_subdirectory(OTJ)
-endif()
-
 
 
 #-----------------------------------------------------------------------------#
@@ -279,14 +224,7 @@ set(VendorArgs "")
 SetVendorArgs(VendorArgs)
 foreach(PyUnitTest ${PyUnitTests})
   get_filename_component(PyUnitTestName "${PyUnitTest}" NAME_WE)
-  if(${PyUnitTestName} STREQUAL "TestSSEP")
-    set(ARGUMENTS
-      "-ha" "${VISTA_TCP_HOST}"
-      "-hp" "${VISTA_TCP_PORT}"
-      "-l"  "${CMAKE_CURRENT_BINARY_DIR}/Temporary/TestSSEP.log"
-      "${VendorArgs}"
-      )
-  elseif("${PyUnitTestName}" MATCHES "TestClient$")
+  if("${PyUnitTestName}" MATCHES "TestClient$")
     set(ARGUMENTS "${VendorArgs}")
   endif()
   add_test(PyUnitTest_${PyUnitTestName} ${PYTHON_EXECUTABLE} ${PyUnitTest} ${ARGUMENTS})
@@ -300,6 +238,8 @@ endforeach()
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Python/MenuTraversalTest.py.in" "${CMAKE_CURRENT_BINARY_DIR}/Python/MenuTraversalTest.py")
 add_test(PYTHON_MenuTraversal ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/Python/MenuTraversalTest.py")
 configure_file("${CMAKE_CURRENT_SOURCE_DIR}/Python/MenuTraversalSmokeTest.py.in" "${CMAKE_CURRENT_BINARY_DIR}/Python/MenuTraversalSmokeTest.py")
+# Test is commented out due to expected failures. Not all menu options are reachable due to security key restrictions
+#add_test(PYTHON_MenuTraversalSmokeTest ${PYTHON_EXECUTABLE} "${CMAKE_CURRENT_BINARY_DIR}/Python/MenuTraversalSmokeTest.py")
 
 #-----------------------------------------------------------------------------#
 ##### SECTION TO ADD USER GENERATED TESTS #####

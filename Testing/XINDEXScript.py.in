@@ -24,7 +24,7 @@ if ('@VISTA_CACHE_USERNAME@' and '@VISTA_CACHE_PASSWORD@'):
 if VistA.type=='cache':
   try:
     VistA.ZN('@VISTA_CACHE_NAMESPACE@')
-  except IndexError,no_namechange:
+  except IndexError as no_namechange:
     pass
 
 if '@TEST_VISTA_COVERAGE@'=='ON':
@@ -47,19 +47,27 @@ for prefix in pkgPrefixLst:
   VistA.write(prefix + '*')
 VistA.wait('Routine:')
 VistA.write('')
-selectionList = ['Select BUILD NAME:',
+selectionList = [VistA.prompt,
+                 'Select BUILD NAME:',
                  'Select INSTALL NAME:',
-                 'Select PACKAGE NAME:']
+                 'Select PACKAGE NAME:',
+                 "NAMESPACE:",
+                 "FILE:",
+                 "Print more than compiled errors and warnings?",
+                 ]
 while True:
   index = VistA.multiwait(selectionList)
-  VistA.write('')
+  if index == 0:
+    if '@TEST_VISTA_COVERAGE@'=='ON':
+      VistA.stopCoverage(os.path.normpath("@LOGFILENAME@"))
+    sys.exit(0)
   if index == len(selectionList) - 1:
+    VistA.write('No')
     break
-index = VistA.multiwait(['warnings?',VistA.prompt])
+  VistA.write('')
+index = VistA.multiwait(['routines?',VistA.prompt])
 if index==1:
   sys.exit(0)
-VistA.write('No')
-VistA.wait('routines?')
 VistA.write('NO')
 VistA.wait('DEVICE:')
 VistA.write(';;9999')

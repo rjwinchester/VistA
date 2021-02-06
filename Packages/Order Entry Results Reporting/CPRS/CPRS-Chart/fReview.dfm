@@ -4,22 +4,21 @@ inherited frmReview: TfrmReview
   BorderIcons = [biMaximize]
   Caption = 'Review / Sign Changes'
   ClientHeight = 529
-  ClientWidth = 687
-  Constraints.MinHeight = 450
+  ClientWidth = 713
+  Constraints.MinHeight = 565
   Constraints.MinWidth = 695
   OldCreateOrder = True
   Position = poScreenCenter
   OnClose = FormClose
   OnCreate = FormCreate
   OnDestroy = FormDestroy
+  OnHelp = nil
   OnKeyUp = FormKeyUp
   OnMouseDown = FormMouseDown
   OnMouseMove = FormMouseMove
-  OnPaint = FormPaint
-  OnResize = FormResize
   OnShow = FormShow
-  ExplicitWidth = 695
-  ExplicitHeight = 563
+  ExplicitWidth = 729
+  ExplicitHeight = 568
   PixelsPerInch = 96
   TextHeight = 13
   object laDiagnosis: TLabel [0]
@@ -30,142 +29,16 @@ inherited frmReview: TfrmReview
     Caption = 'Diagnosis'
     Visible = False
   end
-  object gbxDxLookup: TGroupBox [1]
-    Left = 557
-    Top = 24
-    Width = 101
-    Height = 43
-    Caption = 'Lookup Diagnosis'
-    TabOrder = 0
-    TabStop = True
-    Visible = False
-    object buDiagnosis: TButton
-      Left = 10
-      Top = 15
-      Width = 83
-      Height = 21
-      Caption = '&Diagnosis'
-      Enabled = False
-      TabOrder = 0
-      OnClick = buDiagnosisClick
-    end
-  end
-  object pnlCombined: TORAutoPanel [2]
-    Left = 0
-    Top = 149
-    Width = 687
-    Height = 251
-    Align = alClient
-    BevelOuter = bvNone
-    TabOrder = 3
-    ExplicitWidth = 707
-    ExplicitHeight = 238
-    object pnlReview: TPanel
-      Left = 0
-      Top = -2
-      Width = 680
-      Height = 128
-      BevelOuter = bvNone
-      TabOrder = 0
-      DesignSize = (
-        680
-        128)
-      object lstReview: TCaptionCheckListBox
-        Left = 4
-        Top = 31
-        Width = 677
-        Height = 97
-        OnClickCheck = lstReviewClickCheck
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        ItemHeight = 15
-        ParentShowHint = False
-        PopupMenu = poBACopyPaste
-        ShowHint = True
-        Style = lbOwnerDrawVariable
-        TabOrder = 0
-        OnClick = lstReviewClick
-        OnDrawItem = lstReviewDrawItem
-        OnKeyUp = lstReviewKeyUp
-        OnMeasureItem = lstReviewMeasureItem
-        OnMouseDown = lstReviewMouseDown
-        OnMouseMove = lstReviewMouseMove
-        Caption = 'Signature will be Applied to Checked Items'
-        ExplicitHeight = 99
-      end
-      object lblSig: TStaticText
-        Left = 8
-        Top = 8
-        Width = 223
-        Height = 17
-        Caption = 'All Orders Except Controlled Substance Orders'
-        TabOrder = 2
-        TabStop = True
-      end
-    end
-    object pnlCSReview: TPanel
-      Left = 1
-      Top = 128
-      Width = 680
-      Height = 108
-      BevelOuter = bvNone
-      TabOrder = 1
-      DesignSize = (
-        680
-        108)
-      object lblCSReview: TLabel
-        Left = 5
-        Top = 7
-        Width = 135
-        Height = 13
-        Caption = 'Controlled Substance Orders'
-      end
-      object lstCSReview: TCaptionCheckListBox
-        Left = 2
-        Top = 26
-        Width = 680
-        Height = 82
-        OnClickCheck = lstCSReviewClickCheck
-        Anchors = [akLeft, akTop, akRight, akBottom]
-        ItemHeight = 13
-        ParentShowHint = False
-        ShowHint = True
-        Style = lbOwnerDrawVariable
-        TabOrder = 0
-        OnClick = lstCSReviewClick
-        OnDrawItem = lstCSReviewDrawItem
-        OnKeyUp = lstCSReviewKeyUp
-        OnMeasureItem = lstCSReviewMeasureItem
-        OnMouseDown = lstCSReviewMouseDown
-        OnMouseMove = lstCSReviewMouseMove
-      end
-      object lblSmartCardNeeded: TStaticText
-        Left = 146
-        Top = 4
-        Width = 135
-        Height = 20
-        Caption = 'SMART card required'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clRed
-        Font.Height = -13
-        Font.Name = 'MS Sans Serif'
-        Font.Style = []
-        ParentFont = False
-        TabOrder = 1
-      end
-    end
-  end
-  object pnlBottom: TPanel [3]
+  object pnlBottom: TPanel [1]
     Left = 0
     Top = 440
-    Width = 687
+    Width = 713
     Height = 89
     Align = alBottom
     BevelOuter = bvNone
-    TabOrder = 2
-    ExplicitTop = 427
-    ExplicitWidth = 707
+    TabOrder = 1
     DesignSize = (
-      687
+      713
       89)
     object pnlSignature: TPanel
       Left = 8
@@ -277,7 +150,7 @@ inherited frmReview: TfrmReview
       end
     end
     object cmdOK: TButton
-      Left = 526
+      Left = 552
       Top = 55
       Width = 72
       Height = 21
@@ -286,10 +159,9 @@ inherited frmReview: TfrmReview
       Default = True
       TabOrder = 2
       OnClick = cmdOKClick
-      ExplicitLeft = 546
     end
     object cmdCancel: TButton
-      Left = 604
+      Left = 630
       Top = 55
       Width = 72
       Height = 21
@@ -298,35 +170,34 @@ inherited frmReview: TfrmReview
       Caption = 'Cancel'
       TabOrder = 3
       OnClick = cmdCancelClick
-      ExplicitLeft = 624
     end
     object lblHoldSign: TStaticText
       Left = 179
       Top = 2
-      Width = 268
+      Width = 288
       Height = 17
       Anchors = [akLeft, akTop, akRight]
       Caption = 'These orders can only be signed by the prescribing provider.'
       TabOrder = 4
       Visible = False
-      ExplicitWidth = 288
     end
   end
-  object pnlDEAText: TPanel [4]
+  object pnlDEAText: TPanel [2]
     Left = 0
     Top = 400
-    Width = 687
+    Width = 713
     Height = 40
     Align = alBottom
     BevelOuter = bvNone
-    TabOrder = 1
-    ExplicitTop = 387
-    ExplicitWidth = 707
+    TabOrder = 0
     object lblDEAText: TStaticText
-      Left = 0
+      AlignWithMargins = True
+      Left = 3
       Top = 0
-      Width = 687
+      Width = 707
       Height = 40
+      Margins.Top = 0
+      Margins.Bottom = 0
       Align = alClient
       Anchors = [akLeft, akTop, akRight]
       Caption = 
@@ -337,25 +208,23 @@ inherited frmReview: TfrmReview
         'leted by the practitioner whose name and DEA registration number' +
         ' appear above. '
       TabOrder = 0
-      ExplicitWidth = 707
     end
   end
-  object pnlTop: TPanel [5]
+  object pnlTop: TPanel [3]
     Left = 0
     Top = 0
-    Width = 687
+    Width = 713
     Height = 149
     Align = alTop
     BevelOuter = bvNone
-    TabOrder = 4
-    ExplicitWidth = 707
+    TabOrder = 2
     DesignSize = (
-      687
+      713
       149)
     inline fraCoPay: TfraCoPayDesc
-      Left = 163
+      Left = 205
       Top = -1
-      Width = 524
+      Width = 508
       Height = 152
       Anchors = [akTop, akRight]
       ParentShowHint = False
@@ -363,16 +232,16 @@ inherited frmReview: TfrmReview
       TabOrder = 0
       TabStop = True
       Visible = False
-      ExplicitLeft = 183
+      ExplicitLeft = 205
       ExplicitTop = -1
-      ExplicitWidth = 524
+      ExplicitWidth = 508
       ExplicitHeight = 152
       inherited pnlRight: TPanel
-        Left = 258
+        Left = 242
         Width = 266
         Height = 152
         AutoSize = True
-        ExplicitLeft = 258
+        ExplicitLeft = 242
         ExplicitWidth = 266
         ExplicitHeight = 152
         inherited Spacer2: TLabel
@@ -384,149 +253,266 @@ inherited frmReview: TfrmReview
           Caption = 'Patient Orders Related To:'
           ExplicitWidth = 266
         end
-        inherited pnlMain: TPanel
-          Left = 29
-          Top = 11
-          Width = 233
-          Height = 131
-          ExplicitLeft = 29
-          ExplicitTop = 11
-          ExplicitWidth = 233
-          ExplicitHeight = 131
-          inherited spacer1: TLabel
-            Width = 229
-            ExplicitWidth = 229
-          end
-          inherited pnlHNC: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblHNC2: TVA508StaticText
-              Width = 129
-              ExplicitWidth = 129
+        inherited ScrollBox1: TScrollBox
+          Width = 266
+          Height = 133
+          Margins.Left = 2
+          Margins.Top = 2
+          Margins.Right = 2
+          Margins.Bottom = 2
+          ExplicitWidth = 266
+          ExplicitHeight = 133
+          inherited pnlMain: TPanel
+            Width = 245
+            Height = 171
+            ExplicitWidth = 245
+            ExplicitHeight = 171
+            inherited spacer1: TLabel
+              Top = 20
+              Width = 245
+              Height = 4
+              ExplicitLeft = 0
+              ExplicitTop = 20
+              ExplicitWidth = 246
+              ExplicitHeight = 4
             end
-            inherited lblHNC: TVA508StaticText
-              Width = 31
-              ExplicitWidth = 31
+            inherited pnlHNC: TPanel
+              Top = 150
+              Width = 245
+              Height = 18
+              ExplicitTop = 153
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblHNC2: TVA508StaticText
+                Left = 50
+                Width = 129
+                Height = 18
+                ExplicitLeft = 50
+                ExplicitWidth = 129
+                ExplicitHeight = 18
+              end
+              inherited lblHNC: TVA508StaticText
+                Left = 12
+                Width = 31
+                Height = 18
+                ExplicitLeft = 12
+                ExplicitWidth = 31
+                ExplicitHeight = 18
+              end
             end
-          end
-          inherited pnlMST: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblMST2: TVA508StaticText
-              Width = 25
-              ExplicitWidth = 25
+            inherited pnlMST: TPanel
+              Top = 114
+              Width = 245
+              Height = 18
+              ExplicitTop = 116
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblMST2: TVA508StaticText
+                Width = 25
+                Height = 18
+                ExplicitWidth = 25
+                ExplicitHeight = 18
+              end
+              inherited lblMST: TVA508StaticText
+                Width = 31
+                Height = 18
+                ExplicitWidth = 31
+                ExplicitHeight = 18
+              end
             end
-            inherited lblMST: TVA508StaticText
-              Width = 31
-              ExplicitWidth = 31
+            inherited pnlSWAC: TPanel
+              Top = 78
+              Width = 245
+              Height = 18
+              ExplicitTop = 79
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblSWAC2: TVA508StaticText
+                Width = 127
+                Height = 18
+                ExplicitWidth = 127
+                ExplicitHeight = 18
+              end
+              inherited lblSWAC: TVA508StaticText
+                Width = 40
+                Height = 18
+                ExplicitWidth = 40
+                ExplicitHeight = 18
+              end
             end
-          end
-          inherited pnlSWAC: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblSWAC2: TVA508StaticText
-              Width = 127
-              ExplicitWidth = 127
+            inherited pnlIR: TPanel
+              Top = 60
+              Width = 245
+              Height = 18
+              ExplicitTop = 61
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblIR2: TVA508StaticText
+                Width = 133
+                Height = 18
+                ExplicitWidth = 133
+                ExplicitHeight = 18
+              end
+              inherited lblIR: TVA508StaticText
+                Width = 19
+                Height = 18
+                ExplicitWidth = 19
+                ExplicitHeight = 18
+              end
             end
-            inherited lblSWAC: TVA508StaticText
-              Width = 40
-              ExplicitWidth = 40
+            inherited pnlAO: TPanel
+              Top = 42
+              Width = 245
+              Height = 18
+              ExplicitTop = 42
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblAO2: TVA508StaticText
+                Width = 115
+                Height = 18
+                ExplicitWidth = 115
+                ExplicitHeight = 18
+              end
+              inherited lblAO: TVA508StaticText
+                Width = 19
+                Height = 18
+                ExplicitWidth = 19
+                ExplicitHeight = 18
+              end
             end
-          end
-          inherited pnlIR: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblIR2: TVA508StaticText
-              Width = 133
-              ExplicitWidth = 133
+            inherited pnlSC: TPanel
+              Top = 0
+              Width = 245
+              Height = 20
+              ExplicitTop = 0
+              ExplicitWidth = 245
+              ExplicitHeight = 20
+              inherited lblSC2: TVA508StaticText
+                Width = 175
+                Height = 18
+                ExplicitWidth = 175
+                ExplicitHeight = 18
+              end
+              inherited lblSC: TVA508StaticText
+                Width = 27
+                Height = 18
+                ExplicitWidth = 27
+                ExplicitHeight = 18
+              end
             end
-            inherited lblIR: TVA508StaticText
-              Width = 19
-              ExplicitWidth = 19
+            inherited pnlCV: TPanel
+              Top = 24
+              Width = 245
+              Height = 18
+              ExplicitTop = 24
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblCV2: TVA508StaticText
+                Width = 142
+                Height = 18
+                ExplicitWidth = 142
+                ExplicitHeight = 18
+              end
+              inherited lblCV: TVA508StaticText
+                Width = 27
+                Height = 18
+                ExplicitWidth = 27
+                ExplicitHeight = 18
+              end
             end
-          end
-          inherited pnlAO: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblAO2: TVA508StaticText
-              Width = 115
-              ExplicitWidth = 115
+            inherited pnlSHD: TPanel
+              Top = 96
+              Width = 245
+              Height = 18
+              ExplicitTop = 96
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblSHAD: TVA508StaticText
+                Width = 33
+                Height = 18
+                ExplicitWidth = 33
+                ExplicitHeight = 18
+              end
+              inherited lblSHAD2: TVA508StaticText
+                Left = 50
+                Width = 160
+                Height = 18
+                ExplicitLeft = 50
+                ExplicitWidth = 160
+                ExplicitHeight = 18
+              end
             end
-            inherited lblAO: TVA508StaticText
-              Width = 23
-              ExplicitWidth = 23
-            end
-          end
-          inherited pnlSC: TPanel
-            Width = 229
-            ExplicitWidth = 229
-          end
-          inherited pnlCV: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblCV2: TVA508StaticText
-              Width = 142
-              ExplicitWidth = 142
-            end
-          end
-          inherited pnlSHD: TPanel
-            Width = 229
-            ExplicitWidth = 229
-            inherited lblSHAD: TVA508StaticText
-              Width = 33
-              ExplicitWidth = 33
-            end
-            inherited lblSHAD2: TVA508StaticText
-              Width = 159
-              ExplicitWidth = 159
+            inherited pnlCL: TPanel
+              Top = 132
+              Width = 245
+              Height = 18
+              Margins.Left = 2
+              Margins.Top = 2
+              Margins.Right = 2
+              Margins.Bottom = 2
+              ExplicitTop = 132
+              ExplicitWidth = 245
+              ExplicitHeight = 18
+              inherited lblCL: TVA508StaticText
+                Left = 17
+                Width = 17
+                Height = 18
+                Margins.Left = 2
+                Margins.Top = 2
+                Margins.Right = 2
+                Margins.Bottom = 2
+                ExplicitLeft = 17
+                ExplicitWidth = 17
+                ExplicitHeight = 18
+              end
+              inherited lblCL2: TVA508StaticText
+                Width = 72
+                Height = 18
+                Margins.Left = 2
+                Margins.Top = 2
+                Margins.Right = 2
+                Margins.Bottom = 2
+                ExplicitWidth = 72
+                ExplicitHeight = 18
+              end
             end
           end
         end
       end
       inherited pnlSCandRD: TPanel
         Left = -1
-        Width = 282
+        Width = 242
         Height = 152
         Align = alNone
         Anchors = [akLeft, akTop, akRight]
         ExplicitLeft = -1
-        ExplicitWidth = 282
+        ExplicitWidth = 242
         ExplicitHeight = 152
         inherited lblSCDisplay: TLabel
-          Left = 48
-          Top = -2
-          Width = 240
-          Height = 16
-          Align = alNone
-          Anchors = [akTop, akRight]
-          ExplicitLeft = 48
-          ExplicitTop = -2
-          ExplicitWidth = 240
-          ExplicitHeight = 16
+          AlignWithMargins = True
+          Left = 3
+          Width = 236
+          Margins.Top = 0
+          Margins.Bottom = 0
+          ExplicitLeft = 3
+          ExplicitWidth = 235
         end
         inherited memSCDisplay: TCaptionMemo
-          Left = 48
-          Top = 11
-          Width = 234
-          Height = 131
-          Align = alNone
-          Anchors = [akTop, akRight]
-          ExplicitLeft = 48
-          ExplicitTop = 11
-          ExplicitWidth = 234
-          ExplicitHeight = 131
+          Width = 242
+          Height = 135
+          ExplicitWidth = 242
+          ExplicitHeight = 135
         end
       end
     end
     object pnlProvInfo: TPanel
       Left = 0
       Top = -1
-      Width = 205
+      Width = 198
       Height = 152
       Anchors = [akLeft, akTop, akRight]
       BevelOuter = bvNone
       TabOrder = 1
-      ExplicitWidth = 225
       object lblProvInfo: TLabel
         Left = 8
         Top = 3
@@ -536,8 +522,135 @@ inherited frmReview: TfrmReview
       end
     end
   end
+  object gpMain: TGridPanel [4]
+    Left = 0
+    Top = 149
+    Width = 713
+    Height = 251
+    Margins.Left = 2
+    Margins.Top = 2
+    Margins.Right = 2
+    Margins.Bottom = 2
+    Align = alClient
+    ColumnCollection = <
+      item
+        Value = 100.000000000000000000
+      end>
+    ControlCollection = <
+      item
+        Column = 0
+        Control = pnlReview
+        Row = 0
+      end
+      item
+        Column = 0
+        Control = pnlCSReview
+        Row = 1
+      end>
+    RowCollection = <
+      item
+        Value = 50.000000000000000000
+      end
+      item
+        Value = 50.000000000000000000
+      end>
+    TabOrder = 3
+    object pnlReview: TPanel
+      Left = 1
+      Top = 1
+      Width = 711
+      Height = 124
+      Align = alClient
+      BevelOuter = bvNone
+      TabOrder = 0
+      object lstReview: TCaptionCheckListBox
+        Left = 0
+        Top = 23
+        Width = 711
+        Height = 101
+        OnClickCheck = lstReviewClickCheck
+        Align = alClient
+        DoubleBuffered = True
+        ParentDoubleBuffered = False
+        ParentShowHint = False
+        ShowHint = True
+        Style = lbOwnerDrawVariable
+        TabOrder = 0
+        OnDrawItem = lstReviewDrawItem
+        OnKeyUp = lstReviewKeyUp
+        OnMeasureItem = lstReviewMeasureItem
+        OnMouseMove = lstReviewMouseMove
+        Caption = 'Signature will be Applied to Checked Items'
+      end
+      object lblSig: TStaticText
+        AlignWithMargins = True
+        Left = 3
+        Top = 3
+        Width = 705
+        Height = 17
+        Align = alTop
+        Caption = 'All Orders Except Controlled Substance EPCS Orders'
+        TabOrder = 2
+        TabStop = True
+      end
+    end
+    object pnlCSReview: TPanel
+      Left = 1
+      Top = 125
+      Width = 711
+      Height = 125
+      Align = alClient
+      BevelOuter = bvNone
+      TabOrder = 1
+      object lblCSReview: TLabel
+        AlignWithMargins = True
+        Left = 3
+        Top = 3
+        Width = 705
+        Height = 13
+        Align = alTop
+        Caption = 'Controlled Substance EPCS Orders'
+        ExplicitWidth = 166
+      end
+      object lstCSReview: TCaptionCheckListBox
+        Left = 0
+        Top = 19
+        Width = 711
+        Height = 106
+        OnClickCheck = lstReviewClickCheck
+        Align = alClient
+        DoubleBuffered = True
+        ParentDoubleBuffered = False
+        ParentShowHint = False
+        ShowHint = True
+        Style = lbOwnerDrawVariable
+        TabOrder = 0
+        OnDrawItem = lstReviewDrawItem
+        OnKeyUp = lstReviewKeyUp
+        OnMeasureItem = lstReviewMeasureItem
+        OnMouseMove = lstReviewMouseMove
+        Caption = ''
+      end
+      object lblSmartCardNeeded: TStaticText
+        AlignWithMargins = True
+        Left = 189
+        Top = 3
+        Width = 126
+        Height = 17
+        Caption = 'SMART card required'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clRed
+        Font.Height = -9
+        Font.Name = 'MS Sans Serif'
+        Font.Style = [fsBold]
+        ParentFont = False
+        TabOrder = 1
+        Transparent = False
+      end
+    end
+  end
   inherited amgrMain: TVA508AccessibilityManager
-    Left = 648
+    Left = 56
     Top = 80
     Data = (
       (
@@ -631,12 +744,6 @@ inherited frmReview: TfrmReview
         'Component = fraCoPay.memSCDisplay'
         'Status = stsDefault')
       (
-        'Component = gbxDxLookup'
-        'Status = stsDefault')
-      (
-        'Component = buDiagnosis'
-        'Status = stsDefault')
-      (
         'Component = frmReview'
         'Status = stsDefault')
       (
@@ -694,9 +801,6 @@ inherited frmReview: TfrmReview
         'Component = lblHoldSign'
         'Status = stsDefault')
       (
-        'Component = pnlCombined'
-        'Status = stsDefault')
-      (
         'Component = pnlReview'
         'Status = stsDefault')
       (
@@ -716,31 +820,9 @@ inherited frmReview: TfrmReview
         'Status = stsDefault')
       (
         'Component = pnlTop'
+        'Status = stsDefault')
+      (
+        'Component = gpMain'
         'Status = stsDefault'))
-  end
-  object poBACopyPaste: TPopupMenu
-    Left = 576
-    Top = 80
-    object Copy1: TMenuItem
-      Caption = '&Copy'
-      ShortCut = 16451
-      OnClick = Copy1Click
-    end
-    object Paste1: TMenuItem
-      Caption = '&Paste'
-      Enabled = False
-      ShortCut = 16470
-      OnClick = Paste1Click
-    end
-    object Diagnosis1: TMenuItem
-      Caption = '&Diagnosis...'
-      ShortCut = 32836
-      OnClick = buDiagnosisClick
-    end
-    object Exit1: TMenuItem
-      Caption = '&Exit'
-      ShortCut = 16453
-      OnClick = Exit1Click
-    end
   end
 end

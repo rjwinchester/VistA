@@ -6,10 +6,8 @@ inherited frmDCOrders: TfrmDCOrders
   ClientWidth = 425
   Position = poScreenCenter
   OnCreate = FormCreate
-  ExplicitLeft = 316
-  ExplicitTop = 226
-  ExplicitWidth = 433
-  ExplicitHeight = 323
+  ExplicitWidth = 539
+  ExplicitHeight = 394
   PixelsPerInch = 96
   TextHeight = 13
   object Label1: TLabel [0]
@@ -26,14 +24,14 @@ inherited frmDCOrders: TfrmDCOrders
     Left = 0
     Top = 13
     Width = 425
-    Height = 188
+    Height = 150
     Align = alClient
     TabOrder = 0
     object lstOrders: TCaptionListBox
       Left = 1
       Top = 1
       Width = 423
-      Height = 186
+      Height = 148
       Style = lbOwnerDrawVariable
       Align = alClient
       ItemHeight = 13
@@ -45,15 +43,15 @@ inherited frmDCOrders: TfrmDCOrders
   end
   object Panel2: TPanel [2]
     Left = 0
-    Top = 201
+    Top = 163
     Width = 425
-    Height = 88
+    Height = 126
     Align = alBottom
     Constraints.MinHeight = 88
     TabOrder = 1
     DesignSize = (
       425
-      88)
+      126)
     object lblReason: TLabel
       Left = 1
       Top = 1
@@ -64,10 +62,11 @@ inherited frmDCOrders: TfrmDCOrders
       ExplicitWidth = 169
     end
     object lstReason: TORListBox
-      Left = 3
-      Top = 19
+      Left = 1
+      Top = 20
       Width = 218
-      Height = 60
+      Height = 82
+      IntegralHeight = True
       ItemHeight = 13
       ParentShowHint = False
       ShowHint = True
@@ -79,7 +78,7 @@ inherited frmDCOrders: TfrmDCOrders
     end
     object cmdOK: TButton
       Left = 267
-      Top = 54
+      Top = 92
       Width = 72
       Height = 21
       Anchors = [akRight, akBottom]
@@ -90,7 +89,7 @@ inherited frmDCOrders: TfrmDCOrders
     end
     object cmdCancel: TButton
       Left = 347
-      Top = 54
+      Top = 92
       Width = 72
       Height = 21
       Anchors = [akRight, akBottom]

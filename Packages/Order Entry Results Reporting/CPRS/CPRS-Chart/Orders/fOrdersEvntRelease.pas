@@ -159,10 +159,21 @@ begin
 end;
 
 procedure TfrmOrdersEvntRelease.grdEvtListDrawCell(Sender: TObject; ACol,
-  ARow: Integer; Rect: TRect; State: TGridDrawState);
+ARow: Integer; Rect: TRect; State: TGridDrawState);
 begin
- inherited;
- grdEvtList.Canvas.TextRect(Rect, Rect.Left+2, Rect.Top+2,
+  inherited;
+  grdEvtList.Canvas.Font.Color := clWindowText;
+  if gdFixed in State then
+    grdEvtList.Canvas.Brush.Color := clBtnFace
+  else if gdSelected in State then
+    begin
+      grdEvtList.Canvas.Brush.Color := clHighlight;
+      grdEvtList.Canvas.Font.Color := clHighlightText;
+    end
+  else
+    grdEvtList.Canvas.Brush.Color := clWindow;
+
+  grdEvtList.Canvas.TextRect(Rect, Rect.Left + 2, Rect.Top + 2,
     Piece(grdEvtList.Cells[ACol, ARow], TAB, 1));
 end;
 
@@ -287,6 +298,7 @@ begin
   if temptot = 0 then
   begin
     grdEvtList.RowCount := 2;
+    grdEvtList.FixedRows := 1;
     grdEvtList.Cells[0,1] := 'No event order found';
     btnOK.Enabled := False;
   end else

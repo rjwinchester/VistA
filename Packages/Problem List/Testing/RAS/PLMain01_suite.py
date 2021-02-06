@@ -34,6 +34,7 @@ Created on Mar 9, 2012
 @license http://www.apache.org/licenses/LICENSE-2.0
 '''
 
+from builtins import range
 import sys
 sys.path = ['./Functional/RAS/lib'] + ['./dataFiles'] + ['./Python/vista'] + sys.path
 from PLActions import PLActions
@@ -70,13 +71,13 @@ def pl_test001(test_suite_details):
         pl.verify(ssn='333224444', probnum='1', itemnum='1',
                      evalue=['Acute myocardial'], view='IA')
         pl.verify(ssn='333224444', probnum='2', itemnum='1',
-                     evalue=['Congestive Heart Failure'], view='IA')
+                     evalue=['Congestive [Hh]eart [Ff]ailure'], view='IA')
         for i in range(4):
             pl.rem(ssn='333224444')
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -116,7 +117,7 @@ def pl_test002(test_suite_details):
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -137,7 +138,7 @@ def pl_test003(test_suite_details):
         pl.addcsv(ssn='656771234',
                      pfile='./Functional/dataFiles/NISTinpatientdata0.csv')
         pl.editsimple(ssn='656771234', probnum='1', itemnum='1',
-                        chgval='787.1',snomed='16331000')
+                        chgval='787.1',icd10='R12', snomed='16331000')
         pl.editsimple(ssn='656771234', probnum='1', itemnum='2',
                         chgval='3/26/12')
         pl.editsimple(ssn='656771234', probnum='1', itemnum='4',
@@ -158,7 +159,7 @@ def pl_test003(test_suite_details):
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -187,10 +188,10 @@ def pl_test004(test_suite_details):
         pl.sellistad(listname='List001', catname='cat001')
         pl.sellistad(listname='List001', catname='cat002')
         pl.versellist(ssn='656454321', clinic='VISTA',
-                      vlist=['List001', 'cat001', 'Heartburn', 'chest pain',
-                             'Leptospirosis', 'cat002', 'Sleep Disturbance',
-                             'Drug withdrawal', 'drug dependence'])
-        pl.add(ssn='656454321', clinic='VISTA', probnum='1',
+                      vlist=['List001', 'cat001', 'Heartburn', '[Cc]hest pain',
+                             'Leptospirosis', 'cat002', 'Disturbance',
+                             '[Dd]rug withdrawal', '[Dd]rug dependence'])
+        pl.addbyprobnum(ssn='656454321', clinic='VISTA', probnum='1',
                   comment='this is a test', onsetdate='t', status='Active',
                   acutechronic='A', service='N', evalue='Heartburn')
         pl.verify(ssn='656454321', probnum='1', itemnum='1',
@@ -201,12 +202,13 @@ def pl_test004(test_suite_details):
         pl.catdl(listname='List001', catname='cat001')
         pl.catdl(listname='List001', catname='cat002')
         pl.sellistrfu(listname='List001', username='Alexander')
-        pl.sellistdl(listname='List001')
+        pl.sellistdl(listname='List001', clinic='VISTA')
+        # Even deletion caused this part to fail, more information is needed
         pl.checkRMsellist(ssn='656454321', clinic='VISTA')
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -244,10 +246,10 @@ def pl_test005(test_suite_details):
         pl2 = PLActions(VistA2, user='fakedoc1', code='1Doc!@#$')
         pl2.signon()
         pl2.versellist(ssn='354623902', clinic='',
-                      vlist=['List002', 'cat011', 'Heartburn', 'chest pain',
-                             'Leptospirosis', 'cat022', 'Sleep Disturbance',
-                             'Drug withdrawal', 'drug dependence'])
-        pl2.add(ssn='354623902', clinic='', probnum='1',
+                      vlist=['List002', 'cat011', 'Heartburn', '[Cc]hest pain',
+                             'Leptospirosis', 'cat022', 'Disturbance',
+                             '[Dd]rug withdrawal', '[Dd]rug dependence'])
+        pl2.addbyprobnum(ssn='354623902', clinic='', probnum='1',
                    comment='this is a test', onsetdate='t',
                    status='Active', acutechronic='A', service='N',
                    evalue='Heartburn')
@@ -259,12 +261,12 @@ def pl_test005(test_suite_details):
         pl1.catdl(listname='List002', catname='cat011')
         pl1.catdl(listname='List002', catname='cat022')
         pl1.sellistrfu(listname='List002', username='Alexander')
-        pl1.sellistdl(listname='List002')
+        pl1.sellistdl(listname='List002', clinic='')
         pl2.signoff()
         pl1.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -281,24 +283,25 @@ def pl_test006 (test_suite_details):
         VistA1 = test_driver.connect_VistA(test_suite_details)
         pl = PLActions(VistA1, user='fakenurse1', code='1Nur!@#$')
         pl.signon()
-        pl.createibform('LAB', 'FORM1', 'Group1', ['428.0', '410.90', '401.9'])
-        pl.sellistib('FORM1', 'List003', 'LAB')
-        pl.versellist(ssn='345238901', clinic='LAB',
-                   vlist=['List003', 'Group1', 'Congestive ', 'Acute myocardial', 'Essential'])
-        pl.add(ssn='345238901', clinic='LAB', probnum='1',
-                  comment='this is a test', onsetdate='t', status='Active',
-                  acutechronic='A', service='N', evalue='Congestive')
-        pl.verify(ssn='345238901', probnum='1', itemnum='1',
-                     evalue=['Congestive'])
-        pl.rem('345238901')
-        pl.sellistrm(listname='List003')
-        pl.catdl(listname='List003', catname='Group1')
-        pl.sellistrfu(listname='List003', username='Alexander')
-        pl.sellistdl(listname='List003')
+        if(pl.checkOutOfOrder('Copy Selection List from IB Encounter')):
+          pl.createibform('LAB', 'FORM1', 'Group1', ['428.0', '410.90', '401.9'],['42343007','57054005','59621000'])
+          pl.sellistib('FORM1', 'List003', 'LAB')
+          pl.versellist(ssn='345238901', clinic='LAB',
+                     vlist=['List003', 'Group1', 'Congestive ', 'Acute myocardial', 'Essential'])
+          pl.addbyprobnum(ssn='345238901', clinic='LAB', probnum='1',
+                    comment='this is a test', onsetdate='t', status='Active',
+                    acutechronic='A', service='N', evalue='Congestive')
+          pl.verify(ssn='345238901', probnum='1', itemnum='1',
+                       evalue=['Congestive'])
+          pl.rem('345238901')
+          pl.sellistrm(listname='List003')
+          pl.catdl(listname='List003', catname='Group1')
+          pl.sellistrfu(listname='List003', username='Alexander')
+          pl.sellistdl(listname='List003', clinic='LAB')
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -315,19 +318,27 @@ def pl_test007 (test_suite_details):
         VistA1 = test_driver.connect_VistA(test_suite_details)
         pl = PLActions(VistA1, user='fakedoc1', code='1Doc!@#$')
         pl.signon()
+        pl.createsellist(listname="List002", clinic='')
+        pl.sellistgal(listname="List002", username='Alexander')
+        pl.createcat(listname='List002', catname='cat022')
+        pl.catad(listname='List002', catname='cat022', icd='786.50', snomed= '29857009')
         pl.addcsv(ssn='655447777', pfile='./Functional/dataFiles/NISTinpatientdata0.csv')
         pl.addcsv(ssn='543236666', pfile='./Functional/dataFiles/NISTinpatientdata0.csv')
         pl.addcsv(ssn='345678233', pfile='./Functional/dataFiles/NISTinpatientdata0.csv')
         pl.verlistpats(vlist=['EIGHT,PATIENT', 'ONE,PATIENT', 'TWELVE,PATIENT'])
-        pl.verpatsrch(prob='428.0', vlist=['EIGHT,PATIENT', 'ONE,PATIENT', 'TWELVE,PATIENT'])
+        pl.verpatsrch(prob='428.0', icd10='I50.9',snomed='42343007', vlist=['EIGHT,PATIENT', 'ONE,PATIENT', 'TWELVE,PATIENT'])
         for i in range(4):
             pl.rem('655447777')
             pl.rem('543236666')
             pl.rem('345678233')
+        pl.sellistrm(listname='List002')
+        pl.catdl(listname='List002', catname='cat022')
+        pl.sellistrfu(listname='List002', username='Alexander')
+        pl.sellistdl(listname='List002', clinic='')
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -356,13 +367,13 @@ def pl_test008 (test_suite_details):
         VistA2 = test_driver.connect_VistA(test_suite_details)
         pl2 = PLActions(VistA2, user='fakedoc1', code='1Doc!@#$')
         pl2.signon()
-        pl2.editsimple(ssn='666551234', probnum='1', itemnum='1', chgval='786.50')
-        pl2.verplist(ssn='666551234', vlist=['Unspecified chest pain'])
+        pl2.editsimple(ssn='666551234', probnum='1', itemnum='1', chgval='786.50', icd10='R07.9', snomed='29857009')
+        pl2.verplist(ssn='666551234', vlist=['[Cc]hest pain'])
         pl2.rem('666551234')
         pl2.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -407,7 +418,7 @@ def pl_test009 (test_suite_details):
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -432,7 +443,7 @@ def pl_test010(test_suite_details):
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -450,7 +461,7 @@ def pl_test011(test_suite_details):
         pl = PLActions(VistA1, user='fakedoc1', code='1Doc!@#$')
         pl.signon()
         pl.addcsv(ssn='656451234', pfile='./Functional/dataFiles/probdata0.csv')
-        pl.verplist(ssn='656451234', vlist=['drug abuse', 'Arterial embolism'])
+        pl.verplist(ssn='656451234', vlist=['[Dd]rug abuse', 'Arterial embolism'])
         pl.comcm(ssn='656451234', probnum='1', comment='this is XZY a test')
         pl.rem(ssn='656451234')
         pl.rem(ssn='656451234')
@@ -458,13 +469,13 @@ def pl_test011(test_suite_details):
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
     finally:
         test_driver.finally_handling(test_suite_details)
-        
+
 def pl_test012(test_suite_details):
     '''This test performs Problem List Menu Testing (pseudo smoke test)'''
     testname = sys._getframe().f_code.co_name
@@ -477,7 +488,7 @@ def pl_test012(test_suite_details):
         pl = PLActions(VistA1, user='fakedoc1', code='1Doc!@#$')
         pl.signon()
         pl.addcsv(ssn='656451234', pfile='./Functional/dataFiles/probdata0.csv')
-        pl.detview(ssn='656451234', probnum='2', vlist1=['ACTIVE', 'ALEXANDER', '444.21'], vlist2=['hurts'])
+        pl.detview(ssn='656451234', probnum='2', vlist1=['ACTIVE', 'ALEXANDER', '444.21', 'I74.2','54687002'], vlist2=['hurts'])
         pl.rem(ssn='656451234')
         pl.rem(ssn='656451234')
         pl.checkempty(ssn='656451234')
@@ -498,7 +509,7 @@ def pl_test012(test_suite_details):
         p3.verifyproblem(ssn='656451234', problem='305.91')
         p3.add(ssn='656451234', clinic='Clinic1', comment='this is a test',
                onsetdate='t', status='Active', acutechronic='A', service='N',
-               icd='786.2', verchknum='2')
+               icd='786.2', icd10='R05',snomed='49727002', verchknum='2')
         p3.signoff()
 
         test_driver.testname = testname + '_04'
@@ -517,7 +528,7 @@ def pl_test012(test_suite_details):
         p5.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -554,12 +565,12 @@ def pl_test013(test_suite_details):
         pl.catdl(listname='List001', catname='cat001')
         pl.catdl(listname='List001', catname='cat002')
         pl.sellistrfu(listname='List001', username='Alexander')
-        pl.sellistdl(listname='List001')
-        pl.sellistdl(listname='List002')
+        pl.sellistdl(listname='List001', clinic='VISTA')
+        pl.sellistdl(listname='List002', clinic='VISTA')
         pl.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -601,7 +612,7 @@ def pl_test014(test_suite_details):
         cp.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -633,14 +644,14 @@ def pl_test015(test_suite_details):
         VistA2 = test_driver.connect_VistA(test_suite_details)
         pl2 = PLActions(VistA2, user='fakedoc1', code='1Doc!@#$')
         pl2.signon()
-        pl2.badeditpart1(ssn='656451234', probnum='1', itemnum='1', chgval='786.50')
+        pl2.badeditpart1(ssn='656451234', probnum='1', itemnum='1', chgval='786.50',icd10='R07.9')
         pl2.signoff()
-        pl1.editpart2(ssn='656451234', probnum='1', itemnum='1', chgval='786.50')
+        pl1.editpart2(ssn='656451234', probnum='1', itemnum='1', chgval='786.50', icd10='R07.9', snomed = '29857009')
         pl1.rem_all(ssn='656451234')
         pl1.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -681,7 +692,7 @@ def pl_test016(resultlog, result_dir, namespace):
                    onsetdate='t', status='Active', acutechronic='A', service='N',
                    icd='787.1', prompt='yes', uselex='yes', screendups='yes', isdup='yes', prob='Heartburn')
         pl.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         resultlog.write(e.value)
         logging.error(testname + ' EXCEPTION ERROR: Unexpected test result')
     else:
@@ -718,7 +729,7 @@ def pl_test017(resultlog, result_dir, namespace):
         pl.sellistad(listname='List001', catname='cat002', hdrname='SKINNYcat', seqnum='1')
         pl.sellistad(listname='List001', catname='cat003', hdrname='blackCAT', seqnum='5')
         pl.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         resultlog.write(e.value)
         logging.error(testname + ' EXCEPTION ERROR: Unexpected test result')
     else:
@@ -738,7 +749,7 @@ def startmon(test_suite_details):
         VistA1.startCoverage(test_suite_details.coverage_subset)
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -766,7 +777,7 @@ def stopmon (test_suite_details):
         VistA1.stopCoverage(path, test_suite_details.coverage_type)
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)

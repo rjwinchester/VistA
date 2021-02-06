@@ -127,7 +127,8 @@ function VitalsMemo(const patient: string; date1, date2: TFMDateTime; tests: TSt
 
 implementation
 
-uses fCover, uCore, rCore, fVit, fFrame, fEncnt, fVisit, fRptBox, rReports, uInit;
+uses uCore, rCore, fVit, fFrame, fEncnt, fVisit, fRptBox, rReports, uInit,
+     System.UITypes, rMisc;
 
 const
   ZOOM_PERCENT = 99;        // padding for inflating margins
@@ -169,8 +170,9 @@ end;
 procedure SelectVitals(VitalType: String);
 var
   VLPtVitals : TGMV_VitalsViewForm;
-  GMV_FName: String;
-  
+  //GMV_FName: String;
+  GMV_FName: AnsiString; // Modified for GetProcAddrecc compliance (drp/5-22-2013@0941)
+  tmpRtnRec: TDllRtnRec;
 begin
  { Availble Forms:
   GMV_FName :='GMV_VitalsEnterDLG';
@@ -179,24 +181,29 @@ begin
   GMV_FName :='GMV_VitalsViewDLG';
   }
   GMV_FName :='GMV_VitalsViewDLG';
-  LoadVitalsDLL;
- // UpdateTimeOutInterval(5000);
-  if VitalsDLLHandle <> 0 then
-    begin
-     @VLPtVitals := GetProcAddress(VitalsDLLHandle,PChar(GMV_FName));
-     if assigned(VLPtVitals) then
-       VLPtVitals(RPCBrokerV,Patient.DFN,FloatToStr(Encounter.Location),
-                  getVitalsStartDate(),FormatDateTime('mm/dd/yy',Now),
-                  GMV_APP_SIGNATURE,
-                  GMV_CONTEXT,GMV_CONTEXT,
-                  Patient.Name,
-                  frmFrame.lblPtSSN.Caption + '    ' + frmFrame.lblPtAge.Caption,
-                  Encounter.LocationName +U+ VitalType)
-     else
-       MessageDLG('Can''t find function "'+GMV_FName+'".',mtError,[mbok],0);
-    end
-  else
-    MessageDLG('Can''t find library '+VitalsDLLName+'.',mtError,[mbok],0);
+  tmpRtnRec := LoadVitalsDLL;
+  case tmpRtnRec.Return_Type of
+    // UpdateTimeOutInterval(5000);
+    DLL_Success: begin
+       @VLPtVitals := GetProcAddress(VitalsDLLHandle,PAnsiChar(GMV_FName));
+       if assigned(VLPtVitals) then
+         VLPtVitals(RPCBrokerV,
+                    Patient.DFN,
+                    IntToStr(Encounter.Location),
+                    getVitalsStartDate(),
+                    FormatDateTime('mm/dd/yy',Now),
+                    GMV_APP_SIGNATURE,
+                    GMV_CONTEXT,
+                    GMV_CONTEXT,
+                    Patient.Name,
+                    frmFrame.lblPtSSN.Caption + '    ' + frmFrame.lblPtAge.Caption,
+                    Encounter.LocationName + U + VitalType)
+       else
+         MessageDLG('Can''t find function "'+string(GMV_FName)+'".',mtError,[mbok],0);
+     end;
+       DLL_Missing: TaskMessageDlg('File Missing or Invalid', tmpRtnRec.Return_Message,mtError,[mbok],0);
+       DLL_VersionErr: TaskMessageDlg('Incorrect Version Found', tmpRtnRec.Return_Message,mtError,[mbok],0);
+  end;
   @VLPtVitals := nil;
   UnloadVitalsDLL;
 end;

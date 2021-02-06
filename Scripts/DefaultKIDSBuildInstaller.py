@@ -1,5 +1,5 @@
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -13,7 +13,10 @@
 # See the License for the specific language governing permissions and
 # limitations under the License.
 #---------------------------------------------------------------------------
-
+from __future__ import division
+from __future__ import print_function
+from builtins import object
+from past.utils import old_div
 import sys
 import os
 import re
@@ -37,7 +40,7 @@ DEFAULT_CACHE_DIR = os.path.normpath(os.path.join(SCRIPT_DIR, "../"))
 from VistAMenuUtil import VistAMenuUtil
 
 DEFAULT_INSTALL_DUZ = 17 # VistA user, "USER,SEVENTEEN"
-CHECK_INSTALLATION_PROGRESS_TIMEOUT = 1200 # 1200 seconds or 20 minutes
+CHECK_INSTALLATION_PROGRESS_TIMEOUT = 7200 # 7200 seconds or 120 minutes
 GLOBAL_IMPORT_BYTE_PER_SEC = 0.5*1024*1024 # import speed is 0.5 MiB per sec
 
 """ Default Installer for KIDS Build """
@@ -57,7 +60,7 @@ class DefaultKIDSBuildInstaller(object):
   """
   KIDS_MENU_OPTION_ACTION_LIST = [
       ("Want to continue installing this build\?","YES", False),
-      ("Enter the Coordinator for Mail Group", "", False),
+      ("Enter the Coordinator for Mail Group", "POSTMASTER", False),
       ("Want KIDS to Rebuild Menu Trees Upon Completion of Install\?",
        "", False),
       ("Want KIDS to INHIBIT LOGONs during the install?",
@@ -66,7 +69,7 @@ class DefaultKIDSBuildInstaller(object):
        "NO", False),
       ("Delay Install \(Minutes\):  \(0\-60\):", "0", False),
       ("do you want to include disabled components\?", "NO", False),
-      ("DEVICE:", None, True)
+      ("DEVICE:", '0;P-OTHER;80;999999999', True)
   ]
 
   """ A list of tuple, defined the action list corresponding to KIDS Build
@@ -170,22 +173,25 @@ class DefaultKIDSBuildInstaller(object):
 
   """ Answer all the KIDS install questions
   """
-  def __handleKIDSInstallQuestions__(self, connection):
+  def __handleKIDSInstallQuestions__(self, connection, connection2=None):
     connection.send("Install\r")
     connection.expect("Select INSTALL NAME:")
     connection.send(self._kidsInstallName+"\r")
-    """ handle any questions before general KIDS installation questions"""
+    """ handle any questions lastconnection general KIDS installation questions"""
     result = self.handleKIDSInstallQuestions(connection)
     if not result:
       return False
     kidsMenuActionLst = self.KIDS_MENU_OPTION_ACTION_LIST
     while True:
-      index = connection.expect([x[0] for x in kidsMenuActionLst])
-      sendCmd = kidsMenuActionLst[index][1]
-      if sendCmd != None:
-        connection.send("%s\r" % sendCmd)
-      if kidsMenuActionLst[index][2]:
-        break
+      index = connection.expect([x[0] for x in kidsMenuActionLst], 60)
+      if index >= 0:
+        sendCmd = kidsMenuActionLst[index][1]
+        if sendCmd != None:
+          connection.send("%s\r" % sendCmd)
+        if kidsMenuActionLst[index][2]:
+          break
+      else:
+        connection.send("")
     return True
   """ restart the previous installation
   """
@@ -247,9 +253,11 @@ class DefaultKIDSBuildInstaller(object):
     return True
 
   """ Do a fresh load and installation """
-  def normalInstallation(self, vistATestClient, reinst=True):
+  def normalInstallation(self, vistATestClient, vistATestClient2=None, reinst=True):
     logger.info("Start installing %s" % self._kidsInstallName)
     connection = vistATestClient.getConnection()
+    if vistATestClient2:
+      connection2 = vistATestClient2.getConnection()
     self.__gotoKIDSMainMenu__(vistATestClient)
     self.__loadKIDSBuild__(connection)
     result = self.__handleKIDSLoadOptions__(connection, reinst)
@@ -262,13 +270,16 @@ class DefaultKIDSBuildInstaller(object):
         self.__printTransportGlobal__(vistATestClient,[self._kidsInstallName],self._tgOutputDir)
       else:
         self.__printTransportGlobal__(vistATestClient,self._multiBuildList,self._tgOutputDir)
-    result = self.__handleKIDSInstallQuestions__(connection)
+    if vistATestClient2:
+      result = self.__handleKIDSInstallQuestions__(connection, connection2)
+    else:
+      result = self.__handleKIDSInstallQuestions__(connection)
     if not result:
       result = self.unloadDistribution(vistATestClient, False)
       if not result:
         logger.error("Unload %s failed" % self._kidsInstallName)
         return False
-      return self.normalInstallation(vistATestClient, reinst)
+      return self.normalInstallation(vistATestClient, vistATestClient2, reinst)
     self.__installationCommon__(vistATestClient)
     return True
 
@@ -307,7 +318,7 @@ class DefaultKIDSBuildInstaller(object):
     exitMenuActionList.append((vistATestClient.getPrompt(), "\r", True))
     expectList = [x[0] for x in exitMenuActionList]
     while True:
-      idx = connection.expect(expectList)
+      idx = connection.expect(expectList,120)
       connection.send("%s\r" % exitMenuActionList[idx][1])
       if exitMenuActionList[idx][2]:
         break
@@ -318,14 +329,16 @@ class DefaultKIDSBuildInstaller(object):
     KIDS_BUILD_STATUS_ACTION_LIST = [
       ("Running Pre-Install Routine:",self.runPreInstallationRoutine,False),
       ("Running Post-Install Routine:",self.runPostInstallationRoutine,False),
+      ("Begin Post-Install:",None,False),
       ("Starting Menu Rebuild:", None , False),
       ("Installing Routines:",  None , False),
       ("Installing Data:",  None , False),
       ("Menu Rebuild Complete:", None , False),
       ("Installing PACKAGE COMPONENTS:", None ,False),
       ("Send mail to: ", self.handleSendMailToOptions, False),
-      ("Select Installation ", self.handleInstallError, True),
-      ("Install Completed", self.installCompleted, True)
+      ("Installed", self.installCompleted, True),
+      ("Install Completed", self.installCompleted, True),
+      ("Select Installation ", self.installCompleted, True)
     ]
     """ Bulid the status update action list """
     statusActionList = []
@@ -360,7 +373,7 @@ class DefaultKIDSBuildInstaller(object):
     @reinst: wether re-install the KIDS build, default is False
     @return, True if no error, otherwise False
   """
-  def runInstallation(self, vistATestClient, reinst=False):
+  def runInstallation(self, vistATestClient, vistATestClient2=None, reinst=False):
     connection = vistATestClient.getConnection()
     self.__setupLogFile__(connection)
     infoFetcher = VistAPackageInfoFetcher(vistATestClient)
@@ -375,7 +388,7 @@ class DefaultKIDSBuildInstaller(object):
     self.preInstallationWork(vistATestClient)
     if infoFetcher.isInstallStarted(installStatus):
       return self.restartInstallation(vistATestClient)
-    return self.normalInstallation(vistATestClient, reinst)
+    return self.normalInstallation(vistATestClient,vistATestClient2, reinst)
 
   def __printTGlobalChecksums__(self,testClient,installname,outputDir):
     connection = testClient.getConnection()
@@ -499,7 +512,16 @@ class DefaultKIDSBuildInstaller(object):
     pass
   """ intended to be implemented by subclass """
   def extraFixWork(self, vistATestClient):
-    pass
+    # use KIDS entry point to manually create package link for install
+    if self._updatePackageLink:
+      logger.warn("Attempting to manually creating the package link for: %s" %
+            (self._kidsInstallName))
+      connection = vistATestClient.getConnection()
+      # Luckily, the command just takes the patch information in order, ie "SD", "5.3", "701"
+      if "*" in self._kidsInstallName:
+        connection.write("W $$PKGPAT^XPDIP($$FIND1^DIC(9.4,,\"QXM\",\"%s\"),%s,\"%s^\"_$$NOW^XLFDT_\"^1\")" % tuple(self._kidsInstallName.split("*")))
+        connection.expect(vistATestClient._prompt, 30)
+
   """ default action for Send Mail To option
     please override or enhance it if more action is needed
   """
@@ -514,13 +536,12 @@ class DefaultKIDSBuildInstaller(object):
     please override or enhance it if more action is needed
   """
   def installCompleted(self, connection, **kargs):
-    extraInfo = connection.before
+    extraInfo = connection.lastconnection
     logger.debug(extraInfo)
+    logger.info("Installation succeeded for %s" % self._kidsInstallName)
     if re.search("No link to PACKAGE file", extraInfo):
+      # Sets flag to attempt to include information when back at VistA's prompt
       self._updatePackageLink = True
-      logger.warn("You might have to update KIDS build %s to link"
-                  " to Package file" %
-                  (self._kidsInstallName))
 
   """ default action for installation error
     please override or enhance it if more action is needed
@@ -546,7 +567,7 @@ class DefaultKIDSBuildInstaller(object):
       logger.info("Import global file %s" % (glbFile))
       fileSize = os.path.getsize(glbFile)
       importTimeout = DEFAULT_GLOBAL_IMPORT_TIMEOUT
-      importTimeout += int(fileSize/GLOBAL_IMPORT_BYTE_PER_SEC)
+      importTimeout += int(old_div(fileSize,GLOBAL_IMPORT_BYTE_PER_SEC))
       globalImport.importGlobal(vistATestClient, glbFile, timeout=importTimeout)
 
   #---------------------------------------------------------------------------#
@@ -591,7 +612,7 @@ def getPersonNameByDuz(inputDuz, vistAClient):
   connection.send('W $$NAME^XUSER(%s)\r' % inputDuz)
   connection.expect('\)') # get rid of the echo
   vistAClient.waitForPrompt()
-  result = connection.before.strip(' \r\n')
+  result = connection.lastconnection.strip(' \r\n')
   connection.send('\r')
   return result
 

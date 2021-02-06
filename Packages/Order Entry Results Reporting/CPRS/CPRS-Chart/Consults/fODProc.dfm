@@ -39,6 +39,7 @@ inherited frmODProc: TfrmODProc
       Align = alClient
       Alignment = taCenter
       BevelOuter = bvNone
+      Caption = ''
       Enabled = False
       TabOrder = 0
       ShowAccelChar = True
@@ -151,7 +152,7 @@ inherited frmODProc: TfrmODProc
         Height = 166
         Align = alClient
         Anchors = [akLeft, akTop, akRight]
-        Font.Charset = DEFAULT_CHARSET
+        Font.Charset = ANSI_CHARSET
         Font.Color = clWindowText
         Font.Height = -11
         Font.Name = 'Courier New'
@@ -159,11 +160,10 @@ inherited frmODProc: TfrmODProc
         Constraints.MinHeight = 40
         ParentFont = False
         PopupMenu = popReason
-        ScrollBars = ssBoth
+        ScrollBars = ssVertical
         TabOrder = 0
         WantTabs = True
         OnChange = ControlChange
-        OnExit = memReasonExit
         OnKeyDown = memReasonKeyDown
         OnKeyPress = memReasonKeyPress
         OnKeyUp = memReasonKeyUp
@@ -192,6 +192,7 @@ inherited frmODProc: TfrmODProc
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 3
+      Text = ''
       OnChange = ControlChange
       CharsNeedMatch = 1
     end
@@ -217,6 +218,7 @@ inherited frmODProc: TfrmODProc
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 8
+      Text = ''
       OnChange = ControlChange
       CharsNeedMatch = 1
     end
@@ -242,6 +244,7 @@ inherited frmODProc: TfrmODProc
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 4
+      Text = ''
       OnChange = ControlChange
       OnNeedData = txtAttnNeedData
       CharsNeedMatch = 1
@@ -268,6 +271,7 @@ inherited frmODProc: TfrmODProc
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 0
+      Text = ''
       OnChange = cboProcSelect
       OnNeedData = cboProcNeedData
       CharsNeedMatch = 1
@@ -279,6 +283,7 @@ inherited frmODProc: TfrmODProc
       Height = 21
       Style = orcsDropDown
       AutoSelect = True
+      Caption = ''
       Color = clWindow
       DropDownCount = 8
       ItemHeight = 13
@@ -291,6 +296,7 @@ inherited frmODProc: TfrmODProc
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 12
+      Text = ''
       Visible = False
       OnChange = ControlChange
       CharsNeedMatch = 1
@@ -318,6 +324,7 @@ inherited frmODProc: TfrmODProc
       Sorted = False
       SynonymChars = '<>'
       TabOrder = 1
+      Text = ''
       OnChange = cboServiceChange
       CharsNeedMatch = 1
     end
@@ -372,16 +379,16 @@ inherited frmODProc: TfrmODProc
       OnChange = txtProvDiagChange
       Caption = 'Provisional Diagnosis'
     end
-    object lblEarliest: TStaticText
+    object lblClinicallyIndicated: TStaticText
       Left = 312
       Top = 44
-      Width = 121
+      Width = 117
       Height = 17
       Anchors = [akTop, akRight]
-      Caption = 'Earliest appropriate date:'
+      Caption = 'Clinically indicated date:'
       TabOrder = 18
     end
-    object calEarliest: TORDateBox
+    object calClinicallyIndicated: TORDateBox
       Left = 312
       Top = 58
       Width = 133
@@ -391,6 +398,7 @@ inherited frmODProc: TfrmODProc
       OnChange = ControlChange
       DateOnly = True
       RequireTime = False
+      Caption = ''
     end
     object lblLatest: TStaticText
       Left = 460
@@ -413,6 +421,7 @@ inherited frmODProc: TfrmODProc
       OnChange = ControlChange
       DateOnly = True
       RequireTime = False
+      Caption = ''
     end
     object servicelbl508: TVA508StaticText
       Name = 'servicelbl508'
@@ -538,17 +547,26 @@ inherited frmODProc: TfrmODProc
         'Component = txtProvDiag'
         'Status = stsDefault')
       (
-        'Component = lblEarliest'
+        'Component = lblClinicallyIndicated'
         'Status = stsDefault')
       (
-        'Component = calEarliest'
-        'Status = stsDefault')
+        'Component = calClinicallyIndicated'
+        
+          'Text = Earliest appropriate Date/Time. Press the enter key to ac' +
+          'cess.'
+        'Status = stsOK')
       (
         'Component = lblLatest'
-        'Status = stsDefault')
+        
+          'Text = Latest appropriate Date/Time. Press the enter key to acce' +
+          'ss.'
+        'Status = stsOK')
       (
         'Component = calLatest'
-        'Status = stsDefault')
+        
+          'Text = Latest appropriate Date/Time. Press the enter key to acce' +
+          'ss.'
+        'Status = stsOK')
       (
         'Component = txtCombatVet'
         'Status = stsDefault')

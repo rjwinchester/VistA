@@ -2,7 +2,7 @@ unit uPCE;
 
 interface
 
-uses Windows, SysUtils, Classes, ORFn, uConst, ORCtrls, ORClasses,UBAGlobals;
+uses Windows, SysUtils, Classes, ORFn, uConst, ORCtrls, ORClasses,UBAGlobals, ComCtrls;
 
 type
   TPCEProviderRec = record
@@ -67,6 +67,7 @@ type
     function DelimitedStr2: string; virtual;
     function ItemStr: string; virtual;
     function Match(AnItem: TPCEItem): Boolean;
+    function MatchPOV(AnItem: TPCEItem): Boolean;
 //    function MatchProvider(AnItem: TPCEItem):Boolean;
     function MatchProvider(AnItem: TPCEItem):Boolean;
     procedure SetFromString(const x: string); virtual;
@@ -100,11 +101,12 @@ type
   TPCEDiag = class(TPCEItem)
   {class for diagnosis}
   public
-    fProvider: Int64; 
+    fProvider: Int64;
     Primary:   Boolean;
     AddProb:   Boolean;
     OldComment: string;
     SaveComment: boolean;
+    OldNarrative: string;
     procedure Assign(Src: TPCEItem); override;
     procedure Clear; override;
     function DelimitedStr: string; override;
@@ -144,7 +146,7 @@ type
     function HasCPTStr: string; override;
   end;
 
-  TPCEImm = class(TPCEItem)  
+  TPCEImm = class(TPCEItem)
   {class for immunizations}
   public
 //    Provider:        Int64; {jm 9/8/99}
@@ -180,7 +182,8 @@ type
   public
 //    Provider:  Int64; {jm 9/8/99}
     Results:   String;                   //Do not confuse for reserved word "result"
-    Reading:   Integer;
+//    Reading:   Integer;
+    Reading: string;
     DTRead:    TFMDateTime;
     DTGiven:   TFMDateTime;
     procedure Assign(Src: TPCEItem); override;
@@ -193,6 +196,13 @@ type
   end;
 
 //  TPCEData = class;
+
+  TGenFindings = class(TPCEItem)
+  {class for Reminder General Findings only used for displaying in the
+  encounter pane note}
+  public
+
+  end;
 
   tRequiredPCEDataType = (ndDiag, ndProc, ndSC); {jm 9/9/99}
   tRequiredPCEDataTypes = set of tRequiredPCEDataType;
@@ -220,6 +230,7 @@ type
     FHNCRelated:   Integer;                        //
     FCVRelated:    Integer;                        //
     FSHADRelated:   Integer;                        //
+    FCLRelated:    Integer;                        //
     FVisitType:    TPCEProc;                       //
     FProviders:    TPCEProviderList;
     FDiagnoses:    TList;                          //pointer list for diagnosis
@@ -228,6 +239,7 @@ type
     FSkinTests:     TList;                         //pointer list for skin tests
     FPatientEds:    TList;
     FHealthFactors: TList;
+    FGenFindings:   TList;
     fExams:         TList;
     FNoteTitle:    Integer;
     FNoteIEN:      Integer;
@@ -235,12 +247,13 @@ type
     FHistoricalLocation: string;                   // Institution IEN^Name (if IEN=0 Piece 4 = outside location)
     FStandAlone: boolean;
     FStandAloneLoaded: boolean;
-    FProblemAdded: Boolean;                         // Flag set when one or more Dx are added to PL
+    FProblemAdded: Boolean;                       // Flag set when one or more Dx are added to PL
 
     function GetVisitString: string;
     function GetCPTRequired: Boolean;
     function getDocCount: Integer;
     function MatchItem(AList: TList; AnItem: TPCEItem): Integer;
+    function MatchPOVItems(AList: TList; AnItem: TPCEItem): Integer;
     procedure MarkDeletions(PreList: TList; PostList: TStrings);
     procedure SetSCRelated(Value: Integer);
     procedure SetAORelated(Value: Integer);
@@ -250,6 +263,7 @@ type
     procedure SetHNCRelated(Value: Integer);
     procedure SetCVRelated(Value: Integer);
     procedure SetSHADRelated(Value: Integer);
+    procedure SetCLRelated(Value: Integer);
     procedure SetEncUseCurr(Value: Boolean);
     function GetHasData: Boolean;
     procedure GetHasCPTList(AList: TStrings);
@@ -263,14 +277,14 @@ type
     procedure PCEForNote(NoteIEN: Integer; EditObj: TPCEData);(* overload;
     procedure PCEForNote(NoteIEN: Integer; EditObj: TPCEData; DCSummAdmitString: string); overload;*)
     procedure Save;
-    procedure CopyDiagnoses(Dest: TStrings);     // ICDcode^P|S^Category^Narrative^P|S Text
-    procedure CopyProcedures(Dest: TStrings);    // CPTcode^Qty^Category^Narrative^Qty Text
-    procedure CopyImmunizations(Dest: TStrings); //
-    procedure CopySkinTests(Dest: TStrings);     //
-    procedure CopyPatientEds(Dest: TStrings);
-    procedure CopyHealthFactors(Dest: TStrings);
-    procedure CopyExams(Dest: TStrings);
-
+    procedure CopyDiagnoses(Dest: TCaptionListView);     // ICDcode^P|S^Category^Narrative^P|S Text
+    procedure CopyProcedures(Dest: TCaptionListView);    // CPTcode^Qty^Category^Narrative^Qty Text
+    procedure CopyImmunizations(Dest: TCaptionListView); //
+    procedure CopySkinTests(Dest: TCaptionListView);     //
+    procedure CopyPatientEds(Dest: TCaptionListView);
+    procedure CopyHealthFactors(Dest: TCaptionListView);
+    procedure CopyExams(Dest: TCaptionListView);
+    procedure CopyGenFindings(Dest: TCaptionListView);
     procedure SetDiagnoses(Src: TStrings; FromForm: boolean = TRUE);       // ICDcode^P|S^Category^Narrative^P|S Text
     procedure SetExams(Src: TStrings; FromForm: boolean = TRUE);
     Procedure SetHealthFactors(Src: TStrings; FromForm: boolean = TRUE);
@@ -278,6 +292,7 @@ type
     Procedure SetPatientEds(Src: TStrings; FromForm: boolean = TRUE);
     procedure SetSkinTests(Src: TStrings; FromForm: boolean = TRUE);        //
     procedure SetProcedures(Src: TStrings; FromForm: boolean = TRUE);      // CPTcode^Qty^Category^Narrative^Qty Text
+    procedure SetGenFindings(Src: TStrings; FromForm: boolean = TRUE);
 
     procedure SetVisitType(Value: TPCEProc);     // CPTcode^1^Category^Narrative
     function StrDiagnoses: string;               // Diagnoses: ...
@@ -287,8 +302,9 @@ type
     function StrPatientEds: string;
     function StrHealthFactors: string;
     function StrExams: string;
+    function StrGenFindings: string;
     function StrVisitType(const ASCRelated, AAORelated, AIRRelated, AECRelated,
-                                AMSTRelated, AHNCRelated, ACVRelated, ASHADRelated: Integer): string; overload;
+                                AMSTRelated, AHNCRelated, ACVRelated, ASHADRelated, ACLRelated: Integer): string; overload;
     function StrVisitType: string; overload;
     function StandAlone: boolean;
     procedure AddStrData(List: TStrings);
@@ -315,6 +331,7 @@ type
     property HNCRelated:   Integer  read FHNCRelated  write SetHNCRelated;
     property CVRelated:    Integer  read FCVRelated  write SetCVRelated;
     property SHADRelated:   Integer  read FSHADRelated write SetSHADRelated;
+    property CLRelated:    Integer  read FCLRelated  write SetCLRelated;
     property VisitType:    TPCEProc read FVisitType   write SetVisitType;
     property VisitString:  string   read GetVisitString;
     property VisitCategory:char     read FEncSvcCat   write FEncSvcCat;
@@ -353,7 +370,7 @@ procedure GetVitalsFromNote(VitalStr: TStrings; PCEObj: TPCEData; ANoteIEN: Int6
 
 type
   TPCEDataCat = (pdcVisit, pdcDiag, pdcProc, pdcImm, pdcSkin, pdcPED, pdcHF,
-                 pdcExam, pdcVital, pdcOrder, pdcMH, pdcMST, pdcHNC, pdcWHR, pdcWH);
+                 pdcExam, pdcVital, pdcOrder, pdcMH, pdcMST, pdcHNC, pdcWHR, pdcWH, pdcGenFinding);
 
 function GetPCEDataText(Cat: TPCEDataCat; Code, Category, Narrative: string;
                        PrimaryDiag: boolean = FALSE; Qty: integer = 0): string;
@@ -374,7 +391,8 @@ const
                         { dcMST   }  'MST History: ',
                         { dcHNC   }  'Head and/or Neck Cancer: ',
                         { dcWHR   }  'Women''s Health Procedure: ',
-                        { dcWH    }  'WH Notification: ');
+                        { dcWH    }  'WH Notification: ',
+                        { dcGF    }  'General Findings: ');
 
   NoPCEValue = '@';
   TAB_STOP_CHARS = 7;
@@ -443,13 +461,18 @@ const
   pnumComment        = 10;
   pnumWHPapResult    =11;
   pnumWHNotPurp      =12;
+  pnumDate           = 13;
+  pnumRemGenFindID   = 14;
+  pnumRemGenFindNewData = 16;
+  pnumRemGenFindGroup = 17;
+  pnumGFPrint         = 18;
 
   USE_CURRENT_VISITSTR = -2;
 
 implementation
 
 uses uCore, rPCE, rCore, rTIU, fEncounterFrame, uVitals, fFrame,
-     fPCEProvider, rVitals, uReminders;
+     fPCEProvider, rVitals, uReminders, rMisc, uGlobalVar;
 
 const
   FN_NEW_PERSON = 200;
@@ -475,7 +498,7 @@ begin
 end;
 
 var
-  UNxtCommSeqNum: integer;                             
+  UNxtCommSeqNum: integer;
 
 function IsOK2Sign(const PCEData: TPCEData; const IEN: integer) :boolean;
 var
@@ -880,7 +903,7 @@ end;
 procedure GetVitalsFromDate(VitalStr: TStrings; PCEObj: TPCEData);
 var
   dte: TFMDateTime;
-  
+
 begin
   if(PCEObj.IsSecondaryVisit) then
     dte := PCEObj.NoteDateTime
@@ -1000,7 +1023,7 @@ begin
   Category  := Piece(x, U, pnumCategory);
   Narrative := Piece(x, U, pnumNarrative);
   Provider  := StrToInt64Def(Piece(x, U, pnumProvider), 0);
-  Comment   := Piece(x, U, pnumComment);                        
+  Comment   := Piece(x, U, pnumComment);
 end;
 
 
@@ -1089,7 +1112,7 @@ begin
   inherited Clear;
 //  Provider := 0;
   Results := NoPCEValue;
-  Reading   := 0;
+  Reading   := '0';
   DTRead    := 0.0;        //What should dates be ititialized to?
   DTGiven   := 0.0;
 end;
@@ -1101,11 +1124,16 @@ end;
 //Purpose: Add Comments to PCE Items.
 function TPCESkin.DelimitedStr: string;
 {created delimited string to pass to broker}
+var
+ ReadingToPassIn : String;
 begin
   Result := inherited DelimitedStr;
   //Result := 'SK' + Result + U + results + U + IntToStr(Provider) + U +
+  if Uppercase(results) = 'O' then ReadingToPassIn := '@'
+  else ReadingToPassIn := Reading;
+
   Result := 'SK' + Result + U + results + U + U +
-   IntToStr(Reading) + U + U + U + IntToStr(UNxtCommSeqNum); 
+   ReadingToPassIn + U + U + U + IntToStr(UNxtCommSeqNum);
     //+ FloatToStr(DTRead) + U + FloatToStr(DTGiven);
 end;
 
@@ -1129,8 +1157,9 @@ begin
   else
     Result := '';
   Result := Result + U;
-  if(Reading <> 0) then
-    Result := Result + IntToStr(Reading);
+//  if(Reading <> 0) then
+//    Result := Result + IntToStr(Reading);
+  Result := Result + Reading;
   Result := Result + U + inherited ItemStr;
 end;
 
@@ -1148,7 +1177,8 @@ begin
   If results = '' then results := NoPCEValue;
 
   if sRead <> '' then
-    Reading  := StrToInt(sRead);
+//    Reading  := StrToInt(sRead);
+      Reading := sRead;
   if sDTRead <> '' then
     DTRead   := StrToFMDateTime(sDTRead);
   if sDTGiven <> '' then
@@ -1523,6 +1553,7 @@ begin
   inherited Assign(Src);
   Primary    := TPCEDiag(Src).Primary;
   AddProb    := TPCEDiag(Src).AddProb;
+  OldNarrative := TPCEDiag(Src).OldNarrative;
 end;
 
 //procedure TPCEDiag.Clear;
@@ -1537,6 +1568,7 @@ begin
   Primary := False;
   //Provider := 0;
   AddProb  := False;
+  OldNarrative := '';
 end;
 
 //function TPCEDiag.DelimitedStr: string;
@@ -1599,7 +1631,7 @@ begin
   else
     Result := U + Result;
 
-  Result := Result + U + inherited ItemStr;
+  Result := Result + U + GetDiagnosisText((inherited ItemStr), Code);
 end;
 
 procedure TPCEDiag.Send;
@@ -1635,6 +1667,7 @@ begin
   FPatientEds  := TList.Create;
   FHealthFactors := TList.Create;
   fExams       := TList.Create;
+  FGenFindings := TList.Create;
   FProviders := TPCEProviderList.Create;
   FSCRelated   := SCC_NA;
   FAORelated   := SCC_NA;
@@ -1644,6 +1677,7 @@ begin
   FHNCRelated  := SCC_NA;
   FCVRelated   := SCC_NA;
   FSHADRelated := SCC_NA;
+  FCLRelated   := SCC_NA;
   FSCChanged   := False;
 end;
 
@@ -1658,6 +1692,7 @@ begin
   with FPatientEds do for i := 0 to Count - 1 do TPCEPat(Items[i]).Free;
   with FHealthFactors do for i := 0 to Count - 1 do TPCEHealth(Items[i]).Free;
   with FExams do for i := 0 to Count - 1 do TPCEExams(Items[i]).Free;
+  with FGenFindings do for i := 0 to Count - 1 do TGenFindings(Items[i]).Free;
   FVisitType.Free;
   FDiagnoses.Free;
   FProcedures.Free;
@@ -1667,6 +1702,7 @@ begin
   FHealthFactors.Free;
   FExams.Free;
   FProviders.Free;
+  FGenFindings.Free;
   inherited Destroy;
 end;
 
@@ -1702,6 +1738,7 @@ begin
   FHNCRelated := SCC_NA;
   FCVRelated  := SCC_NA;
   FSHADRelated := SCC_NA;
+  FCLRelated   := SCC_NA;
 
   ClearList(FDiagnoses);
   ClearList(FProcedures);
@@ -1710,6 +1747,7 @@ begin
   ClearList(FPatientEds);
   ClearList(FHealthFactors);
   ClearList(FExams);
+  ClearList(FGenFindings);
 
   FVisitType.Clear;
   FProviders.Clear;
@@ -1718,39 +1756,44 @@ begin
   FNoteTitle := 0;
 end;
 
-procedure TPCEData.CopyDiagnoses(Dest: TStrings);
+procedure TPCEData.CopyDiagnoses(Dest: TCaptionListView);
 begin
   CopyPCEItems(FDiagnoses, Dest, TPCEDiag);
 end;
 
-procedure TPCEData.CopyProcedures(Dest: TStrings);
+procedure TPCEData.CopyProcedures(Dest: TCaptionListView);
 begin
   CopyPCEItems(FProcedures, Dest, TPCEProc);
 end;
 
-procedure TPCEData.CopyImmunizations(Dest: TStrings);
+procedure TPCEData.CopyImmunizations(Dest: TCaptionListView);
 begin
   CopyPCEItems(FImmunizations, Dest, TPCEImm);
 end;
 
-procedure TPCEData.CopySkinTests(Dest: TStrings);
+procedure TPCEData.CopySkinTests(Dest: TCaptionListView);
 begin
   CopyPCEItems(FSkinTests, Dest, TPCESkin);
 end;
 
-procedure TPCEData.CopyPatientEds(Dest: TStrings);
+procedure TPCEData.CopyPatientEds(Dest: TCaptionListView);
 begin
   CopyPCEItems(FPatientEds, Dest, TPCEPat);
 end;
 
-procedure TPCEData.CopyHealthFactors(Dest: TStrings);
+procedure TPCEData.CopyHealthFactors(Dest: TCaptionListView);
 begin
   CopyPCEItems(FHealthFactors, Dest, TPCEHealth);
 end;
 
-procedure TPCEData.CopyExams(Dest: TStrings);
+procedure TPCEData.CopyExams(Dest: TCaptionListView);
 begin
   CopyPCEItems(FExams, Dest, TPCEExams);
+end;
+
+procedure TPCEData.CopyGenFindings(Dest: TCaptionListView);
+begin
+  CopyPCEItems(FGenFindings, Dest, TGenFindings);
 end;
 
 function TPCEData.GetVisitString: string;
@@ -1784,6 +1827,7 @@ var
   APatientEd:    TPCEPat;
   AHealthFactor: TPCEHealth;
   AExam:         TPCEExams;
+  AGenFind:      TGenFindings;
   FileVStr: string;
   FileIEN: integer;
   GetCat, DoRestore: boolean;
@@ -1812,9 +1856,7 @@ var
   end;
 
 begin
-(*  if DCSummAdmitString <> '' then
-    TmpVStr := DCSummAdmitString
-  else*) if(NoteIEN < 1) then
+  if(NoteIEN < 1) then
     TmpVStr := Encounter.VisitStr
   else
   begin
@@ -1854,7 +1896,7 @@ begin
         begin
           EditObj.CopyPCEData(Self);
           FNoteTitle := 0;
-          FNoteIEN := 0;
+          FNoteIEN := NOTEIEN;
         end;
         exit;
       end;
@@ -1880,7 +1922,7 @@ begin
   else
   begin
     DoRestore := FALSE;
-    FRestDate := 0; 
+    FRestDate := 0;
     FileIEN := NoteIEN;
 (*    if DCSummAdmitString <> '' then
       FileVStr := DCSummAdmitString
@@ -1952,6 +1994,10 @@ begin
 //      if HNCOK and (Copy(x, 1, 8) = 'VST^HNC^') then
       if Copy(x, 1, 8) = 'VST^HNC^' then FHNCRelated := SCCValue(x);
       if Copy(x, 1, 7) = 'VST^CV^' then FCVRelated := SCCValue(x);
+      if Copy(x, 1, 9) = 'VST^SHAD^' then FSHADRelated := SCCValue(x);
+      if IsLejeuneActive then
+        if Copy(x, 1, 7) = 'VST^CL^' then FCLRelated := SCCValue(x);
+
       if (Copy(x, 1, 3) = 'PRV') and (CharAt(x, 4) <> '-') then
       {Providers---------------------------------------------------------------------}
       begin
@@ -1962,7 +2008,7 @@ begin
       {'POV'=Diagnosis--------------------------------------------------------------}
       begin
         //check for comment append string if a comment exists   
-        x := AppendComment(x);                         
+        x := AppendComment(x);
         ADiagnosis := TPCEDiag.Create;
         ADiagnosis.SetFromString(x);
         FDiagnoses.Add(ADiagnosis);
@@ -2023,7 +2069,12 @@ begin
         AExam.SetFromString(x);
         FExams.Add(AExam);
       end;
-
+      if (copy(x, 1, 5) = 'GFIND') and (CharAt(x, 4) <> '-') then
+        begin
+          AGenFind := TGenFindings.create;
+          AGenFind.SetFromString(x);
+          FGenFindings.add(AGenFind);
+        end;
     end;
   finally
     PCEList.Free;
@@ -2094,6 +2145,8 @@ begin
         if FHNCRelated  <> SCC_NA then Add('VST^HNC^'+ IntToStr(FHNCRelated));
         if FCVRelated   <> SCC_NA then Add('VST^CV^' + IntToStr(FCVRelated));
         if FSHADRelated <> SCC_NA then Add('VST^SHD^'+ IntToStr(FSHADRelated));
+        if IsLejeuneActive then
+         if FCLRelated   <> SCC_NA then Add('VST^CL^'+ IntToStr(FCLRelated));
       end;
      with FDiagnoses  do for i := 0 to Count - 1 do with TPCEDiag(Items[i]) do
         if FSend then
@@ -2159,7 +2212,6 @@ begin
       end;
       // call DATA2PCE (in background)
       SavePCEData(PCEList, FileNoteIEN, FEncLocation);
-
       // turn off 'Send' flags and remove items that were deleted
       with FDiagnoses  do for i := Count - 1 downto 0 do with TPCEDiag(Items[i]) do
       begin
@@ -2276,6 +2328,18 @@ begin
   end;
 end;
 
+function TPCEData.MatchPOVItems(AList: TList; AnItem: TPCEItem): Integer;
+var
+  i: Integer;
+begin
+  Result := -1;
+  with AList do for i := 0 to Count - 1 do with TPCEItem(Items[i]) do if MatchPOV(AnItem) and MatchProvider(AnItem)then
+  begin
+    Result := i;
+    break;
+  end;
+end;
+
 procedure TPCEData.MarkDeletions(PreList: TList; PostList: TStrings);
 {mark items that need deleted}
 var
@@ -2290,7 +2354,11 @@ begin
     with PostList do for j := 0 to Count - 1 do
     begin
       PostItem := TPCEItem(Objects[j]);
-      if (PreItem.Match(PostItem) and (PreItem.MatchProvider(PostItem))) then MatchFound := True;
+      //fix to not mark the ICD-10 diagnosis for deletion when selected to add to the Problem List.
+      if (Piece(PostItem.DelimitedStr, '^', 1)='POV+') and (Piece(PostItem.DelimitedStr, '^', 7)='1') and
+      (PreItem.Code = PostItem.Code) and (Pos('SNOMED', Piece(PostItem.DelimitedStr, '^', 4)) > 0) then
+          MatchFound := True
+      else if (PreItem.Match(PostItem) and (PreItem.MatchProvider(PostItem))) then MatchFound := True;
     end;
     if not MatchFound then
     begin
@@ -2312,17 +2380,19 @@ begin
   for i := 0 to Src.Count - 1 do
   begin
     SrcDiagnosis := TPCEDiag(Src.Objects[i]);
-    MatchIndex := MatchItem(FDiagnoses, SrcDiagnosis);
+    MatchIndex := MatchPOVItems(FDiagnoses, SrcDiagnosis);
     if MatchIndex > -1 then    //found in fdiagnoses
     begin
       CurDiagnosis := TPCEDiag(FDiagnoses.Items[MatchIndex]);
       if ((SrcDiagnosis.Primary <> CurDiagnosis.Primary) or
        (SrcDiagnosis.Comment <> CurDiagnosis.Comment) or
-       (SrcDiagnosis.AddProb <> CurDiagnosis.Addprob)) then
+       (SrcDiagnosis.AddProb <> CurDiagnosis.Addprob) or
+       (SrcDiagnosis.Narrative <> CurDiagnosis.Narrative)) then
       begin
         CurDiagnosis.Primary    := SrcDiagnosis.Primary;
         CurDiagnosis.Comment    := SrcDiagnosis.Comment;
         CurDiagnosis.AddProb    := SrcDiagnosis.AddProb;
+        CurDiagnosis.Narrative  := SrcDiagnosis.Narrative;
         CurDiagnosis.FSend := True;
       end;
     end
@@ -2357,7 +2427,7 @@ procedure TPCEData.SetProcedures(Src: TStrings; FromForm: boolean = TRUE);
   encounter will be listed in Src and marks those that are not in Src for deletion }
 var
   i, MatchIndex: Integer;
-  SrcProcedure, CurProcedure, OldProcedure: TPCEProc;
+  SrcProcedure, CurProcedure, oldProcedure: TPCEProc;
 begin
   if FromForm then MarkDeletions(FProcedures, Src);
   for i := 0 to Src.Count - 1 do
@@ -2538,10 +2608,10 @@ begin
       if CurHealthFactor.level = '' then CurHealthFactor.level := NoPCEValue;
       if SrcHealthFactor.level = '' then SrcHealthFactor.level := NoPCEValue;
       if(SrcHealthFactor.Level <> CurHealthFactor.Level) or
-        (CurHealthFactor.Comment <> SrcHealthFactor.Comment) then  
+        (CurHealthFactor.Comment <> SrcHealthFactor.Comment) then
       begin
         CurHealthFactor.Level  := SrcHealthFactor.Level;
-        CurHealthFactor.Comment := SrcHealthFactor.Comment;  
+        CurHealthFactor.Comment := SrcHealthFactor.Comment;
         CurHealthFactor.FSend := True;
       end;
        if(SrcHealthFactor.GecRem <> CurHealthFactor.GecRem) then
@@ -2591,6 +2661,27 @@ begin
   end; {for}
 end;
 
+
+procedure TPCEData.SetGenFindings(Src: TStrings; FromForm: boolean);
+var
+  i, MatchIndex: Integer;
+  SrcGFind, CurGFind: TGenFindings;
+begin
+  //set for general findings from Reminder Dialog
+  if FromForm then MarkDeletions(FGenFindings, Src);
+  for i := 0 to Src.Count - 1 do
+  begin
+    SrcGFind := TGenFindings(Src.Objects[i]);
+    MatchIndex := MatchItem(FGenFindings, SrcGFind);
+    if MatchIndex = -1 then
+    begin
+      CurGFind := TGenFindings.Create;
+      CurGFind.Assign(SrcGFind);
+      CurGFind.FSend := True;
+      FGenFindings.Add(CurGFind);
+    end; {if MatchIndex}
+  end; {for}
+end;
 
 procedure TPCEData.SetVisitType(Value: TPCEProc);
 var
@@ -2682,6 +2773,15 @@ begin
   if (Value <> FSHADRelated) then
   begin
     FSHADRelated := Value;
+    FSCChanged   := True;
+  end;
+end;
+
+procedure TPCEData.SetCLRelated(Value: Integer);
+begin
+  if (Value <> FCLRelated) then
+  begin
+    FCLRelated := Value;
     FSCChanged   := True;
   end;
 end;
@@ -2796,8 +2896,19 @@ begin
   if Length(Result) > 0 then Result := PCEDataCatText[pdcExam] + CRLF + Copy(Result, 1, Length(Result) - 2) + CRLF;
 end;
 
+function TPCEData.StrGenFindings: string;
+var
+  i: Integer;
+begin
+    with FGenFindings do for i := 0 to Count - 1 do with TGenFindings(Items[i]) do
+    if not FDelete then
+      Result := Result + GetPCEDataText(pdcGenFinding, Code, Category, Narrative) + CRLF;
+  if Length(Result) > 0 then Result := PCEDataCatText[pdcGenFinding] + CRLF + Copy(Result, 1, Length(Result) - 2) + CRLF;
+
+end;
+
 function TPCEData.StrVisitType(const ASCRelated, AAORelated, AIRRelated,
-  AECRelated, AMSTRelated, AHNCRelated, ACVRelated, ASHADRelated: Integer): string;
+  AECRelated, AMSTRelated, AHNCRelated, ACVRelated, ASHADRelated, ACLRelated: Integer): string;
 { returns as a string the type of encounter (according to CPT) & related contitions treated }
 
   procedure AddTxt(txt: string);
@@ -2817,7 +2928,9 @@ begin
 //  if HNCOK and (AHNCRelated = SCC_YES) then AddTxt('Head and/or Neck Cancer');
   if AHNCRelated = SCC_YES then AddTxt('Head and/or Neck Cancer');
   if ACVRelated = SCC_YES  then AddTxt('Combat Veteran Related');
-  if Length(Result) > 0 then Result := ' related to: ' + Result;
+  if ASHADRelated = SCC_YES  then AddTxt('Shipboard Hazard and Defense');
+  if ACLRelated = SCC_YES  then AddTxt('Camp Lejeune'); //Camp Lejeune
+  if Length(Result) > 0 then Result := ' Related to: ' + Result;
 //  Result := Trim(Result);
 end;
 
@@ -2831,7 +2944,7 @@ begin
       if Length(ModText) > 0 then Result := Result + ModText + ', ';
     end;
   Result := Trim(Result + StrVisitType(FSCRelated, FAORelated, FIRRelated,
-                                       FECRelated, FMSTRelated, FHNCRelated, FCVRelated, FSHADRelated));
+                                       FECRelated, FMSTRelated, FHNCRelated, FCVRelated, FSHADRelated, FCLRelated));
 end;
 
 function TPCEData.StandAlone: boolean;
@@ -2861,6 +2974,13 @@ begin
   if (Provider = AnItem.Provider) then Result := True;
 end;
 }
+function TPCEItem.MatchPOV(AnItem: TPCEItem): Boolean;
+begin
+  Result := False;
+  if (Code = AnItem.Code) and (Category = AnItem.Category)
+    then Result := True;
+end;
+
 function TPCEItem.MatchProvider(AnItem: TPCEItem): Boolean;
 begin
   Result := False;
@@ -2901,6 +3021,8 @@ begin
   Dest.FHNCRelated   := FHNCRelated;
   Dest.FCVRelated    := FCVRelated;
   Dest.FSHADRelated  := FSHADRelated;
+  if IsLejeuneActive then
+   Dest.fCLRelated    := FCLRelated; //Camp Lejeune
   FVisitType.CopyProc(Dest.VisitType);
   Dest.FProviders.Assign(FProviders);
 
@@ -2911,6 +3033,7 @@ begin
   CopyPCEItems(FPatientEds,    Dest.FPatientEds,    TPCEPat);
   CopyPCEItems(FHealthFactors, Dest.FHealthFactors, TPCEHealth);
   CopyPCEItems(FExams,         Dest.FExams,         TPCEExams);
+  CopyPCEITems(FGenFindings,   Dest.FGenFindings,   TGenFindings);
 
   Dest.FNoteTitle := FNoteTitle;
   Dest.FNoteIEN := FNoteIEN;
@@ -2923,15 +3046,27 @@ var
   EC: TSCConditions;
   NeedSC: boolean;
   TmpLst: TStringList;
-
+  NeedDx: Boolean;
+  I : Integer;
 begin
   Result := [];
   if(not FutureEncounter(Self)) then
   begin
     if(PromptForWorkload(FNoteIEN, FNoteTitle, FEncSvcCat, StandAlone)) then
     begin
-      if(fdiagnoses.count <= 0) then
-        Include(Result, ndDiag);
+      //assume we need a DX
+      NeedDx := true;
+      for i := 0 to fdiagnoses.count -1 do
+      begin
+       if TPCEDiag(FDiagnoses[i]).Primary then
+       begin
+        NeedDX := false;
+        break;
+       end;
+      end;
+
+      if NeedDX then Include(result, ndDiag);
+
       if((fprocedures.count <= 0) and (fVisitType.Code = '')) then
       begin
         TmpLst := TStringList.Create;
@@ -3092,8 +3227,8 @@ begin
                 DoSave := NeedSave;
               FUpdated := TRUE;
             end;
-            Done := frmFrame.Closing;
-            Asked := TRUE;
+            done := frmFrame.Closing;
+             Asked := TRUE;
           end;
         end;
       until(Done);
@@ -3120,6 +3255,7 @@ begin
   Add(StrPatientEds);
   Add(StrHealthFactors);
   Add(StrExams);
+  Add(StrGenFindings);
 end;
 
 procedure TPCEData.AddVitalData(Data, List: TStrings);
@@ -3235,29 +3371,35 @@ begin
 end;
 
 procedure TPCEData.CopyPCEItems(Src: TList; Dest: TObject; ItemClass: TPCEItemClass);
+Type
+ fDestType = (CopyCaptionList, CopyStrings, CopyList);
 var
   AItem: TPCEItem;
   i: Integer;
-  IsStrings: boolean;
-  
+  DestType: fDestType;
 begin
-  if(Dest is TStrings) then
-    IsStrings := TRUE
-  else
-  if(Dest is TList) then
-    IsStrings := FALSE
-  else
-    exit;
+  if (Dest is TCaptionListView) then
+   DestType := CopyCaptionList
+  else if(Dest is TStrings) then
+     DestType := CopyStrings
+   else
+   if(Dest is TList) then
+     DestType := CopyList
+   else
+     exit;
+
   for i := 0 to Src.Count - 1 do
   begin
     if(not TPCEItem(Src[i]).FDelete) then
     begin
       AItem := ItemClass.Create;
       AItem.Assign(TPCEItem(Src[i]));
-      if(IsStrings) then
-        TStrings(Dest).AddObject(AItem.ItemStr, AItem)
-      else
-        TList(Dest).Add(AItem);
+      case DestType of
+       CopyCaptionList: TCaptionListView(Dest).AddObject(AItem.ItemStr, AItem);
+       CopyStrings: TStrings(Dest).AddObject(AItem.ItemStr, AItem);
+       CopyList: TList(Dest).Add(AItem);
+      end;
+
     end;
   end;
 end;
@@ -3274,6 +3416,7 @@ begin
   if(Result) then Result := (FHNCRelated = SCC_NA);
   if(Result) then Result := (FCVRelated = SCC_NA);
   if(Result) then Result := (FSHADRelated = SCC_NA);
+  if(Result) then Result := (FCLRelated = SCC_NA); //Camp Lejeune
   if(Result) then Result := (FDiagnoses.Count = 0);
   if(Result) then Result := (FProcedures.Count = 0);
   if(Result) then Result := (FImmunizations.Count = 0);
@@ -3283,6 +3426,7 @@ begin
   if(Result) then Result := (fExams.Count = 0);
   if(Result) then Result := (FVisitType.Empty);
 end;
+
 
 { TPCEProviderList }
 
@@ -3539,6 +3683,8 @@ begin
     Src.FPCEProviderName := FPCEProviderName;
   end;
 end;
+
+{ TGenFindings }
 
 initialization
 

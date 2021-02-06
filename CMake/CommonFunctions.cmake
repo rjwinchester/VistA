@@ -15,25 +15,25 @@
 #---------------------------------------------------------------------------
 #-----------------------------------------------------------------------------
 # Define a function for parsing and reporting XINDEX output results
-function(ReportXINDEXResult PACKAGE_NAME PACKAGES_DIR VENDOR_NAME GREP_EXEC OUTPUT USE_XINDEX_WARNINGS_AS_FAILURES)
+function(ReportXINDEXResult PACKAGE_NAME PACKAGES_DIR VENDOR_NAME GREP_EXEC OUTPUT USE_XINDEX_WARNINGS_AS_FAILURES TEST_VISTA_XINDEX_IGNORE_EXCEPTIONS)
    if(USE_XINDEX_WARNINGS_AS_FAILURES)
      set(FAILURE_CONDITION "F -|W -")
    else()
      set(FAILURE_CONDITION "F -")
    endif()
    set(test_passed TRUE)
-   if(ARGC GREATER 6)
+   if(ARGC GREATER 7)
      set(source_flag TRUE)
    endif()
    string(REPLACE "_" " " PACKAGE_NAME ${PACKAGE_NAME})
    foreach (line ${OUTPUT})
       # the XINDEX will always check the integrity of the routine using checksum
-      if(line MATCHES "^[A-Z0-9%][^ ]+ +\\* \\* .*[cC]hecksum:.*")
-        string(REGEX MATCH "^[A-Z0-9%]+[^ ]" routine_name "${line}")
+      if(line MATCHES "^[A-Za-z0-9%][^ ]+ +\\* \\* .*[cC]hecksum:.*")
+        string(REGEX MATCH "^[A-Za-z0-9%]+[^ ]" routine_name "${line}")
       elseif(line MATCHES ${FAILURE_CONDITION})
         # also assume the file name is ${PACKAGE_NAME}.${routinename}
         set(ExceptionFound FALSE)
-        if (EXISTS ${PACKAGES_DIR}/${PACKAGE_NAME}/XINDEXException/${VENDOR_NAME}.${routine_name})
+        if (EXISTS ${PACKAGES_DIR}/${PACKAGE_NAME}/XINDEXException/${VENDOR_NAME}.${routine_name} AND NOT TEST_VISTA_XINDEX_IGNORE_EXCEPTIONS)
           file(STRINGS ${PACKAGES_DIR}/${PACKAGE_NAME}/XINDEXException/${VENDOR_NAME}.${routine_name} ExceptionList)
           foreach (Exception ${ExceptionList})
             string(STRIP "${line}" newline)
@@ -51,7 +51,7 @@ function(ReportXINDEXResult PACKAGE_NAME PACKAGES_DIR VENDOR_NAME GREP_EXEC OUTP
             string(REGEX MATCH "\\+[0-9]+" position ${line})
             string(STRIP ${tag} tag)
             execute_process(COMMAND ${GREP_EXEC} -n -h ^${tag}
-                            "${ARGV6}/Packages/${PACKAGE_NAME}/Routines/${routine_name}.m"
+                            "${ARGV7}/Packages/${PACKAGE_NAME}/Routines/${routine_name}.m"
                             OUTPUT_VARIABLE linematch)
             if(linematch)
 
@@ -101,17 +101,55 @@ function(ReportUnitTestResult PACKAGE_NAME DIRNAME OUTPUT)
 endfunction()
 
 function(FindPackages SOURCE_DIR)
-  file(STRINGS "${SOURCE_DIR}/Packages.csv" packages_csv REGEX "^[^,]")
+  file(STRINGS "${SOURCE_DIR}/Packages.csv" packages_csv)
   list(REMOVE_AT packages_csv 0) # skip column label row
   foreach(packages_csv_output IN LISTS packages_csv)
-    if(packages_csv_output MATCHES "^[^,]+,([^,]+),")
+    if(packages_csv_output MATCHES "^[^,]+,([^,]+),([^,]+),")
+      # Finds each package line to capture Package names and the default namespace
       set(package_directory_name "${CMAKE_MATCH_1}")
       string(REPLACE  " " "_" package_directory_name_clean "${package_directory_name}")
       list(APPEND packages_tmp ${package_directory_name_clean})
+      string(FIND ${CMAKE_MATCH_0} "," stringIndex)
+      string(SUBSTRING ${CMAKE_MATCH_0} 0 ${stringIndex} INTERNALNAME)
+      list(APPEND package_internal "${INTERNALNAME}")
+    # Captures each additional namespace from each line in the CSV file
+    elseif(packages_csv_output MATCHES "^,,([^,]+)")
     endif()
   endforeach()
   set(PACKAGES ${packages_tmp} PARENT_SCOPE)
+  set(PACKAGES_INTERNAL ${package_internal} PARENT_SCOPE)
+endfunction()
 
+function(findPackageInfo SOURCE_DIR PACKAGE_NAME)
+  file(STRINGS "${SOURCE_DIR}/Packages.csv" packages_csv)
+  list(REMOVE_AT packages_csv 0) # skip column label row
+
+  message("Finding package information for: ${PACKAGE_NAME}")
+  foreach(packages_csv_output IN LISTS packages_csv)
+    if(packages_csv_output MATCHES "^[^,]+,([^,]+),([^,]+),([^,]+)")
+      # Finds each package line to capture Package names and the default namespace
+      if (${PACKAGE_NAME} STREQUAL ${CMAKE_MATCH_1})
+        set(IN_TARGET ON)
+      else()
+        set(IN_TARGET OFF)
+      endif()
+      if(IN_TARGET)
+        list(APPEND package_nmspc ${CMAKE_MATCH_2})
+      endif()
+    # Captures each additional namespace from each line in the CSV file
+    elseif(packages_csv_output MATCHES "^,,([^,]+)*,([^,]+)")
+      if(IN_TARGET)
+        if(CMAKE_MATCH_1)
+          list(APPEND package_nmspc ${CMAKE_MATCH_1})
+        endif()
+        if(CMAKE_MATCH_2)
+          list(APPEND package_fileNo ${CMAKE_MATCH_2})
+        endif()
+      endif()
+    endif()
+  endforeach()
+  set(PACKAGE_NAMESPACE ${package_nmspc} PARENT_SCOPE)
+  set(PACKAGE_FILE_NOS ${package_fileNo} PARENT_SCOPE)
 endfunction()
 
 function(SetVendorArgsConfig VendorArg VendorName Namespace Instance UserName Password)

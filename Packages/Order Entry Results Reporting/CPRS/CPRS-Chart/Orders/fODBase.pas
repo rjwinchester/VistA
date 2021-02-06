@@ -7,7 +7,7 @@ interface
 uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, fAutoSz, StdCtrls,
   ORCtrls, ORFn, uConst, rOrders, rODBase, uCore, ComCtrls, ExtCtrls, Menus, Mask,
-  Buttons, UBAGlobals, UBACore, VA508AccessibilityManager;
+  Buttons, UBAGlobals, UBACore, VA508AccessibilityManager, CheckLst, uInfoBoxWithBtnControls;
 
 type
   TCtrlInit = class
@@ -89,6 +89,7 @@ type
     function InstanceCount(const APromptID: string): Integer;
     function IValueFor(const APromptID: string; AnInstance: Integer): string;
     function NextInstance(const APromptID: string; LastInstance: Integer): Integer;
+    function TotalRows: Integer;
     function OrderCRC: string;
     procedure Remove(const APromptID: string; AnInstance: Integer);
     procedure SaveQuickOrder(var ANewIEN: Integer; const ADisplayName: string);
@@ -127,6 +128,7 @@ type
     pnlMessage: TPanel;
     imgMessage: TImage;
     memMessage: TRichEdit;
+    tmrBringToFront: TTimer;
     procedure cmdQuitClick(Sender: TObject);
     procedure cmdAcceptClick(Sender: TObject);
     procedure FormKeyPress(Sender: TObject; var Key: Char);
@@ -141,9 +143,9 @@ type
       Shift: TShiftState; X, Y: Integer);
     procedure pnlMessageMouseMove(Sender: TObject; Shift: TShiftState; X,
       Y: Integer);
+    procedure tmrBringToFrontTimer(Sender: TObject);
   private
     FIsSupply:  Boolean;
-    FAbortOrder:   Boolean;
     FAllowQO:      Boolean;
     FAutoAccept:   Boolean;
     FClosing:      Boolean;
@@ -152,7 +154,6 @@ type
     FDisplayGroup: Integer;
     FFillerID:     string;
     FFromQuit:     Boolean;
-    FAcceptOK:     Boolean;
     FCtrlInits:    TCtrlInits;
     FResponses:    TResponses;
     FPreserve:     TList;
@@ -167,10 +168,14 @@ type
     FEvtID    :    Integer;
     FEvtType  :    Char;
     FEvtName  :    string;
+    //CQ 20854 - Display Supplies Only - JCS
+    FEvtDlgID:     String;
     FIncludeOIPI:  boolean;
     FIsIMO:        boolean;  //imo
     FMessageClickX: integer;
     FMessageClickY: integer;
+    FAcceptingOrder: boolean;
+    FTriedToClose: boolean;
     function AcceptOrderChecks: Boolean;
     procedure ClearDialogControls;
     function GetKeyVariable(const Index: string): string;
@@ -186,17 +191,17 @@ type
     procedure updateSig; virtual;
     function ValidSave: Boolean;
     procedure ShowOrderMessage(Show: boolean);
+    procedure DoShow; override;
   public
     function OrderForInpatient: Boolean;
     procedure SetDefaultCoPay(AnOrderID: string);
     procedure OrderMessage(const AMessage: string);
     procedure PreserveControl(AControl: TControl);
     procedure SetupDialog(OrderAction: Integer; const ID: string); virtual;
+    procedure setTabToDiet; virtual;
     procedure SetFontSize( FontSize: integer); virtual;
     procedure SetKeyVariables(const VarStr: string);
     procedure TabClose(var CanClose: Boolean);
-    property AbortOrder:  Boolean       read FAbortOrder   write FAbortOrder;
-    property AcceptOK:  Boolean         read FAcceptOK;
     property AllowQuickOrder: Boolean   read FAllowQO      write FAllowQO;
     property AutoAccept: Boolean        read FAutoAccept   write FAutoAccept;
     property CallOnExit: TCallOnExit    read FCallOnExit   write FCallOnExit;
@@ -217,6 +222,8 @@ type
     property EvtID: integer             read FEvtID        write FEvtID;
     property EvtType: Char              read FEvtType      write FEvtType;
     property EvtName: String            read FEvtName      write FEvtName;
+    //CQ 20854 - Display Supplies Only - JCS
+    property EvtDlgID: string           read FEvtDlgID     write FEvtDlgID;
     property IncludeOIPI: boolean       read FIncludeOIPI  write FIncludeOIPI;
     property IsIMO:boolean              read FIsIMO        write FIsIMO;
     property IsSupply: boolean          read FIsSupply     write FIsSupply;
@@ -237,7 +244,9 @@ var
   CIDCOkToSave: boolean;   // CIDC only, used for consult orders.
   OrderSource: string = '';
   EventDefaultOD: integer = 0;    // If it's event default dialog?
-  IsTransferAction: boolean = False;  
+  IsTransferAction: boolean = False;
+  AcceptOK: Boolean;    // moved from TFrmODBase because it can be checked after dialog is destroyed
+  AbortOrder: Boolean;  // moved from TFrmODBase because it can be checked after dialog is destroyed
 
 procedure ClearControl(AControl: TControl);
 procedure ResetControl(AControl: TControl);
@@ -248,7 +257,8 @@ implementation
 
 uses fOCAccept, uODBase, rCore, rMisc, fODMessage,
   fTemplateDialog, uEventHooks, uTemplates, rConsults,fOrders,uOrders,
-  fFrame, uTemplateFields, fClinicWardMeds, fODDietLT, rODDiet, VAUtils;
+  fFrame, uTemplateFields, fClinicWardMeds, fODDietLT, rODDiet, VAUtils, fODDiet,
+  System.Types, uOwnerWrapper;
 
 const
   TX_ACCEPT = 'Accept the following order?' + CRLF + CRLF;
@@ -277,11 +287,14 @@ begin
   begin
     Clear;
     Text := '';
-  end;
+  end
+  else if AControl is TCheckListBox then with TCheckListBox(Acontrol) do  Clear;
 end;
 
 procedure ResetControl(AControl: TControl);
 { clears text, deselects items, does not remove listbox or combobox items }
+var
+i: integer;
 begin
   if AControl is TLabel then with TLabel(AControl) do Caption := ''
   else if AControl is TStaticText then with TStaticText(AControl) do Caption := ''
@@ -299,7 +312,16 @@ begin
   begin
     Text := '';
     ItemIndex := -1;
-  end;
+  end
+  else if AControl is TCheckListBox then with TCheckListBox(AControl) do
+    begin
+       for i := 0 to count -1 do
+         begin
+           checked[i] := false;
+         end;
+    end;
+
+
 end;
 
 { TCtrlInit methods }
@@ -384,7 +406,7 @@ end;
 procedure TCtrlInits.LoadDefaults(Src: TStrings);
 { loads control initialization information for the dialog }
 begin
-  FDfltList.Clear;		
+  FDfltList.Clear;
   ExtractInits(Src, FDfltList);
 end;
 
@@ -419,6 +441,7 @@ procedure TCtrlInits.SetControl(AControl: TControl; const ASection: string);
 { initializes a control to the information in a section (~section from server) }
 var
   CtrlInit: TCtrlInit;
+  i: integer;
 begin
   ClearControl(AControl);
   CtrlInit := FindInitByName(ASection);
@@ -441,7 +464,15 @@ begin
     FastAssign(CtrlInit.List, TORComboBox(AControl).Items);
     if LongList then InitLongList(Text) else Text := CtrlInit.Text;
     SelectByID(CtrlInit.ListID);
-  end;
+  end
+  else if AControl is TCheckListBox then with TCheckListBox(AControl) do
+       begin
+         for i := 0 to CtrlInit.List.Count - 1 do
+           begin
+             TCheckListBox(AControl).Items.Add(Piece(CtrlInit.List[i], U, 2));
+           end;
+//         FastAssign(CtrlInit.List, TCheckListBox(AControl).Items);
+       end;
   { need to add SelectByID for combobox & listbox }
 end;
 
@@ -748,6 +779,17 @@ begin
     if (PromptID = APromptID) then Inc(Result);
 end;
 
+function TResponses.TotalRows: Integer;
+var
+  TotalRows: Integer;
+begin
+  TotalRows := HigherOf(InstanceCount('INSTR'), InstanceCount('ROUTE'));
+  TotalRows := HigherOf(TotalRows, InstanceCount('SCHEDULE'));
+  TotalRows := HigherOf(TotalRows, InstanceCount('DAYS'));
+  TotalRows := HigherOf(TotalRows, (InstanceCount('CONJ')+1));
+  Result := TotalRows;
+end;
+
 function TResponses.NextInstance(const APromptID: string; LastInstance: Integer): Integer;
 var
   i: Integer;
@@ -1023,24 +1065,7 @@ begin
     OCList       := FOrderChecks;
     DigSig       := DEASig;
     IsIMODialog  := IsIMOOrder;       //IMO
-    if IsIMODialog then
-      DGroup := ClinDisp;
-    //AGP Change 26.35, 26.41 8518 added text order
-    //AGP Change 26.55 remove IMO functionality for inpatient
-    (*if (Patient.Inpatient = true) and (IsValidIMOLoc(encounter.Location,Patient.DFN)=true) and
-      ((ConstructOrder.DialogName = 'PSJ OR PAT OE') or (ConstructOrder.DialogName = 'PSJI OR PAT FLUID OE') or
-      (ConstructOrder.DialogName = 'OR GXTEXT WORD PROCESSING ORDE')) and
-      ((FEditOrder = '') and (Self.FEventName = '') and (Self.FCopyOrder = '')) then
-      begin
-       if frmClinicWardMeds.ClinicOrWardLocation(Encounter.location) = Encounter.Location then
-          begin
-            ConstructOrder.IsIMODialog := True;
-            ConstructOrder.DGroup := ClinDisp;
-          end
-       else IMOLoc := Patient.Location;
-      end; *)
-    //AGP Change 26.51, change logic to set text orders to IMO for outpatients at an outpatient location.
-    //AGP Text orders are only treated as IMO if the order display group is a nursing display group
+
     if (Patient.Inpatient = False) and (IsValidIMOLoc(encounter.Location,Patient.DFN)=true) and
        (((pos('OR GXTEXT WORD PROCESSING ORDER',ConstructOrder.DialogName)>0) and (ConstructOrder.DGroup = NurDisp)) or
        ((ConstructOrder.DialogName = 'OR GXMISC GENERAL') and (ConstructOrder.DGroup = NurDisp)) or
@@ -1048,7 +1073,7 @@ begin
       ((FEditOrder = '') and (Self.FEventName = '') and (Self.FCopyOrder = '')) then
          begin
             ConstructOrder.IsIMODialog := True;
-            ConstructOrder.DGroup := ClinDisp;
+            ConstructOrder.DGroup := ClinOrdDisp;
           end;
     IsEventDefaultOR := EventDefaultOD;
     if IsUDGroup or QOUDGroup then
@@ -1151,8 +1176,8 @@ var
     end;
     ExpandOrderObjects(tmp, HasObjects);
     FOrderContainsObjects := FOrderContainsObjects or HasObjects;
-    
-    if frmODBase.FAbortOrder then
+
+    if AbortOrder then
     begin
       SetTemplateDialogCanceled(FALSE);
       Exit;
@@ -1175,7 +1200,7 @@ var
     else
       CheckBoilerplate4Fields(tmp, cptn);
     List.Text := tmp;
-    if WasTemplateDialogCanceled then frmODBase.FAbortOrder := True;
+    if WasTemplateDialogCanceled then AbortOrder := True;
 
   end;
 
@@ -1218,7 +1243,7 @@ end;
 
 procedure TResponses.SetEventDelay(AnEvent: TOrderDelayEvent);
 begin
-  with AnEvent do if EventType in ['A','D','T','M','O'] then
+  with AnEvent do if CharInSet(EventType, ['A','D','T','M','O']) then
   begin
     FEventIFN  := EventIFN;
     FEventName := EventName;
@@ -1251,6 +1276,8 @@ begin
     if (Controls[i] is TLabel) or (Controls[i] is TButton) or (Controls[i] is TStaticText) then Continue;
     if FPreserve.IndexOf(Controls[i]) < 0 then ClearControl(Controls[i]);
   end;
+  if assigned(memOrder) then memOrder.Clear();
+
   FChanging := False;
   ShowOrderMessage( False );
 end;
@@ -1281,8 +1308,8 @@ procedure TfrmODBase.InitDialog;
 begin
   ClearDialogControls;
   Responses.Clear;
-  FAcceptOK := False;
-  FAbortOrder := False;
+  AcceptOK := False;
+  AbortOrder := False;
 end;
 
 function TfrmODBase.OrderForInpatient: Boolean;
@@ -1346,7 +1373,7 @@ end;
 procedure TfrmODBase.SetupDialog(OrderAction: Integer; const ID: string);
 begin
   FOrderAction := OrderAction;
-  FAbortOrder := False;
+  AbortOrder := False;
   SetTemplateDialogCanceled(False);   //wat/jh CQ 20061
   case OrderAction of
   ORDER_NEW:   {nothing};
@@ -1354,7 +1381,7 @@ begin
   ORDER_COPY:  Responses.SetCopyOrder(ID);
   ORDER_QUICK: Responses.SetQuickOrderByID(ID);
   end;
-  if Responses.FEventType in ['A','D','T','M','O'] then Caption := Caption + ' (Delayed ' + Responses.FEventName + ')'; // ' (Event Delayed)';
+  if CharInSet(Responses.FEventType, ['A','D','T','M','O']) then Caption := Caption + ' (Delayed ' + Responses.FEventName + ')'; // ' (Event Delayed)';
   if OrderAction in [ORDER_EDIT, ORDER_COPY] then cmdQuit.Caption := 'Cancel';
 end;
 
@@ -1381,6 +1408,11 @@ end;
 procedure TfrmODBase.SetKeyVariables(const VarStr: string);
 begin
   FKeyVariables := VarStr;
+end;
+
+procedure TfrmODBase.setTabToDiet;
+begin
+
 end;
 
 procedure TfrmODBase.Validate(var AnErrMsg: string);
@@ -1423,7 +1455,8 @@ procedure TfrmODBase.FormCreate(Sender: TObject);
 begin
   inherited;
   frmODBase   := Self;
-  FAcceptOK   := False;
+  AcceptOK    := False;
+  AbortOrder  := False;
   FAutoAccept := False;
   FChanging   := False;
   FClosing    := False;
@@ -1435,7 +1468,7 @@ begin
   FResponses  := TResponses.Create;
   FPreserve   := TList.Create;
   FIsIMO      := False;          //imo
-  FIsSupply := False;
+  FIsSupply   := False;
   {This next bit is mostly for the font size.  It also sets the default size of
   order forms if it is not in the database.  This is handy if a new user wants
   to have large fonts.  However, in the general case, this will be resized
@@ -1451,10 +1484,15 @@ begin
   FEvtID     := OrderEventIDOnCreate;
   FEvtType   := OrderEventTypeOnCreate;
   FEvtName   := OrderEventNameOnCreate;
+  //CQ 20854 - Display Supplies Only - JCS
+  FEvtDlgID  := OrderFormDlgIDOnCreate;
   DefaultButton := cmdAccept;
 end;
 
 procedure TfrmODBase.FormDestroy(Sender: TObject);
+var
+  o: TComponent;
+
 begin
   frmODBase := nil;
   FCtrlInits.Free;
@@ -1462,8 +1500,9 @@ begin
   FPreserve.Free;
   //DestroyingOrderDialog;
   if Assigned(FCallOnExit) then FCallOnExit;
-  if (Owner <> nil) and (Owner is TWinControl)
-    then SendMessage(TWinControl(Owner).Handle, UM_DESTROY, FRefNum, 0);
+  o := UnwrappedOwner(Self);
+  if (o <> nil) and (o is TWinControl) and (TWinControl(o).HandleAllocated) then
+    SendMessage(TWinControl(o).Handle, UM_DESTROY, FRefNum, 0);
   inherited;
 end;
 
@@ -1600,113 +1639,186 @@ const
     + 'close this message window and continue as usual.';
 var
   theGrpName: string;
-  alreadyClosed: boolean;
+  keepOpen, alreadyClosed: boolean;
   LateTrayFields: TLateTrayFields;
   x, CxMsg: string;
-begin
-  FAcceptOK := False;
-  CIDCOkToSave := False;
-  alreadyClosed := False;
-  self.Responses.Cancel := False;
-  if frmOrders <> nil then
-  begin
-    if (frmOrders.TheCurrentView <> nil) and (frmOrders.TheCurrentView.EventDelay.PtEventIFN>0) and IsCompletedPtEvt(frmOrders.TheCurrentView.EventDelay.PtEventIFN) then
-    begin
-      theGrpName := 'Delayed ' + frmOrders.TheCurrentView.EventDelay.EventName;
-      SaveAsCurrent := True;
-    end;
-  end;
+  List: TStringList;
+  Value: Integer;
 
-  // check for diet orders that will be auto-DCd because of start/stop overlaps
-  if Responses.Dialog = 'FHW1' then
-  begin
-    if (Self.EvtID <> 0) then
+begin
+  if FAcceptingOrder then
+    Exit;
+  FTriedToClose := False;
+  FAcceptingOrder := True;
+  try
+    AcceptOK := False;
+    CIDCOkToSave := False;
+    alreadyClosed := False;
+    Self.Responses.Cancel := False;
+    keepOpen := False;
+    if frmOrders <> nil then
     begin
-      CheckForAutoDCDietOrders(Self.EvtID, Self.DisplayGroup, '', CxMsg, cmdAccept);
-      if CxMsg <> '' then
+      if (frmOrders.TheCurrentView <> nil) and
+        (frmOrders.TheCurrentView.EventDelay.PtEventIFN > 0) and
+        IsCompletedPtEvt(frmOrders.TheCurrentView.EventDelay.PtEventIFN) then
       begin
-        if InfoBox(CxMsg + CRLF + CRLF +
-           'Have you done either of the above?', 'Possible delayed order conflict',
-           MB_ICONWARNING or MB_YESNO) = ID_NO
-           then exit;
+        theGrpName := 'Delayed ' + frmOrders.TheCurrentView.EventDelay.
+          EventName;
+        SaveAsCurrent := True;
       end;
-    end
-    else if FAutoAccept then
+    end;
+    if Responses.Dialog = 'FHW8' then
     begin
-      x := CurrentDietText;
-      CheckForAutoDCDietOrders(0, Self.DisplayGroup, x, CxMsg, nil);
-      if CxMsg <> '' then
-      begin
-        if InfoBox(CxMsg + CRLF +
-                  'Are you sure?', 'Confirm', MB_ICONWARNING or MB_YESNO) = ID_NO then
+      List := TStringList.Create;
+      try
         begin
-          //AbortOrder := True;
-          FAcceptOK := FALSE;
-          //cmdQuitClick(Self);
-          exit;
+          x := CurrentDietText;
+
+          if Piece(x, #13, 1) = 'Current Diet:  ' then
+          begin
+            List.Add('Continue to write diet order^true');
+            // value := fInfoBoxWithBtnControl.processMessage('New Diet Order Required',
+            // 'Active TubeFeeding Order must have an active diet order', list);
+            uInfoBoxWithBtnControls.DefMessageDlg
+              ('Active TubeFeeding Order must have an active diet order',
+              mtConfirmation, List, 'New Diet Order Required', False);
+            keepOpen := True;
+          end
+          else
+          begin
+            CheckForAutoDCDietOrders(Self.EvtID, Self.DisplayGroup, x, CxMsg,
+              nil, True);
+
+            List.Add('Continue CURRENT Diet Order (shown above)^false');
+            List.Add('Write NEW Diet Order^false');
+            // value := fInfoBoxWithBtnControl.processMessage('Diet Order Required',
+            // '"A tubefeeding order must also have an active diet order' + #9 +  CxMsg, list);
+            Value := uInfoBoxWithBtnControls.DefMessageDlg
+              ('A tubefeeding order must also have an active diet order' + CRLF
+              + CxMsg, mtConfirmation, List, 'Diet Order Required', True);
+            if Value = 1 then
+              keepOpen := True;
+          end;
+        end;
+      finally
+        List.Free;
+      end;
+    end;
+    // check for diet orders that will be auto-DCd because of start/stop overlaps
+    if Responses.Dialog = 'FHW1' then
+    begin
+      if (Self.EvtID <> 0) then
+      begin
+        CheckForAutoDCDietOrders(Self.EvtID, Self.DisplayGroup, '', CxMsg,
+          cmdAccept);
+        if CxMsg <> '' then
+        begin
+          if InfoBox(CxMsg + CRLF + CRLF + 'Have you done either of the above?',
+            'Possible delayed order conflict', MB_ICONWARNING or MB_YESNO) = ID_NO
+          then
+            Exit;
+        end;
+      end
+      else if FAutoAccept then
+      begin
+        x := CurrentDietText;
+        CheckForAutoDCDietOrders(0, Self.DisplayGroup, x, CxMsg, nil);
+        if CxMsg <> '' then
+        begin
+          if InfoBox(CxMsg + CRLF + 'Are you sure?', 'Confirm',
+            MB_ICONWARNING or MB_YESNO) = ID_NO then
+          begin
+            // AbortOrder := True;
+            AcceptOK := False;
+            // cmdQuitClick(Self);
+            Exit;
+          end;
         end;
       end;
     end;
-  end;
 
-  if ValidSave then
-  begin
-    FAcceptOK := True;
-    CIDCOkToSave := True;
-    with Responses do
-      if not FAutoAccept and (CopyOrder = '') and (EditOrder = '') and (TransferOrder = '')
-        and AskAnotherOrder(DialogIEN)
-        then InitDialog           // ClearDialogControls is in InitDialog
+    if ValidSave then
+    begin
+      AcceptOK := True;
+      CIDCOkToSave := True;
+      with Responses do
+        if (not FAutoAccept and (CopyOrder = '') and (EditOrder = '') and
+          (TransferOrder = '') and AskAnotherOrder(DialogIEN)) then
+          InitDialog
+        else if (keepOpen = True) then
+        begin
+          if Not FAutoAccept then
+          begin
+            if Responses.Dialog = 'FHW8' then
+              setTabToDiet;
+            InitDialog;
+          end
+          else
+          begin
+            SetupDialog(0, 'FHW');
+          end;
+        end // ClearDialogControls is in InitDialog
         else
         begin
           LateTrayFields.LateMeal := #0;
           with Responses do
-            if FAutoAccept and ((Dialog = 'FHW1') or (Dialog = 'FHW OP MEAL') or (Dialog ='FHW SPECIAL MEAL')) then
+            if FAutoAccept and ((Dialog = 'FHW1') or (Dialog = 'FHW OP MEAL') or
+              (Dialog = 'FHW SPECIAL MEAL')) then
             begin
-              LateTrayCheck(Responses, Self.EvtID, not OrderForInpatient, LateTrayFields);
+              LateTrayCheck(Responses, Self.EvtID, not OrderForInpatient,
+                LateTrayFields);
             end;
-          ClearDialogControls;    // to allow form to close without prompting to save order
-          with LateTrayFields do if LateMeal <> #0 then LateTrayOrder(LateTrayFields, OrderForInpatient);
+          ClearDialogControls;
+          // to allow form to close without prompting to save order
+          with LateTrayFields do
+            if LateMeal <> #0 then
+              LateTrayOrder(LateTrayFields, OrderForInpatient);
           Close;
           alreadyClosed := True;
         end;
-    if NoFresh then
-    begin
-      if SaveAsCurrent then
+      if NoFresh then
       begin
-        SaveAsCurrent := False;
-        with Responses do
+        if SaveAsCurrent then
         begin
-          if not alreadyClosed then
+          SaveAsCurrent := False;
+          with Responses do
           begin
-            ClearDialogControls;
-            Close;
+            if not alreadyClosed then
+            begin
+              ClearDialogControls;
+              Close;
+            end;
           end;
+          frmOrders.GroupChangesUpdate(theGrpName);
+          Exit;
         end;
-        frmOrders.GroupChangesUpdate(theGrpName);
-        Exit;
-      end;
-    end else
-    begin
-      if SaveAsCurrent then
+      end
+      else
       begin
-        SaveAsCurrent := False;
-        with Responses do
+        if SaveAsCurrent then
         begin
-          if not alreadyClosed then
+          SaveAsCurrent := False;
+          with Responses do
           begin
-            ClearDialogControls;
-            Close;
+            if not alreadyClosed then
+            begin
+              ClearDialogControls;
+              Close;
+            end;
           end;
+          frmOrders.GroupChangesUpdate(theGrpName);
+          // EDONeedRefresh := True;
+          Exit;
         end;
-        frmOrders.GroupChangesUpdate(theGrpName);
-        //EDONeedRefresh := True;
-        Exit;
-      end;
-    end
-  end; {if ValidSave}
-  if SaveAsCurrent then
-    SaveAsCurrent := False;
+      end
+    end; { if ValidSave }
+    if SaveAsCurrent then
+      SaveAsCurrent := False;
+  finally
+    FAcceptingOrder := False;
+    if FTriedToClose then
+      Close;
+  end;
 end;
 
 procedure TfrmODBase.cmdQuitClick(Sender: TObject);
@@ -1726,6 +1838,8 @@ begin
   SaveUserBounds(Self);
   FClosing := True;
   Action := caFree;
+  Encounter.SwitchToSaved(True);
+  frmFrame.DisplayEncounterText;
   (*
   if User.NoOrdering then Exit;
   if Length(memOrder.Text) > 0 then
@@ -1741,9 +1855,15 @@ end;
 procedure TfrmODBase.FormCloseQuery(Sender: TObject; var CanClose: Boolean);
 begin
   inherited;
+  if FAcceptingOrder then
+  begin
+    FTriedToClose := True;
+    CanClose := False;
+    exit;
+  end;
   //self.Responses.Cancel := False;
   if User.NoOrdering then Exit;
-  if FAbortOrder then
+  if AbortOrder then
   begin
     SetTemplateDialogCanceled(FALSE);
     exit;
@@ -1774,6 +1894,13 @@ begin
   if CanClose then InitDialog;
 end;
 
+procedure TfrmODBase.tmrBringToFrontTimer(Sender: TObject);
+begin
+  inherited;
+  tmrBringToFront.Enabled := False;
+  BringToFront;
+end;
+
 procedure TfrmODBase.updateSig;
 begin
 
@@ -1801,6 +1928,12 @@ begin
     Font.Size := FontSize;
     memMessage.DefAttributes.Size := FontSize;
   end;
+end;
+
+procedure TfrmODBase.DoShow;
+begin
+  inherited;
+  tmrBringToFront.Enabled := True;
 end;
 
 procedure TfrmODBase.SetFontSize( FontSize: integer);
@@ -1891,4 +2024,3 @@ end;
 
 
 end.
-

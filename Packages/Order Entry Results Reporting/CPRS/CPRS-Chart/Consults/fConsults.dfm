@@ -9,8 +9,8 @@ inherited frmConsults: TfrmConsults
   OnDestroy = FormDestroy
   OnHide = FormHide
   OnShow = FormShow
-  ExplicitWidth = 723
-  ExplicitHeight = 475
+  ExplicitWidth = 731
+  ExplicitHeight = 480
   PixelsPerInch = 96
   TextHeight = 13
   inherited shpPageBottom: TShape
@@ -44,62 +44,7 @@ inherited frmConsults: TfrmConsults
       Height = 4
       Cursor = crVSplit
       Align = alBottom
-    end
-    object pnlRead: TPanel
-      Left = 0
-      Top = 0
-      Width = 630
-      Height = 350
-      Align = alClient
-      BevelOuter = bvNone
-      TabOrder = 0
-      object lblTitle: TOROffsetLabel
-        Left = 0
-        Top = 0
-        Width = 630
-        Height = 19
-        Align = alTop
-        Caption = 'Details of Selected Consult'
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'MS Sans Serif'
-        Font.Style = []
-        HorzOffset = 2
-        ParentFont = False
-        ParentShowHint = False
-        ShowHint = True
-        Transparent = False
-        VertOffset = 6
-        WordWrap = False
-      end
-      object memConsult: TRichEdit
-        Left = 0
-        Top = 19
-        Width = 630
-        Height = 331
-        Align = alClient
-        Color = clCream
-        Ctl3D = True
-        Font.Charset = DEFAULT_CHARSET
-        Font.Color = clWindowText
-        Font.Height = -11
-        Font.Name = 'Courier New'
-        Font.Style = []
-        Lines.Strings = (
-          
-            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRUSTVWXYZabcdefghijkl' +
-            'mnopqrstuvwxyz12')
-        ParentCtl3D = False
-        ParentFont = False
-        PlainText = True
-        PopupMenu = popNoteMemo
-        ReadOnly = True
-        ScrollBars = ssBoth
-        TabOrder = 0
-        WantReturns = False
-        WordWrap = False
-      end
+      AutoSnap = False
     end
     object memPCEShow: TRichEdit
       Left = 0
@@ -108,8 +53,15 @@ inherited frmConsults: TfrmConsults
       Height = 62
       Align = alBottom
       Color = clCream
+      Font.Charset = ANSI_CHARSET
+      Font.Color = clWindowText
+      Font.Height = -11
+      Font.Name = 'MS Sans Serif'
+      Font.Style = []
+      ParentFont = False
       TabOrder = 2
       WantReturns = False
+      Zoom = 100
     end
     object pnlResults: TPanel
       Left = 0
@@ -118,13 +70,25 @@ inherited frmConsults: TfrmConsults
       Height = 350
       Align = alClient
       BevelOuter = bvNone
-      TabOrder = 1
+      TabOrder = 0
       OnResize = pnlResultsResize
+      object spEditDetails: TSplitter
+        Left = 0
+        Top = 246
+        Width = 630
+        Height = 4
+        Cursor = crVSplit
+        Align = alBottom
+        AutoSnap = False
+        Visible = False
+        ExplicitLeft = 4
+        ExplicitTop = 217
+      end
       object memResults: TRichEdit
         Left = 0
         Top = 67
         Width = 630
-        Height = 283
+        Height = 179
         Align = alClient
         Font.Charset = ANSI_CHARSET
         Font.Color = clWindowText
@@ -133,9 +97,10 @@ inherited frmConsults: TfrmConsults
         Font.Style = []
         ParentFont = False
         PopupMenu = popNoteMemo
-        ScrollBars = ssBoth
+        ScrollBars = ssVertical
         TabOrder = 1
         WantTabs = True
+        Zoom = 100
         OnChange = memResultChange
         OnKeyDown = memResultsKeyDown
       end
@@ -168,7 +133,7 @@ inherited frmConsults: TfrmConsults
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 3
+          TabOrder = 1
         end
         object lblAuthor: TStaticText
           Left = 402
@@ -182,7 +147,7 @@ inherited frmConsults: TfrmConsults
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 4
+          TabOrder = 2
         end
         object lblVisit: TStaticText
           Left = 6
@@ -191,7 +156,7 @@ inherited frmConsults: TfrmConsults
           Height = 17
           Caption = 'Vst: 10/20/99 Pulmonary Clinic, Dr. Welby'
           ShowAccelChar = False
-          TabOrder = 5
+          TabOrder = 4
         end
         object lblCosigner: TStaticText
           Left = 307
@@ -206,7 +171,7 @@ inherited frmConsults: TfrmConsults
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 6
+          TabOrder = 5
         end
         object lblSubject: TStaticText
           Left = 6
@@ -214,7 +179,7 @@ inherited frmConsults: TfrmConsults
           Width = 43
           Height = 17
           Caption = 'Subject:'
-          TabOrder = 7
+          TabOrder = 8
         end
         object lblNewTitle: TStaticText
           Left = 6
@@ -234,7 +199,7 @@ inherited frmConsults: TfrmConsults
           ParentShowHint = False
           ShowAccelChar = False
           ShowHint = True
-          TabOrder = 2
+          TabOrder = 0
         end
         object cmdChange: TButton
           Left = 556
@@ -243,7 +208,7 @@ inherited frmConsults: TfrmConsults
           Height = 21
           Anchors = [akTop, akRight]
           Caption = 'Change...'
-          TabOrder = 0
+          TabOrder = 3
           OnClick = cmdChangeClick
         end
         object txtSubject: TCaptionEdit
@@ -256,10 +221,216 @@ inherited frmConsults: TfrmConsults
           MaxLength = 80
           ParentShowHint = False
           ShowHint = True
-          TabOrder = 1
+          TabOrder = 6
           Text = 'txtSubject'
           Caption = 'Subject'
         end
+      end
+      object CPMemResults: TCopyPasteDetails
+        Left = 0
+        Top = 250
+        Width = 630
+        Height = 100
+        Align = alBottom
+        BevelInner = bvRaised
+        BorderStyle = bsSingle
+        Constraints.MinHeight = 32
+        ShowCaption = False
+        TabOrder = 2
+        Visible = False
+        CopyMonitor = frmFrame.CPAppMon
+        CollapseBtn.Left = 605
+        CollapseBtn.Top = 0
+        CollapseBtn.Width = 17
+        CollapseBtn.Height = 20
+        CollapseBtn.Align = alRight
+        CollapseBtn.Caption = #218
+        CollapseBtn.Font.Charset = DEFAULT_CHARSET
+        CollapseBtn.Font.Color = clWindowText
+        CollapseBtn.Font.Height = -11
+        CollapseBtn.Font.Name = 'Wingdings'
+        CollapseBtn.Font.Style = []
+        CollapseBtn.ParentFont = False
+        CollapseBtn.TabOrder = 0
+        CollapseBtn.TabStop = False
+        EditMonitor.CopyMonitor = frmFrame.CPAppMon
+        EditMonitor.OnLoadPastedText = LoadPastedText
+        EditMonitor.OnPasteToMonitor = PasteToMonitor
+        EditMonitor.OnSaveTheMonitor = SaveTheMonitor
+        EditMonitor.RelatedPackage = '8925'
+        EditMonitor.TrackOnlyEdits = <>
+        InfoMessage.AlignWithMargins = True
+        InfoMessage.Left = 3
+        InfoMessage.Top = 3
+        InfoMessage.Width = 491
+        InfoMessage.Height = 49
+        InfoMessage.Align = alClient
+        InfoMessage.Font.Charset = ANSI_CHARSET
+        InfoMessage.Font.Color = clWindowText
+        InfoMessage.Font.Height = -11
+        InfoMessage.Font.Name = 'MS Sans Serif'
+        InfoMessage.Font.Style = []
+        InfoMessage.Lines.Strings = (
+          '<-- Please select the desired paste date')
+        InfoMessage.ParentFont = False
+        InfoMessage.ReadOnly = True
+        InfoMessage.ScrollBars = ssBoth
+        InfoMessage.TabOrder = 0
+        InfoMessage.WantReturns = False
+        InfoMessage.WordWrap = False
+        InfoMessage.Zoom = 100
+        InfoSelector.AlignWithMargins = True
+        InfoSelector.Left = 3
+        InfoSelector.Top = 3
+        InfoSelector.Width = 111
+        InfoSelector.Height = 49
+        InfoSelector.Style = lbOwnerDrawFixed
+        InfoSelector.Align = alClient
+        InfoSelector.ItemHeight = 13
+        InfoSelector.TabOrder = 0
+        OnHide = CPHide
+        OnShow = CPShow
+        SyncSizes = True
+        VisualEdit = memResults
+        SaveFindAfter = 0
+      end
+    end
+    object pnlRead: TPanel
+      Left = 0
+      Top = 0
+      Width = 630
+      Height = 350
+      Align = alClient
+      BevelOuter = bvNone
+      TabOrder = 1
+      object lblTitle: TOROffsetLabel
+        Left = 0
+        Top = 0
+        Width = 630
+        Height = 19
+        Align = alTop
+        Caption = 'Details of Selected Consult'
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'MS Sans Serif'
+        Font.Style = []
+        HorzOffset = 2
+        ParentFont = False
+        ParentShowHint = False
+        ShowHint = True
+        Transparent = False
+        VertOffset = 6
+        WordWrap = False
+      end
+      object spReadDetails: TSplitter
+        Left = 0
+        Top = 246
+        Width = 630
+        Height = 4
+        Cursor = crVSplit
+        Align = alBottom
+        AutoSnap = False
+        Visible = False
+        ExplicitLeft = 4
+        ExplicitTop = 240
+      end
+      object memConsult: TRichEdit
+        Left = 0
+        Top = 19
+        Width = 630
+        Height = 227
+        Align = alClient
+        Color = clCream
+        Ctl3D = True
+        Font.Charset = ANSI_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Courier New'
+        Font.Style = []
+        Lines.Strings = (
+          
+            'abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRUSTVWXYZabcdefghijkl' +
+            'mnopqrstuvwxyz12')
+        ParentCtl3D = False
+        ParentFont = False
+        PlainText = True
+        PopupMenu = popNoteMemo
+        ReadOnly = True
+        ScrollBars = ssBoth
+        TabOrder = 0
+        WantReturns = False
+        WordWrap = False
+        Zoom = 100
+      end
+      object CPMemConsult: TCopyPasteDetails
+        Left = 0
+        Top = 250
+        Width = 630
+        Height = 100
+        Align = alBottom
+        BevelInner = bvRaised
+        BorderStyle = bsSingle
+        Caption = 'CPMemConsult'
+        Constraints.MinHeight = 32
+        ShowCaption = False
+        TabOrder = 1
+        Visible = False
+        CopyMonitor = frmFrame.CPAppMon
+        CollapseBtn.Left = 605
+        CollapseBtn.Top = 0
+        CollapseBtn.Width = 17
+        CollapseBtn.Height = 20
+        CollapseBtn.Align = alRight
+        CollapseBtn.Caption = #218
+        CollapseBtn.Font.Charset = DEFAULT_CHARSET
+        CollapseBtn.Font.Color = clWindowText
+        CollapseBtn.Font.Height = -11
+        CollapseBtn.Font.Name = 'Wingdings'
+        CollapseBtn.Font.Style = []
+        CollapseBtn.ParentFont = False
+        CollapseBtn.TabOrder = 0
+        CollapseBtn.TabStop = False
+        EditMonitor.CopyMonitor = frmFrame.CPAppMon
+        EditMonitor.OnCopyToMonitor = CopyToMonitor
+        EditMonitor.OnLoadPastedText = LoadPastedText
+        EditMonitor.OnSaveTheMonitor = SaveTheMonitor
+        EditMonitor.RelatedPackage = '8925'
+        EditMonitor.TrackOnlyEdits = <>
+        InfoMessage.AlignWithMargins = True
+        InfoMessage.Left = 3
+        InfoMessage.Top = 3
+        InfoMessage.Width = 491
+        InfoMessage.Height = 49
+        InfoMessage.Align = alClient
+        InfoMessage.Font.Charset = ANSI_CHARSET
+        InfoMessage.Font.Color = clWindowText
+        InfoMessage.Font.Height = -11
+        InfoMessage.Font.Name = 'MS Sans Serif'
+        InfoMessage.Font.Style = []
+        InfoMessage.Lines.Strings = (
+          '<-- Please select the desired paste date')
+        InfoMessage.ParentFont = False
+        InfoMessage.ReadOnly = True
+        InfoMessage.ScrollBars = ssBoth
+        InfoMessage.TabOrder = 0
+        InfoMessage.WantReturns = False
+        InfoMessage.WordWrap = False
+        InfoMessage.Zoom = 100
+        InfoSelector.AlignWithMargins = True
+        InfoSelector.Left = 3
+        InfoSelector.Top = 3
+        InfoSelector.Width = 111
+        InfoSelector.Height = 49
+        InfoSelector.Style = lbOwnerDrawFixed
+        InfoSelector.Align = alClient
+        InfoSelector.ItemHeight = 13
+        InfoSelector.TabOrder = 0
+        OnHide = CPHide
+        OnShow = CPShow
+        SyncSizes = True
+        VisualEdit = memConsult
+        SaveFindAfter = 0
       end
     end
   end
@@ -347,9 +518,10 @@ inherited frmConsults: TfrmConsults
         ParentShowHint = False
         PopupMenu = popNoteMemo
         ShowHint = True
-        TabOrder = 4
+        TabOrder = 6
         Visible = False
         OnClick = lstNotesClick
+        Caption = ''
         ItemTipColor = clWindow
         LongList = False
         Pieces = '2,3'
@@ -427,6 +599,7 @@ inherited frmConsults: TfrmConsults
         TabOrder = 1
         Visible = False
         OnClick = lstConsultsClick
+        Caption = ''
         ItemTipColor = clWindow
         LongList = False
         Pieces = '2,3,4,5'
@@ -443,7 +616,7 @@ inherited frmConsults: TfrmConsults
         Indent = 19
         PopupMenu = popNoteList
         ReadOnly = True
-        TabOrder = 0
+        TabOrder = 3
         OnClick = tvConsultsClick
         OnCollapsed = tvConsultsCollapsed
         OnExit = tvConsultsExit
@@ -537,6 +710,12 @@ inherited frmConsults: TfrmConsults
         'Status = stsDefault')
       (
         'Component = frmConsults'
+        'Status = stsDefault')
+      (
+        'Component = CPMemConsult'
+        'Status = stsDefault')
+      (
+        'Component = CPMemResults'
         'Status = stsDefault'))
   end
   object popNoteMemo: TPopupMenu

@@ -8,7 +8,7 @@
 # and populate them by Package Name according to input Packages.csv file.
 #
 #---------------------------------------------------------------------------
-# Copyright 2012 The Open Source Electronic Health Record Agent
+# Copyright 2012-2019 The Open Source Electronic Health Record Alliance
 #
 # Licensed under the Apache License, Version 2.0 (the "License");
 # you may not use this file except in compliance with the License.
@@ -23,9 +23,11 @@
 # limitations under the License.
 #---------------------------------------------------------------------------
 from __future__ import with_statement
+from functools import cmp_to_key
 import sys
 import os
 import csv
+import re
 # append this module in the sys.path at run time
 curDir = os.path.dirname(os.path.abspath(__file__))
 if curDir not in sys.path:
@@ -38,6 +40,24 @@ from ConvertToExternalData import addToGitIgnoreList, isValidKIDSBuildHeaderSuff
 from ConvertToExternalData import isValidSha1Suffix
 from PopulatePackages import populatePackageMapByCSV, order_long_to_short
 
+def checkPaths(source, dest):
+  move = True
+  curDir = os.getcwd()
+  pattern = re.compile("Patches")
+  # If destination path exists, do not move
+  if os.path.exists(dest):
+    move = False
+  # If source is a patch that has already been placed, do not move
+  # Check multibuilds
+  if source.startswith(os.path.join(curDir, "MultiBuilds")):
+    move = False
+  # Check if source dir includes "Patches", eliminate the curDir to remove
+  # chance that user has a folder named "Patches" in the path to VistA
+  if pattern.search(source, len(curDir)):
+    move = False
+  return move
+
+
 def place(src,dst):
     logger.info('%s => %s\n' % (src,dst))
     d = os.path.dirname(dst)
@@ -46,7 +66,7 @@ def place(src,dst):
         except OSError as ex:
           logger.error(ex)
           pass
-    if not os.path.exists(dst):
+    if checkPaths(src,dst):
       try:
         os.rename(src,dst)
       except OSError as ex:
@@ -59,10 +79,9 @@ def placeToDir(infoSrc, destDir, addToGitIgnore=True):
     return
   infoSrcName = os.path.basename(infoSrc)
   infoDest = os.path.join(destDir, infoSrcName)
-  if os.path.normpath(infoDest) != os.path.normpath(infoSrc):
-    place(infoSrc, infoDest)
-    if addToGitIgnore and isValidSha1Suffix(infoSrcName):
-      addToGitIgnoreList(infoDest[:infoDest.rfind('.')])
+  place(infoSrc, infoDest)
+  if addToGitIgnore and isValidSha1Suffix(infoSrcName):
+    addToGitIgnoreList(infoDest[:infoDest.rfind('.')])
 
 def placeAssociatedFiles(associatedFileList, destDir):
   if associatedFileList:
@@ -101,10 +120,10 @@ def populate(input):
   patchOrder = patchOrderGen.generatePatchOrder(curDir)
   patchInfoDict = patchOrderGen.getPatchInfoDict()
   patchInfoSet = set(patchInfoDict.keys())
-  patchList = patchInfoDict.values()
+  patchList = list(patchInfoDict.values())
   noKidsInfoDict = patchOrderGen.getNoKidsBuildInfoDict()
   noKidsInfoSet = set(noKidsInfoDict.keys())
-  noKidsPatchList = noKidsInfoDict.values()
+  noKidsPatchList = list(noKidsInfoDict.values())
   leftoverTxtFiles = patchOrderGen.getInvalidInfoFiles()
   #---------------------------------------------------------------------------
   # place multiBuilds KIDS Build under MultiBuilds directory
@@ -129,7 +148,7 @@ def populate(input):
       place(src,dest)
 
   # Map by package namespace (prefix).
-  for ns in sorted(namespaces.keys(),order_long_to_short):
+  for ns in sorted(list(namespaces.keys()), key=cmp_to_key(order_long_to_short)):
     path = namespaces[ns]
     nsPatchList = [x.installName for x in patchList if x.namespace==ns]
     for patch in nsPatchList:

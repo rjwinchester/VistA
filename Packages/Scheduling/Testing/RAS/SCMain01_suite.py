@@ -34,7 +34,9 @@ Created on Jun 14, 2012
 @license http://www.apache.org/licenses/LICENSE-2.0
 '''
 
+from builtins import str
 import sys
+import os
 sys.path = ['./Functional/RAS/lib'] + ['./dataFiles'] + ['./Python/vista'] + sys.path
 from SCActions import SCActions
 from ADTActions import ADTActions
@@ -64,12 +66,12 @@ def sc_test001(test_suite_details):
         SC.checkin(clinic=tclinic, vlist=['Three', str(hour), 'CHECKED'])
         SC.signon()
         SC.checkout(clinic=tclinic, vlist1=['Three', str(hour), 'Checked In'],
-                    vlist2=['305.91', 'OTHER DRUG', 'RESULTING'], icd='305.91')
+                    vlist2=['RESULTING'], icd='305.91', icd10='F18.10')
         SC.signon()
         SC.makeapp_bypat(clinic=tclinic, patient='333224444', datetime=time, fresh='No', prevCO='yes')
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -104,7 +106,7 @@ def sc_test002(test_suite_details):
                       patientname1='Twelve', patientname2='Ten')
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -133,7 +135,7 @@ def sc_test003(test_suite_details):
         SC.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -163,11 +165,11 @@ def sc_test004(test_suite_details):
                        vlist3=['NEXT AVAILABLE', 'NO', '0'], vlist4=['1933', 'MALE', 'UNANSWERED'],
                        vlist5=['Combat Veteran:', 'No check out information'], mult='3')
         SC.signon()
-        SC.addedit(clinic=tclinic, name='354623902', icd='305.91')
+        SC.addedit(clinic=tclinic, name='354623902', icd='305.91', icd10='F18.10')
         SC.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -196,13 +198,13 @@ def sc_test005(test_suite_details):
         SC.discharge(clinic=tclinic, patient='543236666', appnum='3')
         SC.signon()
         SC.checkout(clinic=tclinic, vlist1=['One', 'No Action'],
-                    vlist2=['305.91', 'RESULTING'], icd='305.91', mult='4')
+                    vlist2=['RESULTING'], icd='305.91', icd10='F18.10', mult='4')
         SC = SCActions(VistA, user='fakedoc1', code='1Doc!@#$')
         SC.signon()
         SC.deletecheckout(clinic=tclinic, appnum='3')
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -224,7 +226,7 @@ def sc_test006(test_suite_details):
         SC.waitlistdisposition(clinic=tclinic, patient='323123456')
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -257,16 +259,16 @@ def sc_test007(test_suite_details):
         SC.checkin(clinic=tclinic, vlist=['Five', str(hour), 'CHECKED'], mult='5')
         SC.signon()
         SC.checkout(clinic=tclinic, vlist1=['Five', str(hour), 'Checked In'],
-                    vlist2=['305.91', 'OTHER DRUG', 'RESULTING'], icd='305.91', mult='5')
+                    vlist2=['RESULTING'], icd='305.91', icd10='F18.10', mult='5')
         SC.signon()
         SC.ver_actions(clinic=tclinic, patient='4444',
                        PRvlist=['THREE,PATIENT C', 'ALEXANDER,ROBERT'],
-                       DXvlist=['305.91', 'OTHER DRUG', 'RESULTING'],
+                       DXvlist=['RESULTING'],
                        CPvlist=['THREE,PATIENT C'])
         SC.signoff()
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -303,7 +305,7 @@ def sc_test008(test_suite_details):
         SC.canapp(clinic='cLiNiCx', mult='2', future=1, rebook=1)
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -337,7 +339,7 @@ def sc_test009(test_suite_details):
                         EPvlist=['THIRTEEN,PATIENT M', 'CLINICX', '8904', 'FUTURE', 'SCHEDULED', 'REGULAR'])
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -357,7 +359,7 @@ def sc_test010(test_suite_details):
         SC = SCActions(VistA, scheduling='Scheduling')
         time = SC.schtime()
         # this signon() and fix_demographics() is a workaround for gtm bug
-        if VistA.type == 'GTM':
+        if not (os.environ.get('gtm_zquit_anyway') == "1") and (VistA.type == 'GTM'):
             SC.signon()
             SC.fix_demographics(clinic='CLInicA', patient='323123456',
                                 dgrph=[['COUNTRY', ''],
@@ -383,16 +385,17 @@ def sc_test010(test_suite_details):
                                  ['save the above changes', 'yes'],
                                  ['Press ENTER to continue', ''],
                                  ['SEX', 'MALE'] ,
+                                 [['LANGUAGE DATE',"ETHNICITY"], ['N','?']] ,
+                                 [['PREFERRED LANGUAGE',"ETHNICITY"],['','?']] ,
                                  ['Select ETHNICITY', 'N'],
                                  ['Select RACE', 'Black'],
                                  ['new RACE INFORMATION', 'Yes'],
                                  ['RACE', ''],
                                  ['MARITAL STATUS', 'MARRIED'],
                                  ['RELIGIOUS PREFERENCE', 'CELTICISM'],
-                                 ['TEMPORARY ADDRESS ACTIVE', 'NO'],
+                                 ['ADDRESS ACTIVE', 'NO'],
                                  ['PHONE NUMBER', ''],
-                                 ['PAGER NUMBER', ''],
-                                 ['EMAIL ADDRESS', '']])
+                                 ['PAGER NUMBER', '']], emailAddress = 'email@example.org')
         SC.signon()
         SC.get_demographics(patient='323123456',
                         vlist=[['COUNTRY: UNITED STATES', ''],
@@ -406,6 +409,9 @@ def sc_test010(test_suite_details):
                                  ['save the above changes', 'no'],
                                  ['Press ENTER to continue', ''],
                                  ['SEX: MALE', ''],
+                                 [['LANGUAGE DATE',"ETHNICITY"], ['','?']] ,
+                                 [['LANGUAGE DATE',"ETHNICITY"], ['','?']] ,
+                                 [['PREFERRED LANGUAGE',"ETHNICITY"],['','?']] ,
                                  ['Select ETHNICITY INFORMATION: NOT HISPANIC OR LATINO', ''],
                                  ['ETHNICITY: NOT HISPANIC OR LATINO', ''],
                                  ['Select RACE INFORMATION: BLACK OR AFRICAN AMERICAN', ''],
@@ -415,11 +421,10 @@ def sc_test010(test_suite_details):
                                  ['RELIGIOUS PREFERENCE: CELTICISM', ''],
                                  ['ADDRESS ACTIVE', ''],
                                  ['PHONE NUMBER', ''],
-                                 ['PAGER NUMBER', ''],
-                                 ['EMAIL ADDRESS', '']])
+                                 ['PAGER NUMBER', '']], emailAddress ='email@example.org')
         SC.signoff()
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -442,7 +447,7 @@ def sc_test011(test_suite_details):
         SC.gotoApptMgmtMenu()
         SC.verapp_bypat(patient='656454321', vlist=['Clinic1', '7:00', 'Future', 'Clinicx', '17:00', 'Future'],)
         SC.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         resultlog.write('\nEXCEPTION ERROR:' + str(e))
         logging.error('*****exception*********' + str(e))
     else:
@@ -481,7 +486,7 @@ def sc_test012(test_suite_details):
         SC.gotoApptMgmtMenu()
         SC.makeapp(patient='333224444', clinic='Clinic1', datetime='t+10@9AM', fresh='No', badtimeresp='overbook')
         SC.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -518,7 +523,7 @@ def sc_test013(test_suite_details):
             SC.gotoApptMgmtMenu()
             SC.makeapp(patient='333224444', clinic='Clinic1', datetime='t+9@5AM', fresh='No', apptype='SHARING AGREEMENT', subcat=['subcat1', 'SUBCAT2'])
             SC.signoff()
-        except TestHelper.TestError, e:
+        except TestHelper.TestError as e:
             test_driver.exception_handling(test_suite_details, e)
         finally:
             test_driver.finally_handling(test_suite_details)
@@ -547,7 +552,7 @@ def sc_test014(test_suite_details):
         SC.ma_clinicchk(patient='333224444', clinic='CLInicD', exp_apptype='REGULAR', datetime='t+5@03pm',
                         cslots='[4]', cxrays='', fresh='No', elig='Yes')
         SC.signoff()
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -570,7 +575,7 @@ def startmon(test_suite_details):
         VistA.startCoverage(test_suite_details.coverage_subset)
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)
@@ -599,7 +604,7 @@ def stopmon (test_suite_details):
         VistA.stopCoverage(path, test_suite_details.coverage_type)
 
         test_driver.post_test_run(test_suite_details)
-    except TestHelper.TestError, e:
+    except TestHelper.TestError as e:
         test_driver.exception_handling(test_suite_details, e)
     else:
         test_driver.try_else_handling(test_suite_details)

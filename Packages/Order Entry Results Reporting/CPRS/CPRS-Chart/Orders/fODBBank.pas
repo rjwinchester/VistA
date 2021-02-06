@@ -169,6 +169,7 @@ type
 
 type
   TCollSamp = class(TObject)
+  public
     CollSampID: Integer;                  { IEN of CollSamp }
     CollSampName: string;                 { Name of CollSamp }
     SpecimenID: Integer;                  { IEN of default specimen }
@@ -182,6 +183,7 @@ type
   end;
 
   TLabTest = class(TObject)
+  public
     TestID: Integer;                      { IEN of Lab Test }
     TestName: string;                     { Name of Lab Test }
     ItemID: Integer;                      { Orderable Item ID }
@@ -240,7 +242,7 @@ implementation
 {$R *.dfm}
 
 uses rODBase, rODLab, uCore, rCore, fODLabOthCollSamp, fODLabOthSpec, fODLabImmedColl, fLabCollTimes,
- rOrders, uODBase, fRptBox;
+ rOrders, uODBase, fRptBox, System.UITypes;
 
 var
   uSelectedItems: TStringList;   //Selected Items in ListView- if TestYes =1 then test else component
@@ -356,11 +358,11 @@ begin
       EvtDelayLoc := StrToIntDef(GetEventLoc1(IntToStr(Self.EvtID)),0);
       EvtDivision := StrToIntDef(GetEventDiv1(IntToStr(Self.EvtID)),0);
       if EvtDelayLoc>0 then
-        FastAssign(ODForLab(EvtDelayLoc,EvtDivision), AList)
+        ODForLab(AList, EvtDelayLoc, EvtDivision)
       else
-        FastAssign(ODForLab(Encounter.Location,EvtDivision), AList);
+        ODForLab(AList, Encounter.Location, EvtDivision);
     end else
-      FastAssign(ODForLab(Encounter.Location), AList); // ODForLab returns TStrings with defaults
+      ODForLab(AList, Encounter.Location);
     CtrlInits.LoadDefaults(AList);
     InitDialog;
     GroupBox1.Visible := True;
@@ -1488,7 +1490,7 @@ begin
         begin
           OneSamp := TStringList.Create;
           try
-            FastAssign(GetOneCollSamp(StrToInt(LRFSAMP)), OneSamp);
+            GetOneCollSamp(OneSamp, StrToInt(LRFSAMP));
             FillCollSampList(OneSamp, CollSampList.Count);
           finally
             OneSamp.Free;
@@ -3178,13 +3180,13 @@ end;
 procedure TfrmODBBank.cboAvailTestNeedData(Sender: TObject;
   const StartFrom: String; Direction, InsertAt: Integer);
 begin
-  cboAvailTest.ForDataUse(SubsetOfOrderItems(StartFrom, Direction, FVbecLookup));
+  cboAvailTest.ForDataUse(SubsetOfOrderItems(StartFrom, Direction, FVbecLookup, Responses.QuickOrder));
 end;
 
 procedure TfrmODBBank.cboAvailCompNeedData(Sender: TObject;
   const StartFrom: String; Direction, InsertAt: Integer);
 begin
-  cboAvailComp.ForDataUse(SubsetOfOrderItems(StartFrom, Direction, FVbecLookup));
+  cboAvailComp.ForDataUse(SubsetOfOrderItems(StartFrom, Direction, FVbecLookup, Responses.QuickOrder));
 end;
 
 procedure TfrmODBBank.cmdImmedCollClick(Sender: TObject);
@@ -4177,13 +4179,11 @@ begin
         with Application do
           begin
             NormalizeTopMosts;
-            aMSBOSContinue :=
-              MessageBox(PChar('The number of units ordered' + x + CRLF +
-               'Exceeds the maximum number recommended for '
-               + cboSurgery.text + CRLF + CRLF +
-               'If you need to order more than the recommended maximum units, please enter a justification in the Comment box.')
-               ,PChar('Maximum Number of Units Exceeded'),
-               MB_OK);
+            MessageBox(PChar('The number of units ordered' + x + CRLF +
+                       'Exceeds the maximum number recommended for '
+                        + cboSurgery.text + CRLF + CRLF +
+                        'If you need to order more than the recommended maximum units, please enter a justification in the Comment box.'),
+                        PChar('Maximum Number of Units Exceeded'), MB_OK);
             RestoreTopMosts;
           end;
       end;

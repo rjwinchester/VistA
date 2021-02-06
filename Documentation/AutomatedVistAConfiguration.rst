@@ -1,12 +1,20 @@
 Automated VistA Import and Configuration
 ========================================
 
-The manual steps for the Caché and GTM importing process can be found at ImportCache_ and ImportGT.M_.
-The ImportRG script runs files that mirror these scripts and will introduce the same codebase into the database.
+The process for importing VistA-M routines and globals into Caché and GTM has
+been automated. The automated import and configuration scripts are configured
+and prepared during the setup of the VistA repository after selecting the
+TEST_VISTA_FRESH_ option.
 
-The process for importing VistA-M routines and globals into Caché and GTM has been automated. These files are configured and prepared during the setup
-of the VistA repository after selecting the TEST_VISTA_FRESH_ option.  The TEST_VISTA_FRESH option also uses this import and configuration during the \'build\'
-step of a CTest dashboard submission. To execute the automated import and configuration via the command line, execute the following steps from a gitbash (Windows) or linux shell:
+First, the ImportRG script executes the script described in
+`Generate Import Files`_.
+
+Next, it executes scripts that mirror the steps for the Caché and GTM importing
+process that can be found at ImportCache_ and ImportGT.M_. The ImportRG script
+will introduce the same codebase into the database as the the manual processes.
+
+To execute the automated import and configuration via the command line, execute
+the following steps from a gitbash (Windows) or linux shell:
 
 .. parsed-literal::
 
@@ -14,7 +22,12 @@ step of a CTest dashboard submission. To execute the automated import and config
 
   $ cmake -P Testing/Setup/ImportRG.cmake
 
-Note that during the execution of the ImportRG script, in addition to the Routine and Global imports, three additional setup scripts are executed automatically:
+
+Automated VistA Setup
+=====================
+
+If the `TEST_VISTA_SETUP` option was selected, then during the execution of the
+ImportRG script, three additional setup scripts are executed automatically:
 
 =============================  ================================================================
    Script Name                                 Purpose
@@ -24,6 +37,7 @@ Note that during the execution of the ImportRG script, in addition to the Routin
    ClinicSetup.py                  Sets up a clinic for appointment scheduling
 =============================  ================================================================
 
+.. _`Generate Import Files`: PrepareMComponents.rst#generate_import_files
 .. _TEST_VISTA_FRESH: SetupTestingEnvironment.rst#test_vista_fresh-and-test_vista_setup
 .. _ImportCache: ImportCache.rst#retrieving-the-code-from-git-and-importing-into-cach
 .. _ImportGT.M: ImportGTM.rst#retrieving-the-code-from-git-and-importing-into-gtm

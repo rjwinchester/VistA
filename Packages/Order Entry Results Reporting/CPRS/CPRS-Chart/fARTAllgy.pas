@@ -155,7 +155,7 @@ implementation
 {$R *.DFM}
 
 uses
-  rODBase, uCore, rCore, rCover, fCover, fAllgyFind, fPtCWAD, fRptBox, VA508AccessibilityRouter;
+  rODBase, uCore, rCore, rCover, iCoversheetIntf, {fCover,} fAllgyFind, fPtCWAD, fRptBox, VA508AccessibilityRouter, VAUtils;
 
 const
   TX_NO_ALLERGY       = 'A causative agent must be specified.'    ;
@@ -216,94 +216,98 @@ end;
 function EnterEditAllergy(AllergyIEN: integer; AddNew, MarkAsEnteredInError: boolean; AnOwner: TComponent = nil; ARefNum: Integer = -1): boolean;
 var
   Allergy: string;
-begin      
+begin
   Result := False;
   if AnOwner = nil then AnOwner := Application;
 
   if not LockedForOrdering then Exit;//SMT Lets Lock Allergies
-  if frmARTAllergy <> nil then
-  begin
-    InfoBox('You are already entering/editing an Allergy.', 'Information', MB_OK);
-    exit;
-  end;
-  uAddingNew := AddNew;
-  uEditing := (not AddNew) and (not MarkAsEnteredInError);
-  uEnteredInError := MarkAsEnteredInError;
-  frmARTAllergy := TfrmARTAllergy.Create(AnOwner);
-  if ARefNum <> -1 then frmARTAllergy.RefNum := ARefNum;
-  if frmARTAllergy.AbortAction then exit;
-  with frmARTAllergy do
-    try
-      ResizeFormToFont(TForm(frmARTAllergy));
-      FChanged     := False;
-      Changing := True;
-      if uEditing then
-        begin
-          frmARTAllergy.Caption := TX_CAP_EDITING;
-          FEditAllergyIEN := AllergyIEN;
-          if FEditAllergyIEN = 0 then exit;
-          StatusText(TX_STS_EDITING);
-          OldRec := LoadAllergyForEdit(FEditAllergyIEN);
-          NewRec.IEN := OldRec.IEN;
-          SetupDialog;
-        end
-      else if uEnteredInError then
-        begin
-          frmARTAllergy.Caption := TX_CAP_ERROR;
-          FEditAllergyIEN := AllergyIEN;
-          if FEditAllergyIEN = 0 then exit;
-          StatusText(TX_STS_ERROR);
-          OldRec := LoadAllergyForEdit(FEditAllergyIEN);
-          NewRec.IEN := OldRec.IEN;
-          SetupDialog;
-        end
-      else if uAddingNew then
-        begin
-          SetupVerifyFields(NewRec);
-          SetupEnteredInErrorFields(NewRec);
-          AllergyLookup(Allergy, ckNoKnownAllergies.Enabled);
-          if Piece(Allergy, U, 1) = '-1' then
-            begin
-              ckNoKnownAllergies.Checked := True;
-              Result := EnterNKAForPatient;
-              frmARTAllergy.Close;
-              Exit;
-            end
-          else if Allergy <> '' then
-            begin
-              lstAllergy.Clear;
-              lstAllergy.Items.Add(Allergy);
-              cboAllergyType.SelectByID(Piece(Allergy, U, 4));
-            end
-          else
-            begin
-              Result := False;
-              Close;
-              exit;
-            end;
-          calOriginated.FMDateTime := FMNow;
-          Changing := False;
-          ControlChange(lstAllergy);
-        end;
-      StatusText('');
-      if OldRec.IEN = -1 then
-      begin
-        Result := False;
-        Close;
-        Exit;
-      end;
-
-      origlbl508.Caption := 'Originator. Read Only. Value is ' + cboOriginator.SelText;
-      origdtlbl508.Caption := 'Origination Date. Read Only. Value is '+ calOriginated.Text;
-      Show;
-      Result := FChanged;
-    finally
-//      uAddingNew := FALSE;
-//      uEditing := FALSE;
-//      uEnteredInError := FALSE;
-//      uUserCanVerify := FALSE;
-      //frmARTAllergy.Release;
+  try
+    if frmARTAllergy <> nil then
+    begin
+      InfoBox('You are already entering/editing an Allergy.', 'Information', MB_OK);
+      exit;
     end;
+    uAddingNew := AddNew;
+    uEditing := (not AddNew) and (not MarkAsEnteredInError);
+    uEnteredInError := MarkAsEnteredInError;
+    frmARTAllergy := TfrmARTAllergy.Create(AnOwner);
+    if ARefNum <> -1 then frmARTAllergy.RefNum := ARefNum;
+    if frmARTAllergy.AbortAction then exit;
+    with frmARTAllergy do
+      try
+        ResizeFormToFont(TForm(frmARTAllergy));
+        FChanged     := False;
+        Changing := True;
+        if uEditing then
+          begin
+            frmARTAllergy.Caption := TX_CAP_EDITING;
+            FEditAllergyIEN := AllergyIEN;
+            if FEditAllergyIEN = 0 then exit;
+            StatusText(TX_STS_EDITING);
+            OldRec := LoadAllergyForEdit(FEditAllergyIEN);
+            NewRec.IEN := OldRec.IEN;
+            SetupDialog;
+          end
+        else if uEnteredInError then
+          begin
+            frmARTAllergy.Caption := TX_CAP_ERROR;
+            FEditAllergyIEN := AllergyIEN;
+            if FEditAllergyIEN = 0 then exit;
+            StatusText(TX_STS_ERROR);
+            OldRec := LoadAllergyForEdit(FEditAllergyIEN);
+            NewRec.IEN := OldRec.IEN;
+            SetupDialog;
+          end
+        else if uAddingNew then
+          begin
+            SetupVerifyFields(NewRec);
+            SetupEnteredInErrorFields(NewRec);
+            AllergyLookup(Allergy, ckNoKnownAllergies.Enabled);
+            if Piece(Allergy, U, 1) = '-1' then
+              begin
+                ckNoKnownAllergies.Checked := True;
+                Result := EnterNKAForPatient;
+                frmARTAllergy.Close;
+                Exit;
+              end
+            else if Allergy <> '' then
+              begin
+                lstAllergy.Clear;
+                lstAllergy.Items.Add(Allergy);
+                cboAllergyType.SelectByID(Piece(Allergy, U, 4));
+              end
+            else
+              begin
+                Result := False;
+                Close;
+                exit;
+              end;
+            calOriginated.FMDateTime := FMNow;
+            Changing := False;
+            ControlChange(lstAllergy);
+          end;
+        StatusText('');
+        if OldRec.IEN = -1 then
+        begin
+          Result := False;
+          Close;
+          Exit;
+        end;
+
+        origlbl508.Caption := 'Originator. Read Only. Value is ' + cboOriginator.SelText;
+        origdtlbl508.Caption := 'Origination Date. Read Only. Value is '+ calOriginated.Text;
+        Show;
+        Result := FChanged;
+      finally
+  //      uAddingNew := FALSE;
+  //      uEditing := FALSE;
+  //      uEnteredInError := FALSE;
+  //      uUserCanVerify := FALSE;
+        //frmARTAllergy.Release;
+      end;
+  finally
+    UnlockIfAble;
+  end;
 end;
 
 procedure TfrmARTAllergy.FormCreate(Sender: TObject);
@@ -509,8 +513,11 @@ begin
       cboNatureOfReaction.SelectByID(Piece(NatureOfReaction, U, 1));
       FastAssign(SignsSymptoms, lstSelectedSymptoms.Items);
       calOriginated.FMDateTime := Originated;
-      cboOriginator.InitLongList(OriginatorName);
+
+      cboOriginator.Items.Clear;
+      cboOriginator.Items.Add(IntToStr(Originator) + U + OriginatorName);
       cboOriginator.SelectByIEN(Originator);
+
       { TODO -oRich V. -cART/Allergy : Change to calendar entry fields and prior entries button? }
       ckIDBand.Checked := IDBandMarked.Count > 0;
       ckChartMarked.Checked := ChartMarked.Count > 0;
@@ -906,6 +913,10 @@ procedure TfrmARTAllergy.SymptomDateBoxExit(Sender: TObject);
 begin
   inherited;
   SetDate;
+  if TabIsPressed then
+    btnRemove.SetFocus()
+  else if ShiftTabIsPressed then
+    lstSelectedSymptoms.SetFocus();
 end;
 
 procedure TfrmARTAllergy.btnAgent1Click(Sender: TObject);
@@ -970,8 +981,9 @@ begin
   uEditing := FALSE;
   uEnteredInError := FALSE;
   uUserCanVerify := FALSE;
-  frmCover.UpdateAllergiesList;
-  
+  //frmCover.UpdateAllergiesList;
+  CoverSheet.OnRefreshPanel(Self, CV_CPRS_ALLG);
+
   inherited;
 end;
 
@@ -1274,18 +1286,16 @@ begin
 end;
 
 
-procedure TfrmARTAllergy.FormClose(Sender: TObject;
-  var Action: TCloseAction);
+procedure TfrmARTAllergy.FormClose(Sender: TObject; var Action: TCloseAction);
 begin
-  inherited;
-  Release;
   uEditing := False;
   uEnteredInError := False;
   uAddingNew := False;
   Application.HintHidePause := FOldHintPause;
-  Action  := caFree;
+  UnlockIfAble; // SMT Unlock when allergies close.
 
-  UnlockIfAble; //SMT Unlock when allergies close.
+  Action := caFree;
+  inherited;
 end;
 
 procedure TfrmARTAllergy.FormCloseQuery(Sender: TObject;
@@ -1305,14 +1315,14 @@ end;
 
 procedure TfrmARTAllergy.btnSevHelpClick(Sender: TObject);
 const
-  TX_SEV_DEFINITION = 'MILD - Requires minimal therapeutic intervention '+#13+#10+
+  TX_SEV_DEFINITION = 'MILD - Requires minimal therapeutic intervention '+
                      'such as discontinuation of drug(s)'+#13+#10+''+#13+#10+
-                     'MODERATE - Requires active treatment of adverse reaction, '+#13+#10+
-                     'or further testing or evaluation to assess extent of non-serious'+#13+#10+
+                     'MODERATE - Requires active treatment of adverse reaction, '+
+                     'or further testing or evaluation to assess extent of non-serious '+
                      'outcome (see SEVERE for definition of serious).'+#13+#10+''+#13+#10+
-                     'SEVERE - Includes any serious outcome, resulting in life- or'+#13+#10+
-                     'organ-threatening situation or death, significant or permanent'+#13+#10+
-                     'disability, requiring intervention to prevent permanent impairment '+#13+#10+
+                     'SEVERE - Includes any serious outcome, resulting in life or '+
+                     'organ-threatening situation or death, significant or permanent '+
+                     'disability, requiring intervention to prevent permanent impairment '+
                      'or damage, or requiring/prolonging hospitalization.';
   TC_SEV_CAPTION   = 'Severity Levels';
 begin

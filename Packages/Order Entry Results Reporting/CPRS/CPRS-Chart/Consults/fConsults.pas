@@ -2,7 +2,7 @@ unit fConsults;
 {Notes of Intent:
   Tab Order:
     The tab order has been custom coded to place the pnlRight in the Tab order
-    right after the tvConsults.  
+    right after the tvConsults.
 }
 
 interface
@@ -11,7 +11,8 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs, ORDtTm,
   fHSplit, stdCtrls, ExtCtrls, Menus, ComCtrls, ORCtrls, ORFn, uConsults, rOrders, uPCE,
   ORClasses, uConst, fDrawers, rTIU, uTIU, uDocTree, RichEdit, fPrintList,
-  VA508AccessibilityManager, fBase508Form, VA508ImageListLabeler;
+  VA508AccessibilityManager, fBase508Form, fFrame, VA508ImageListLabeler,
+  U_CPTPasteDetails, ORextensions;
 
 type
   TfrmConsults = class(TfrmHSplit)
@@ -179,7 +180,11 @@ type
     imgLblNotes: TVA508ImageListLabeler;
     imgLblImages: TVA508ImageListLabeler;
     imgLblConsults: TVA508ImageListLabeler;
-    popNoteMemoViewCslt: TMenuItem;   //wat cq 17586
+    popNoteMemoViewCslt: TMenuItem;
+    CPMemConsult: TCopyPasteDetails;
+    spReadDetails: TSplitter;
+    CPMemResults: TCopyPasteDetails;
+    spEditDetails: TSplitter;   //wat cq 17586
     procedure mnuChartTabClick(Sender: TObject);
     procedure lstConsultsClick(Sender: TObject);
     procedure pnlRightResize(Sender: TObject);
@@ -285,7 +290,14 @@ type
     procedure pnlRightExit(Sender: TObject);
     procedure cmdEditResubmitExit(Sender: TObject);
     procedure cmdNewConsultExit(Sender: TObject);
-    procedure popNoteMemoViewCsltClick(Sender: TObject);   //wat cq 17586
+    procedure popNoteMemoViewCsltClick(Sender: TObject);
+    procedure CopyToMonitor(Sender: TObject; var AllowMonitor: Boolean);
+    procedure LoadPastedText(Sender: TObject; LoadList: TStrings; var ProcessLoad, PreLoaded: Boolean);
+    procedure SaveTheMonitor(Sender: TObject; SaveList: TStringList;
+      var ReturnList: TStringList);
+    procedure CPHide(Sender: TObject);
+    procedure CPShow(Sender: TObject);
+    procedure PasteToMonitor(Sender: TObject; var AllowMonitor: Boolean);   //wat cq 17586
   private
     FocusToRightPanel : Boolean;
     FEditingIndex: Integer;      // TIU index of document being currently edited
@@ -324,9 +336,7 @@ type
     procedure CompleteConsult(IsIDChild: boolean; AnIDParent: integer; UseClinProcTitles: boolean);
     procedure InsertAddendum;
     procedure SetSubjectVisible(ShouldShow: Boolean);
-    procedure SaveCurrentNote(var Saved: Boolean);
     procedure SaveEditedConsult(var Saved: Boolean);
-    procedure SetEditingIndex(const Value: Integer);
     procedure ShowPCEControls(ShouldShow: Boolean);
     procedure SetActionMenus ;
     procedure SetResultMenus ;
@@ -340,7 +350,6 @@ type
     function StartNewEdit(NewNoteType: integer): Boolean;
     procedure UnlockConsultRequest(ANote: Int64; AConsult: Integer = 0);
     function CanFinishReminder: boolean;
-    property EditingIndex: Integer read FEditingIndex write SetEditingIndex;
     function VerifyNoteTitle: Boolean;
     procedure UpdateNoteTreeView(DocList: TStringList; Tree: TORTreeView; AContext: integer);
     procedure EnableDisableIDNotes;
@@ -348,7 +357,9 @@ type
     procedure UpdateConsultsTreeView(DocList: TStringList; Tree: TORTreeView);
     procedure DoAttachIDChild(AChild, AParent: TORTreeNode);
     function UserIsSigner(NoteIEN: integer): boolean;
+    Procedure UpdateConstraints;
   public
+    property OrderID: string read FOrderID;
     function CustomCanFocus(Control: TWinControl): Boolean; //CB
     function LinesVisible(richedit: Trichedit): integer; //CB
     function ActiveEditOf(AnIEN: Int64): Boolean;
@@ -362,8 +373,11 @@ type
     procedure NotifyOrder(OrderAction: Integer; AnOrder: TOrder); override;
     function AuthorizedUser: Boolean;
     procedure AssignRemForm;
-    property OrderID: string read FOrderID;
     procedure LstConsultsToPrint;
+    procedure SaveCurrentNote(var Saved: Boolean);
+    procedure SetEditingIndex(const Value: Integer);
+    procedure LimitEditableNote;
+    property EditingIndex: Integer read FEditingIndex write SetEditingIndex;
   published
     property Drawers: TFrmDrawers read GetDrawers; // Keep Drawers published
   end;
@@ -397,11 +411,12 @@ implementation
 uses fVisit, rCore, uCore, rConsults, fConsultBS, fConsultBD, fSignItem,
      fConsultBSt, fConsultsView, fConsultAct, fEncnt, rPCE, fEncounterFrame,
      Clipbrd, rReports, fRptBox, fConsult513Prt, fODConsult, fODProc, fCsltNote, fAddlSigners,
-     fOrders, rVitals, fFrame, fNoteDR, fEditProc, fEditConsult, uOrders, rODBase, uSpell, {*KCM*}
+     fOrders, rVitals, fNoteDR, fEditProc, fEditConsult, uOrders, rODBase, uSpell, {*KCM*}
      fTemplateEditor, fNotePrt, fNotes, fNoteProps, fNotesBP, fReminderTree,
-     fReminderDialog, uReminders, fConsMedRslt, fTemplateFieldEditor,
-     dShared, rTemplates, fIconLegend, fNoteIDParents, fNoteCPFields,
-     uTemplates, fTemplateDialog, DateUtils, uVA508CPRSCompatibility, VA508AccessibilityRouter;
+     fReminderDialog, uReminders, fConsMedRslt, fTemplateFieldEditor, System.Types,
+     dShared, rTemplates, fIconLegend, fNoteIDParents, fNoteCPFields, rECS, ORNet, trpcb,
+     uTemplates, fTemplateDialog, DateUtils, uVA508CPRSCompatibility, VA508AccessibilityRouter,
+     System.UITypes, System.IniFiles, ORNetIntf, U_CPTEditMonitor, VAUtils;
 
 const
   CT_ORDERS =   4;                               // ID for orders tab used by frmFrame
@@ -552,6 +567,15 @@ var
 
 { TPage common methods --------------------------------------------------------------------- }
 
+procedure TfrmConsults.SetEditingIndex(const Value: Integer);
+begin
+  FEditingIndex := Value;
+  if(FEditingIndex < 0) then
+    KillReminderDialog(Self);
+  if(assigned(frmReminderTree)) then
+    frmReminderTree.EnableActions;
+end;
+
 function TfrmConsults.AllowContextChange(var WhyNot: string): Boolean;
 begin
   dlgFindText.CloseDialog;
@@ -628,6 +652,8 @@ begin
   uPCEShow.Clear;
   frmDrawers.ResetTemplates;
   FOrderID := '';
+  CPMemConsult.EditMonitor.ItemIEN := -1;
+  CPMemResults.EditMonitor.ItemIEN := -1;
 end;
 
 procedure TfrmConsults.SetViewContext(AContext: TSelectContext);
@@ -696,7 +722,7 @@ begin
                        end;
     CC_NOTIFICATION:  ProcessNotifications;
   end;
-  //with tvConsults do if Selected <> nil then tvConsultsChange(Self, Selected);   
+  //with tvConsults do if Selected <> nil then tvConsultsChange(Self, Selected);
 end;
 
 procedure TfrmConsults.SetFontSize(NewFontSize: Integer);
@@ -709,6 +735,31 @@ begin
   frmDrawers.Font.Size  := NewFontSize;
   SetEqualTabStops(memResults);
   // adjust heights of pnlAction, pnlFields, and memPCEShow
+  //Update the constraints based on the font
+  UpdateConstraints;
+end;
+
+Procedure TfrmConsults.UpdateConstraints;
+const
+  LEFT_MARGIN = 4;
+var
+ MinWdth: Integer;
+begin
+
+  //What is the min width these notes should be
+  MinWdth := TextWidthByFont(memResults.Font.Handle, StringOfChar('X', MAX_ENTRY_WIDTH)) + (LEFT_MARGIN * 2) + ScrollBarWidth;
+
+  //Set the minimum size
+  PnlRight.Constraints.MinWidth := MinWdth;
+
+  //Set the edit width based on the update
+  LimitEditableNote;
+end;
+
+procedure TfrmConsults.LimitEditableNote;
+begin
+  //Adjust the editable rectange
+   LimitEditWidth(memResults, MAX_ENTRY_WIDTH - 1);
 end;
 
 procedure TfrmConsults.mnuChartTabClick(Sender: TObject);
@@ -755,6 +806,7 @@ begin
   frmConsults.ActiveControl := nil;
   ShowPCEControls(FALSE);
   FChanged := False;
+  CPMemResults.EditMonitor.ItemIEN := -1;
 end;
 
 procedure TfrmConsults.CompleteConsult(IsIDChild: boolean; AnIDParent: integer; UseClinProcTitles: boolean);
@@ -803,7 +855,7 @@ begin
       Author       := User.DUZ;
       AuthorName   := User.Name;
       Location     := Encounter.Location;
-      LocationName := Encounter.LocationName;                                           
+      LocationName := Encounter.LocationName;
       VisitDate    := Encounter.DateTime;
       if IsIDChild then
         IDParent   := AnIDParent
@@ -830,6 +882,7 @@ begin
         FEditNote.NeedCPT  := uPCEEdit.CPTRequired;
          // create the note
         PutNewNote(CreatedNote, FEditNote);
+
         uPCEEdit.NoteIEN := CreatedNote.IEN;
         if CreatedNote.IEN > 0 then LockDocument(CreatedNote.IEN, CreatedNote.ErrorText);
         if CreatedNote.ErrorText = '' then
@@ -914,13 +967,234 @@ begin
     if assigned(TmpBoilerPlate) then
     begin
       DocInfo := MakeXMLParamTIU(IntToStr(CreatedNote.IEN), FEditNote);
-      ExecuteTemplateOrBoilerPlate(TmpBoilerPlate, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo);
-      QuickCopyWith508Msg(TmpBoilerPlate, memResults);
+      ExecuteTemplateOrBoilerPlate(TmpBoilerPlate, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo, CPMemResults);
+      memResults.Lines.Text := TmpBoilerPlate.Text;
+      memResults.SelStart := Length(memResults.Lines.Text); //CQ: 16461
+      SpeakStrings(TmpBoilerPlate);
       TmpBoilerPlate.Free;
     end;
     if EnableAutosave then // Don't enable autosave until after dialog fields have been resolved
       timAutoSave.Enabled := True;
   end;
+end;
+
+procedure TfrmConsults.LoadPastedText(Sender: TObject; LoadList: TStrings;
+  var ProcessLoad, PreLoaded: Boolean);
+var
+  DivId, ParamStr, TmpRtn: string;
+  IENToUse, I: Integer;
+  AddlSigners: TStrings;
+  IsCoSigner: Boolean;
+begin
+  if lstNotes.ItemIndex > -1 then
+    IENToUse := lstNotes.ItemIEN
+  else
+    IENToUse := lstConsults.ItemIEN;
+
+  DivID := Piece(RPCBrokerV.User.Division, '^', 1);
+  If Trim(DivID) = '' then
+    DivID := GetDivisionID;
+  if lstNotes.ItemIndex > -1 then
+    CallVistA('ORWTIU VIEWCOPY', [User.DUZ, IENToUse, DivId], TmpRtn)
+  else
+    CallVistA('ORWTIU VIEWCOPY', [User.DUZ, IntToStr(IENToUse) + ';123',
+      DivId], TmpRtn);
+
+  ProcessLoad := Not(Trim(TmpRtn) = '0');
+  IsCoSigner := False;
+  With TCopyPasteDetails(Sender) do
+  begin
+    // check for preload
+    if ProcessLoad then
+    begin
+      if lstNotes.ItemIndex > -1 then
+        EditMonitor.RelatedPackage := '8925'
+      else
+        EditMonitor.RelatedPackage := '123';
+
+
+      AddlSigners := GetCurrentSigners(IENToUse);
+      for I := 0 to AddlSigners.Count - 1 do
+      begin
+        if Piece(AddlSigners.Strings[I], U, 3) = 'Expected Cosigner' then
+        begin
+          IsCoSigner := (Piece(AddlSigners.Strings[I], U, 1)
+            = IntToStr(User.DUZ));
+          break;
+        end;
+      end;
+
+      if IsCoSigner and (not EditMonitor.CopyMonitor.DisplayPaste) then
+      begin
+        // Setup default indication
+        EditMonitor.CopyMonitor.MatchStyle := [fsBold];
+        EditMonitor.CopyMonitor.MatchHighlight := True;
+        EditMonitor.CopyMonitor.HighlightColor := clYellow;
+      end
+      else if not EditMonitor.CopyMonitor.DisplayPaste then
+      begin
+        EditMonitor.CopyMonitor.MatchStyle := [];
+        EditMonitor.CopyMonitor.MatchHighlight := False;
+        ProcessLoad := False;
+      end;
+
+    end;
+
+    if ProcessLoad then
+    begin
+
+      PreLoaded := False;
+
+      // Pre load off but make sure we need to actually reload
+      if not EditMonitor.ReadyForLoadTransfer then
+        PreLoaded := EditMonitor.ItemIEN = IENToUse;
+
+      EditMonitor.ItemIEN := IENToUse;
+      // If user is cosigner then show all paste actions
+      ShowAllPaste := IsCoSigner;
+
+      if not PreLoaded then
+      begin
+        ParamStr := IntToStr(EditMonitor.ItemIEN) + ';' +
+          EditMonitor.RelatedPackage;
+        LoadList.BeginUpdate;
+        CallVistA('ORWTIU GETPASTE', [ParamStr, DivId], LoadList);
+        LoadList.EndUpdate;
+      end;
+    end;
+
+    // Load has happened so no more transfers
+    CPMemResults.DefaultSelectAll := IsCoSigner;
+    CPMemConsult.DefaultSelectAll := IsCoSigner;
+    CPMemResults.EditMonitor.ReadyForLoadTransfer := False;
+    CPMemConsult.EditMonitor.ReadyForLoadTransfer := False;
+    EditMonitor.ItemIEN := IENToUse;
+  end;
+
+  inherited;
+end;
+
+procedure TfrmConsults.SaveTheMonitor(Sender: TObject; SaveList: TStringList;
+  var ReturnList: TStringList);
+var
+  i, x, Total, LineCnt, SubCnt, z: integer;
+  DivisionID, aName, aValue: string;
+   LookUpLst: THashedStringList;
+   aList: iORNetMult;
+begin
+  inherited;
+  Total := StrToIntDef(SaveList.values['TotalToSave'], -1);
+  DivisionID := Piece(RPCBrokerV.User.Division, '^', 1);
+  If Trim(DivisionID) = '' then
+    DivisionID := GetDivisionID;
+
+  if Total > -1 then begin
+    LookUpLst := THashedStringList.Create;
+    try
+      LookUpLst.BeginUpdate;
+      LookUpLst.Assign(SaveList);
+      LookUpLst.EndUpdate;
+      neworNetMult(aList);
+
+     for I := 1 to Total do begin
+        aList.AddSubscript([i,0],LookupLst.values[IntToStr(i) + ',0']);
+        LineCnt := StrToIntDef(LookupLst.values[IntToStr(i) + ',-1'], -1);
+        for x := 1 to LineCnt do begin
+          aName := IntToStr(i) + ',' + IntToStr(x);
+          aValue :=  FilteredString(LookupLst.values[aName]);
+          aList.AddSubscript([i,x], aValue);
+        end;
+
+       // Send in the original if needed
+        LineCnt := StrToIntDef(LookupLst.values[IntToStr(i) + ',Copy,-1'], -1);
+        for X := 1 to LineCnt do
+        begin
+         aName := IntToStr(i) + ',Copy,' + IntToStr(X);
+         aValue := FilteredString(LookupLst.values[aName]);
+         aList.AddSubscript([i,0,x], aValue);
+        end;
+
+        // Send in the "Paste"
+        if StrToIntDef(Piece(LookupLst.values[IntToStr(i) + ',Paste,-1'], '^', 2), 0) >
+        (TCopyEditMonitor(Sender).CopyMonitor.SaveCutOff * 1000) then
+        begin
+          LineCnt := StrToIntDef(Piece(LookupLst.values[IntToStr(i) + ',Paste,-1'], '^', 1), -1);
+          for X := 1 to LineCnt do
+          begin
+           SubCnt := StrToIntDef(LookupLst.values[IntToStr(i) + ',Paste,' + IntToStr(X) + ',-1'], -1);
+           for Z := 1 to SubCnt do
+           begin
+            aName := IntToStr(i) + ',Paste,' + IntToStr(X) +','+ IntToStr(z);
+            aValue := FilteredString(LookupLst.values[aName]);
+            aList.AddSubscript([i,'Paste',x,z], aValue);
+           end;
+          end;
+        end;
+      end;
+
+     CallVistA('ORWTIU SVPASTE', [aList, DivisionID], ReturnList);
+
+    finally
+     LookUpLst.Free;
+    end;
+  end;
+end;
+
+procedure TfrmConsults.CopyToMonitor(Sender: TObject; var AllowMonitor: Boolean);
+begin
+  inherited;
+    if lstNotes.ItemIndex > -1 then begin
+    CPMemConsult.EditMonitor.ItemIEN := lstNotes.ItemIEN;
+    CPMemConsult.EditMonitor.RelatedPackage := '8925';
+    AllowMonitor := lstNotes.ItemIndex <> EditingIndex;
+  end else begin
+    CPMemConsult.EditMonitor.ItemIEN := lstConsults.ItemIEN;
+    CPMemConsult.EditMonitor.RelatedPackage := '123';
+    AllowMonitor := lstConsults.ItemIndex <> EditingIndex;
+  end;
+end;
+
+procedure TfrmConsults.CPHide(Sender: TObject);
+begin
+  inherited;
+  if Sender  is TCopyPasteDetails then
+  begin
+   if TCopyPasteDetails(Sender).Name = 'CPMemConsult' then
+    spReadDetails.Visible := false
+   else
+    spEditDetails.Visible := False;
+  end;
+end;
+
+procedure TfrmConsults.PasteToMonitor(Sender: TObject; var AllowMonitor: Boolean);
+begin
+  inherited;
+   if lstNotes.ItemIndex > -1 then begin
+    CPMemResults.EditMonitor.ItemIEN := lstNotes.ItemIEN;
+    CPMemResults.EditMonitor.RelatedPackage := '8925';
+  end else begin
+    CPMemResults.EditMonitor.ItemIEN := lstConsults.ItemIEN;
+    CPMemResults.EditMonitor.RelatedPackage := '123';
+  end;
+  AllowMonitor := CPMemResults.CopyMonitor.ExcludedList.IndexOf(IntToStr(FEditNote.Title)) = -1;
+  ScrubTheClipboard;
+end;
+
+procedure TfrmConsults.CPShow(Sender: TObject);
+begin
+  inherited;
+  if Sender  is TCopyPasteDetails then
+  begin
+   if TCopyPasteDetails(Sender).Name = 'CPMemConsult' then
+   begin
+    spReadDetails.Visible := true;
+    spReadDetails.Top := CPMemConsult.Top;
+   end else begin
+    spEditDetails.Visible := true;
+    spEditDetails.Top := CPMemResults.Top;
+   end;
+  end;
+
 end;
 
 procedure TfrmConsults.InsertAddendum;
@@ -975,6 +1249,7 @@ begin
     FEditNote.LocationName := ExternalName(uPCEEdit.Location, 44);
     FEditNote.VisitDate    := uPCEEdit.DateTime;
     PutAddendum(CreatedNote, FEditNote, FEditNote.Addend);
+
     uPCEEdit.NoteIEN := CreatedNote.IEN;
     if CreatedNote.IEN > 0 then LockDocument(CreatedNote.IEN, CreatedNote.ErrorText);
     if CreatedNote.ErrorText = '' then
@@ -1040,6 +1315,7 @@ var
 begin
   ClearEditControls;
   if not LockConsultRequestAndNote(lstNotes.ItemIEN) then Exit;
+  CpMemResults.EditMonitor.ClearTheMonitor;
   EnableAutosave := FALSE;
   tmpBoilerplate := nil;
   try
@@ -1117,8 +1393,10 @@ begin
     if assigned(TmpBoilerPlate) then
     begin
       DocInfo := MakeXMLParamTIU(IntToStr(lstNotes.ItemIEN), FEditNote);
-      ExecuteTemplateOrBoilerPlate(TmpBoilerPlate, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo);
-      QuickCopyWith508Msg(TmpBoilerPlate, memResults);
+      ExecuteTemplateOrBoilerPlate(TmpBoilerPlate, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo, CPMemResults);
+      memResults.Lines.Text := TmpBoilerPlate.Text;
+      memResults.SelStart := Length(memResults.Lines.Text); //CQ: 16461
+      SpeakStrings(TmpBoilerPlate);
       TmpBoilerPlate.Free;
     end;
     if EnableAutosave then // Don't enable autosave until after dialog fields have been resolved
@@ -1203,6 +1481,11 @@ begin
   timAutoSave.Enabled := False;
   try
     PutEditedNote(UpdatedNote, FEditNote, lstNotes.GetIEN(EditingIndex));
+
+    //Save copied text here
+    if (memResults.lines.Count > 0) and (CPMemResults.CopyPasteEnabled) then
+      CPMemResults.SaveTheMonitor(UpdatedNote.IEN);
+
   finally
     timAutoSave.Enabled := True;
   end;
@@ -1244,8 +1527,36 @@ end;
 
 procedure TfrmConsults.pnlRightResize(Sender: TObject);
 { TRichEdit doesn't repaint appropriately unless its parent panel is refreshed }
+var
+ AdjustBy: Integer;
+ Rect: TRect;
 begin
   inherited;
+
+    //CQ7012 Added test for nil
+  if Assigned(Self) and Assigned(pnlLeft) and Assigned(pnlResults) and Assigned(sptHorz) then
+  begin
+    if PnlRight.Width =  PnlRight.Constraints.MinWidth then
+    begin
+      //Grab the current bounds
+      Rect := BoundsRect;
+      //What should they be?
+      ForceInsideWorkArea(Rect);
+      //if we our outside of our bounds then take away from the left
+      if BoundsRect.Right > Rect.Right then
+      begin
+        AdjustBy := BoundsRect.Right - Rect.Right;
+        pnlLeft.Width :=  pnlLeft.Width - sptHorz.Width - AdjustBy;
+
+        //Ensure that the form will fit on the work area
+        if WindowState <> wsMaximized then
+        begin
+          frmFrame.Width := frmFrame.Width - sptHorz.Width - AdjustBy;
+        end;
+      end;
+    end;
+  end;
+
   pnlRight.Refresh;
   pnlAction.Invalidate;
   memConsult.Repaint;
@@ -1266,7 +1577,7 @@ begin
   inherited;
   lstNotes.Items.Clear ;
   memConsult.Clear ;
-  ClearEditControls ;
+ // ClearEditControls ;
   if lstConsults.ItemIEN <= 0 then
    begin
       memConsult.Lines.Add('No consults were found which met the criteria specified: '
@@ -1344,6 +1655,7 @@ begin
   SetActionMenus ;
   SetResultMenus ;
   StatusText('');
+  CPMemConsult.LoadPasteText();
   pnlRight.Repaint ;
   memConsult.SelStart := 0;
   memConsult.Repaint;
@@ -1384,7 +1696,7 @@ begin
   DelayEvent.Effective := 0;
   DelayEvent.EventIFN  := 0;
   DelayEvent.PtEventIFN := 0;
-  
+
   if not ReadyForNewOrder(DelayEvent) then Exit;
   { get appropriate form, create the dialog form and show it }
   DialogInfo := GetNewDialog(DLG_PROC);   // DialogInfo = DlgIEN;FormID;DGroup
@@ -1459,7 +1771,7 @@ begin
         CC_CUSTOM     :  begin
                            NewView := SelectConsultsView(Font.Size, FCurrentContext, uSelectContext) ;
                            if NewView then lblConsults.Caption := 'Custom List';
-                         end;  
+                         end;
         CC_ALL        :  NewView := True ;
       end;
     end
@@ -1763,7 +2075,9 @@ begin
   ReasonForDelete := SelectDeleteReason(lstNotes.ItemIEN);
   if ReasonForDelete = DR_CANCEL then Exit;
   // suppress prompt for deletion when called from SaveEditedNote (Sender = Self)
-  if (Sender <> Self) and (InfoBox(MakeNoteDisplayText(lstNotes.Items[lstNotes.ItemIndex]) + TX_DEL_OK,
+  if (Sender <> Self) and (InfoBox(MakeNoteDisplayText(lstNotes.Items[lstNotes.ItemIndex])
+    + AncillaryPackageMessages(lstNotes.ItemIEN, 'DELETE')
+    + TX_DEL_OK,
     TX_DEL_CNF, MB_YESNO or MB_DEFBUTTON2 or MB_ICONQUESTION) <> IDYES) then Exit;
   // do the appropriate locking
   if not LockConsultRequestAndNote(lstNotes.ItemIEN) then Exit;
@@ -1982,7 +2296,7 @@ begin
     begin
       uPCEShow.CopyPCEData(uPCEEdit);
       uPCEShow.Updated := FALSE;
-      lstNotesClick(Self); 
+      lstNotesClick(Self);
     end;
     if not AuthorSignedDocument(lstNotes.ItemIEN) then
     begin
@@ -2219,7 +2533,7 @@ begin
 //  tvConsults.Enabled := False;
   x := Piece(lstConsults.Items[lstConsults.ItemIndex], U, 12);
   if x <> '' then
-    IsProcedure := (x[1] in ['P', 'M'])
+    IsProcedure := CharInSet(x[1], ['P', 'M'])
   else
     IsProcedure := (Piece(lstConsults.Items[lstConsults.ItemIndex], U, 9) = 'Procedure');
   //if SetActionContext(Font.Size,FActionType, IsProcedure, ConsultRec.ConsultProcedure) then
@@ -2667,6 +2981,7 @@ begin
        mnuActChange.Enabled     := True;
        mnuActLoadBoiler.Enabled := True;
        UpdateReminderFinish;
+       CPMemResults.LoadPasteText();
      end
    else
      begin
@@ -2709,8 +3024,11 @@ begin
       DisplayPCE;
     end;
   pnlRight.Refresh;
+  CPMemConsult.LoadPasteText;
   memConsult.Repaint;
   memResults.Repaint;
+  if lstNotes.ItemIndex = EditingIndex then
+    LimitEditableNote;
   SetResultMenus;
   StatusText('');
 end;
@@ -2723,8 +3041,8 @@ begin
     else FEditCtrl := nil;
   if FEditCtrl <> nil then
    begin
-    popNoteMemoCut.Enabled       := FEditCtrl.SelLength > 0;
-    popNoteMemoCopy.Enabled      := popNoteMemoCut.Enabled;
+    popNoteMemoCut.Enabled       := (FEditCtrl.SelLength > 0) and (not TORExposedCustomEdit(FEditCtrl).ReadOnly);
+    popNoteMemoCopy.Enabled      := FEditCtrl.SelLength > 0;
     popNoteMemoPaste.Enabled     := (not TORExposedCustomEdit(FEditCtrl).ReadOnly) and
                                     Clipboard.HasFormat(CF_TEXT);
     popNoteMemoTemplate.Enabled  := frmDrawers.CanEditTemplates and popNoteMemoCut.Enabled;
@@ -2773,8 +3091,10 @@ end;
 procedure TfrmConsults.popNoteMemoPasteClick(Sender: TObject);
 begin
   inherited;
-  FEditCtrl.SelText := Clipboard.AsText; {*KCM*}
-  //FEditCtrl.PasteFromClipboard;        // use AsText to prevent formatting
+ // FEditCtrl.SelText := Clipboard.AsText; {*KCM*}
+ if not CPMemResults.EditMonitor.CopyMonitor.Enabled then
+   ScrubTheClipboard;
+  FEditCtrl.PasteFromClipboard;        // use AsText to prevent formatting
 end;
 
 procedure TfrmConsults.popNoteMemoReformatClick(Sender: TObject);
@@ -2944,10 +3264,7 @@ const
   LEFT_MARGIN = 4;
 begin
   inherited;
-  LimitEditWidth(memResults, MAX_ENTRY_WIDTH - 1);
-  memResults.Constraints.MinWidth := TextWidthByFont(memResults.Font.Handle, StringOfChar('X', MAX_ENTRY_WIDTH)) + (LEFT_MARGIN * 2) + ScrollBarWidth;
-  //CQ13181	508 Consults--Splitter bar doesn't retain size
- //CQ13181  pnlLeft.Width := self.ClientWidth - pnlResults.Width - sptHorz.Width;
+  LimitEditableNote;
 end;
 
 procedure TfrmConsults.NotifyOrder(OrderAction: Integer; AnOrder: TOrder);
@@ -3010,6 +3327,7 @@ begin
   frmDrawers.RichEditControl := memResults;
   frmDrawers.Splitter := splDrawers;
   frmDrawers.DefTempPiece := 2;
+  frmDrawers.CopyMonitor := CPMemResults;
   FImageFlag := TBitmap.Create;
   FDocList := TStringList.Create;
   with FCurrentNoteContext do
@@ -3019,6 +3337,10 @@ begin
       Status := IntToStr(NC_ALL);
     end;
   FCsltList := TStringList.Create;
+
+  //safteynet
+  CPMemConsult.CopyMonitor := frmFrame.CPAppMon;
+  CPMemResults.CopyMonitor := frmFrame.CPAppMon;
 end;
 
 procedure TfrmConsults.mnuActDisplayDetailsClick(Sender: TObject);
@@ -3286,18 +3608,22 @@ begin
    end;
   end;
 
-  case Notifications.Followup of
-    NF_CONSULT_REQUEST_RESOLUTION   :  Notifications.Delete;
-    NF_NEW_SERVICE_CONSULT_REQUEST  :  Notifications.Delete;
-    NF_STAT_RESULTS                 :  Notifications.Delete;
-    NF_CONSULT_REQUEST_CANCEL_HOLD  :  Notifications.Delete;
-    NF_CONSULT_REQUEST_UPDATED      :  Notifications.Delete;
-    NF_CONSULT_UNSIGNED_NOTE        :  {Will be automatically deleted by TIU sig action!!!} ;
-    NF_CONSULT_PROC_INTERPRETATION  :  Notifications.Delete;      // not sure we want to do this yet,
-                                                                  // but if not now, then when?
+  if Notifications.Processing then
+  begin
+    case Notifications.Followup of
+      NF_CONSULT_REQUEST_RESOLUTION   :  Notifications.Delete;
+      NF_NEW_SERVICE_CONSULT_REQUEST  :  Notifications.Delete;
+      NF_STAT_RESULTS                 :  Notifications.Delete;
+      NF_CONSULT_REQUEST_CANCEL_HOLD  :  Notifications.Delete;
+      NF_CONSULT_REQUEST_UPDATED      :  Notifications.Delete;
+      NF_CONSULT_UNSIGNED_NOTE        :  {Will be automatically deleted by TIU sig action!!!} ;
+      NF_CONSULT_PROC_INTERPRETATION  :  Notifications.Delete;      // not sure we want to do this yet,
+                                                                    // but if not now, then when?
+    end;
+    if Copy(Piece(Notifications.RecordID, U, 2), 1, 6) = 'TIUADD' then Notifications.Delete;
+    if Copy(Piece(Notifications.RecordID, U, 2), 1, 5) = 'TIUID' then Notifications.Delete;
   end;
-  if Copy(Piece(Notifications.RecordID, U, 2), 1, 6) = 'TIUADD' then Notifications.Delete;
-  if Copy(Piece(Notifications.RecordID, U, 2), 1, 5) = 'TIUID' then Notifications.Delete;
+
   FNotifPending := False;
 end;
 
@@ -3569,15 +3895,6 @@ begin
   Result := frmDrawers;
 end;
 
-procedure TfrmConsults.SetEditingIndex(const Value: Integer);
-begin
-  FEditingIndex := Value;
-  if(FEditingIndex < 0) then
-    KillReminderDialog(Self);
-  if(assigned(frmReminderTree)) then
-    frmReminderTree.EnableActions;
-end;
-
 function TfrmConsults.LockConsultRequest(AConsult: Integer): Boolean;
 { returns true if consult successfully locked }
 begin
@@ -3723,7 +4040,46 @@ begin
             with tvCsltNotes do Selected := FindPieceNode(ANoteID, 1, U, Items.GetFirstNode);
           end;
       end;
-  end;
+  end else
+    //notes section
+    if frmNotes.EditingIndex > -1 then
+    begin
+      case NewNoteType of
+        NT_ACT_ADDENDUM: begin
+            Msg := TX_NEW_SAVE1 + MakeConsultNoteDisplayText(frmNotes.lstNotes.Items
+              [frmNotes.EditingIndex]) + TX_NEW_SAVE3;
+            CapMsg := TC_NEW_SAVE3;
+          end;
+        NT_ACT_EDIT_NOTE: begin
+            Msg := TX_NEW_SAVE1 + MakeConsultNoteDisplayText(frmNotes.lstNotes.Items
+              [frmNotes.EditingIndex]) + TX_NEW_SAVE4;
+            CapMsg := TC_NEW_SAVE4;
+          end;
+        NT_ACT_ID_ENTRY: begin
+            Msg := TX_NEW_SAVE1 + MakeConsultNoteDisplayText(frmNotes.lstNotes.Items
+              [frmNotes.EditingIndex]) + TX_NEW_SAVE5;
+            CapMsg := TC_NEW_SAVE5;
+          end;
+      else
+        begin
+          Msg := TX_NEW_SAVE1 + MakeNoteDisplayText(frmNotes.lstNotes.Items
+            [frmNotes.EditingIndex]) + TX_NEW_SAVE2;
+          CapMsg := TC_NEW_SAVE2;
+        end;
+      end;
+      if InfoBox(Msg, CapMsg, MB_YESNO) = IDNO then Result := False
+      else
+      begin
+        frmNotes.SaveCurrentNote(Saved);
+        if not Saved then Result := False
+        else
+        begin
+          with tvConsults do Selected := FindPieceNode(AConsultID, 1, U, Items.GetFirstNode);
+          tvConsultsClick(Self);
+          with tvCsltNotes do Selected := FindPieceNode(ANoteID, 1, U, Items.GetFirstNode);
+        end;
+      end;
+    end;
 end;
 
 function TfrmConsults.LacksRequiredForCreate: Boolean;
@@ -3864,7 +4220,7 @@ procedure TfrmConsults.DoAutoSave(Suppress: integer = 1);
 var
   ErrMsg: string;
 begin
-  if fFrame.frmFrame.DLLActive = True then Exit;  
+  if fFrame.frmFrame.DLLActive = True then Exit;
   if (EditingIndex > -1) and FChanged then
   begin
     StatusText('Autosaving note...');
@@ -3872,6 +4228,11 @@ begin
     timAutoSave.Enabled := False;
     try
       SetText(ErrMsg, memResults.Lines, lstNotes.GetIEN(EditingIndex), Suppress);
+
+      if (memResults.lines.Count > 0) and (CPMemResults.CopyPasteEnabled) then
+        //Save copied text here
+        CPMemResults.SaveTheMonitor(lstNotes.GetIEN(EditingIndex));
+
     finally
       timAutoSave.Enabled := True;
     end;
@@ -3976,7 +4337,11 @@ begin
     RightPanel := pnlRight;
     CanFinishProc := CanFinishReminder;
     DisplayPCEProc := DisplayPCE;
-    Drawers := frmDrawers;
+
+    DrawerReminderTV := Drawers.tvReminders;
+    DrawerReminderTreeChange := Drawers.NotifyWhenRemTreeChanges;
+    DrawerRemoveReminderTreeChange := Drawers.RemoveNotifyWhenRemTreeChanges;
+
     NewNoteRE := memResults;
     NoteList := lstNotes;
   end;
@@ -4005,8 +4370,10 @@ var
 
   procedure AssignBoilerText;
   begin
-    ExecuteTemplateOrBoilerPlate(BoilerText, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo);
-    QuickCopyWith508Msg(BoilerText, memResults);
+    ExecuteTemplateOrBoilerPlate(BoilerText, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo, CPMemResults);
+    memResults.Lines.Text := BoilerText.Text;
+    memResults.SelStart := Length(memResults.Lines.Text); //CQ: 16461
+    SpeakStrings(BoilerText);
     FChanged := False;
   end;
 
@@ -4021,19 +4388,18 @@ begin
        assigned(GetLinkedTemplate(IntToStr(FEditNote.Title), ltTitle)) then
     begin
       DocInfo := MakeXMLParamTIU(IntToStr(lstNotes.ItemIEN), FEditNote);
-      if NoteEmpty then AssignBoilerText else
-      begin
+      if NoteEmpty then AssignBoilerText else begin
         case QueryBoilerPlate(BoilerText) of
         0:  { do nothing } ;                         // ignore
-        1: begin
-             ExecuteTemplateOrBoilerPlate(BoilerText, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo);
-             QuickCopyWith508Msg(BoilerText, memResults);  // append
-           end;
-        2: AssignBoilerText;                         // replace
+        1:  begin // append
+              ExecuteTemplateOrBoilerPlate(BoilerText, FEditNote.Title, ltTitle, Self, 'Title: ' + FEditNote.TitleName, DocInfo, CPMemResults);
+              memResults.Lines.AddStrings(BoilerText);
+              SpeakStrings(BoilerText);
+            end;
+        2:  AssignBoilerText;                         // replace
         end;
       end;
-    end else
-    begin
+    end else begin
       if Sender = mnuActLoadBoiler
         then InfoBox(TX_NO_BOIL, TC_NO_BOIL, MB_OK)
         else
@@ -4135,8 +4501,11 @@ end;
 
 procedure TfrmConsults.UpdateNoteTreeView(DocList: TStringList; Tree: TORTreeView; AContext: integer);
 var
-  i: integer;
+  ReturnCursor, I: Integer;
 begin
+  ReturnCursor := Screen.Cursor;
+  Screen.Cursor := crHourGlass;
+  try
   with Tree do
     begin
       uChanging := True;
@@ -4148,10 +4517,13 @@ begin
           lstNotes.Items.Add(DocList[i]);
         end;
       FCurrentNoteContext.Status := IntToStr(AContext);
-      BuildDocumentTree(DocList, '0', Tree, nil, FCurrentNoteContext, CT_CONSULTS);
+      BuildDocumentTree2(DocList, Tree, FCurrentNoteContext, CT_CONSULTS);
       Items.EndUpdate;
       uChanging := False;
     end;
+  finally
+   Screen.Cursor := ReturnCursor;
+  end;
 end;
 
 procedure TfrmConsults.tvCsltNotesChange(Sender: TObject; Node: TTreeNode);
@@ -4212,6 +4584,13 @@ begin
           lstNotesClick(Self);
           SendMessage(memConsult.Handle, WM_VSCROLL, SB_TOP, 0);
         end;
+
+     //display orphaned warning
+//      if PDocTreeObject(Selected.Data)^.Orphaned then -- 1211117
+      if assigned(Selected) and assigned(Selected.Data) and
+        PDocTreeObject(Selected.Data)^.Orphaned then
+        MessageDlg(ORPHANED_NOTE_TEXT, mtInformation, [mbOK], -1);
+
     end;
 end;
 
@@ -4761,9 +5140,11 @@ procedure TfrmConsults.sptHorzCanResize(Sender: TObject; var NewSize: Integer;
   var Accept: Boolean);
 begin
   inherited;
-  if pnlResults.Visible then
-     if NewSize > frmConsults.ClientWidth - memResults.Constraints.MinWidth - sptHorz.Width then
-        NewSize := frmConsults.ClientWidth - memResults.Constraints.MinWidth - sptHorz.Width;
+  if NewSize > frmConsults.ClientWidth - pnlRight.Constraints.MinWidth - sptHorz.Width then
+  begin
+    NewSize := frmConsults.ClientWidth - pnlRight.Constraints.MinWidth - sptHorz.Width;
+    Accept := false;
+  end;
 end;
 
 procedure TfrmConsults.popNoteMemoPreviewClick(Sender: TObject);
@@ -4777,7 +5158,7 @@ begin
   frmDrawers.mnuInsertTemplateClick(Sender);
 end;
 
-procedure TfrmConsults.lstConsultsToPrint;      
+procedure TfrmConsults.lstConsultsToPrint;
 var
   AParentID: string;
   SavedDocID: string;

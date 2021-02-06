@@ -6,12 +6,8 @@ uses
   Windows, Messages, SysUtils, Classes, Graphics, Controls, Forms, Dialogs,
   ExtCtrls, StdCtrls, ORCtrls, Menus, TeeProcs, TeEngine, Series, Chart, Math,
   ComCtrls, GanttCh, ClipBrd, StrUtils, ORFn, ORDtTmRng, DateUtils, Printers,
-  OleServer, Variants, Word2000, ArrowCha, ORDtTm, uGraphs, fBase508Form
-  {$IFDEF VER140}
-  ,Word97;
-  {$ELSE}
-  ,WordXP, VA508AccessibilityManager;
-  {$ENDIF}
+  OleServer, Variants, ArrowCha, ORDtTm, uGraphs, fBase508Form, VCLTee.TeCanvas,
+  System.UITypes,WordXP, VA508AccessibilityManager, VclTee.TeeGDIPlus;
 
 type
   TfrmGraphs = class(TfrmBase508Form)
@@ -50,6 +46,7 @@ type
     mnuPopGraphCopy: TMenuItem;
     mnuPopGraphDates: TMenuItem;
     mnuPopGraphDefineViews: TMenuItem;
+    mnuPopGraphChangeViews: TMenuItem;
     mnuPopGraphDetails: TMenuItem;
     mnuPopGraphDualViews: TMenuItem;
     mnuPopGraphGradient: TMenuItem;
@@ -247,6 +244,7 @@ type
     procedure mnuMHasNumeric1Click(Sender: TObject);
     procedure mnuPopGraphViewDefinitionClick(Sender: TObject);
     procedure splViewsTopMoved(Sender: TObject);
+    procedure cboDateRangeExit(Sender: TObject);
 
   private
     FBSortAscending: boolean;
@@ -737,7 +735,7 @@ begin
     end;
   end;
   if length(pnlFooter.Hint) > 1 then      // if context use all results
-    cboDateRange.ItemIndex := 8
+    cboDateRange.ItemIndex := 7
   else
     DateDefaults;
   cboDateRangeChange(self);
@@ -1118,7 +1116,7 @@ begin
   lvwItemsBottom.Items.Clear;
   lvwItemsTop.SortType := stNone; // if Sorting during load then potential error
   lvwItemsBottom.SortType := stNone; // if Sorting during load then potential error
-  if (cboDateRange.ItemIndex > 0) and (cboDateRange.ItemIndex < 9) then
+  if (cboDateRange.ItemIndex > 0) and (cboDateRange.ItemIndex < 8) then
   begin
     if TypeIsDisplayed('405') then
       DateRangeItems(oldestdate, newestdate, '405');  // does not matter for all results ******************
@@ -1150,7 +1148,7 @@ begin
       end;
     end;
   end
-  else if (cboDateRange.ItemIndex = 0) or (cboDateRange.ItemIndex > 8) then
+  else if (cboDateRange.ItemIndex = 0) or (cboDateRange.ItemIndex > 7) then
   begin     // manual date range selection
     for i := 0 to GtslAllTypes.Count - 1 do
     begin
@@ -1777,7 +1775,6 @@ begin
   end;
 end;
 
-
 procedure TfrmGraphs.chkItemsTopClick(Sender: TObject);
 begin
   Screen.Cursor := crHourGlass;
@@ -2077,8 +2074,8 @@ begin
       Controls[i].height := displayheight;
   end;
   AdjustTimeframe;
-  if chartDatelineTop.Visible then chartDatelineTop.ZoomPercent(ZOOM_PERCENT);
-  if chartDatelineBottom.Visible then chartDatelineBottom.ZoomPercent(ZOOM_PERCENT);
+  //if chartDatelineTop.Visible then chartDatelineTop.ZoomPercent(ZOOM_PERCENT);
+  //if chartDatelineBottom.Visible then chartDatelineBottom.ZoomPercent(ZOOM_PERCENT);
   if FNonNumerics then
     if section = 'top' then pnlItemsTop.Tag := 1
     else pnlItemsBottom.Tag := 1;
@@ -2371,8 +2368,8 @@ begin
     chartDatelineBottom.OnMouseMove := nil;
   end;
   AdjustTimeframe;
-  if chartDatelineTop.Visible then chartDatelineTop.ZoomPercent(ZOOM_PERCENT);
-  if chartDatelineBottom.Visible then chartDatelineBottom.ZoomPercent(ZOOM_PERCENT);
+  //if chartDatelineTop.Visible then chartDatelineTop.ZoomPercent(ZOOM_PERCENT);
+  //if chartDatelineBottom.Visible then chartDatelineBottom.ZoomPercent(ZOOM_PERCENT);
 end;
 
 procedure TfrmGraphs.MakeTogetherNoLines(aListView: TListView; section: string);
@@ -2550,6 +2547,7 @@ begin
     View3D := false;
     Chart3DPercent := 10;
     AllowPanning := pmNone;
+    Zoom.Pen.Color := chartBase.Zoom.Pen.Color;
     Gradient.EndColor := clGradientActiveCaption;
     Gradient.StartColor := clWindow;
     Legend.LegendStyle := lsSeries;
@@ -3476,7 +3474,7 @@ begin
   AddRow(worksheet, '1', 'Type', 'Item', 'Date1', 'Date2', 'Value', 'Other');
   cnt := 1;
   FillData(lvwItemsTop, worksheet, cnt);
-  if lvwItemsBottom.Items.Count > 0 then 
+  if lvwItemsBottom.Items.Count > 0 then
   begin
     cnt := cnt + 1;
     linestring := inttostr(cnt);
@@ -3555,6 +3553,7 @@ procedure TfrmGraphs.ChartStyle(aChart: TChart);
 var
   j: integer;
 begin
+
   with aChart do
   begin
     View3D := FGraphSetting.View3D;
@@ -3564,6 +3563,7 @@ begin
     Legend.Visible := FGraphSetting.Legend;
     HideDates(aChart);
     pnlHeader.Visible := pnlInfo.Visible;
+
     if FGraphSetting.ClearBackground then
     begin
       Color := clWindow;
@@ -3578,6 +3578,7 @@ begin
       pnlBlankTop.Color := clBtnFace;
       pnlBlankBottom.Color := clBtnFace;
     end;
+
     for j := 0 to SeriesCount - 1 do
     begin
       if Series[j] is TLineSeries then
@@ -3684,8 +3685,10 @@ begin
     FDate2 := FDate1;
   end;
   lbutton := Button <> mbRight;
+  (Sender as TChart).AllowZoom := false;
   SeriesClicks(Sender as TChart, Series, ValueIndex, lbutton);
   FMouseDown := false;
+  //(Sender as TChart).AllowZoom := FGraphSetting.HorizontalZoom;
 end;
 
 
@@ -4327,7 +4330,7 @@ begin
   mnuPopGraphReset.Enabled := mnuPopGraphSwap.Enabled;
   mnuPopGraphCopy.Enabled := mnuPopGraphSwap.Enabled;
   mnuPopGraphPrint.Enabled := mnuPopGraphSwap.Enabled;
-  
+
   with pnlMain.Parent do
   if BorderWidth <> 1 then            // only do on float Graph
     mnuPopGraphStayOnTop.Enabled :=false
@@ -4738,7 +4741,7 @@ begin
   with FGraphSetting do
   case datetag of
   0:  begin
-        if cboDateRange.ItemIndex > 8 then    // selected date range
+        if cboDateRange.ItemIndex > 7 then    // selected date range
         begin
           if dateranges = '' then dateranges := cboDateRange.Items[cboDateRange.ItemIndex];
           manualstart := Piece(dateranges, '^' , 6);
@@ -4757,12 +4760,11 @@ begin
       end;
   1:  FMStartDate := FMToday;
   2:  FMStartDate := FMDateTimeOffsetBy(FMToday, -7);
-  3:  FMStartDate := FMDateTimeOffsetBy(FMToday, -14);
-  4:  FMStartDate := FMDateTimeOffsetBy(FMToday, -30);
-  5:  FMStartDate := FMDateTimeOffsetBy(FMToday, -183);
-  6:  FMStartDate := FMDateTimeOffsetBy(FMToday, -365);
-  7:  FMStartDate := FMDateTimeOffsetBy(FMToday, -730);
-  8:  FMStartDate := FM_START_DATE;   // earliest recorded values
+  3:  FMStartDate := FMDateTimeOffsetBy(FMToday, -30);
+  4:  FMStartDate := FMDateTimeOffsetBy(FMToday, -183);
+  5:  FMStartDate := FMDateTimeOffsetBy(FMToday, -365);
+  6:  FMStartDate := FMDateTimeOffsetBy(FMToday, -730);
+  7:  FMStartDate := FM_START_DATE;   // earliest recorded values
   else
       begin
         if dateranges = '' then dateranges := cboDateRange.Items[cboDateRange.ItemIndex];
@@ -5689,7 +5691,7 @@ begin
       newtest := Piece(newline, '^', 2) + '.0';
       SetPiece(newline, '^', 2, newtest);
       GtslScratchLab[i] := newline;
-    end;  
+    end;
     FastAddStrings(GtslScratchLab, GtslData);    //&&&&&
     SpecRefSet(aItemType, aItemName);
     filename := FileNameX('63');
@@ -7040,8 +7042,8 @@ begin
         if ClickedValue > -1 then break;
         ClickedMark := Marks.Clicked(FX, FY);
         if ClickedMark > -1 then break;
-        ClickedLegend := Legend.Clicked(FX, FY);
-        if ClickedLegend > -1 then break;
+        //ClickedLegend := Legend.Clicked(FX, FY);
+        //if ClickedLegend > -1 then break;
       end;
     end;
     if (ClickedValue > -1) or (ClickedMark > -1) then
@@ -7563,6 +7565,22 @@ begin
     cboDateRange.DropDownCount := 3
   else
     cboDateRange.DropDownCount := 9;
+end;
+
+procedure TfrmGraphs.cboDateRangeExit(Sender: TObject);
+begin
+  inherited;
+  if not chkDualViews.Checked and ShiftTabIsPressed() then
+  begin
+    if scrlTop.VertScrollBar.IsScrollBarVisible and scrlTop.CanFocus then memTop.SetFocus
+    else begin
+      Case pcTop.ActivePageIndex of
+        0:  lvwItemsTop.SetFocus;
+        1:  memViewsTop.SetFocus;
+        2:  tsTopCustom.SetFocus;
+      End;
+    end;
+  end;
 end;
 
 procedure TfrmGraphs.mnuPopGraphFixedClick(Sender: TObject);

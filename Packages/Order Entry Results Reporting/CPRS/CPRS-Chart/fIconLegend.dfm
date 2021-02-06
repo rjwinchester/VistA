@@ -9,8 +9,8 @@ inherited frmIconLegend: TfrmIconLegend
   FormStyle = fsStayOnTop
   OldCreateOrder = False
   OnClose = FormClose
-  ExplicitWidth = 320
-  ExplicitHeight = 240
+  ExplicitWidth = 372
+  ExplicitHeight = 349
   PixelsPerInch = 96
   TextHeight = 13
   object pcMain: TPageControl [0]
@@ -24,10 +24,6 @@ inherited frmIconLegend: TfrmIconLegend
     object Templates: TTabSheet
       Caption = 'Templates'
       ImageIndex = 1
-      ExplicitLeft = 0
-      ExplicitTop = 0
-      ExplicitWidth = 0
-      ExplicitHeight = 0
       object Label3: TLabel
         Left = 0
         Top = 251
@@ -45,6 +41,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 0
         TabStop = True
         ExplicitWidth = 358
@@ -70,10 +72,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 64
-          Width = 163
+          Width = 164
           Caption = 'Shared or Personal Template Root'
           ExplicitLeft = 64
-          ExplicitWidth = 163
+          ExplicitWidth = 164
         end
       end
       object Panel1: TPanel
@@ -81,7 +83,6 @@ inherited frmIconLegend: TfrmIconLegend
         Top = 60
         Width = 184
         Height = 189
-        Caption = 'Panel1'
         TabOrder = 1
         object Label2: TLabel
           Left = 1
@@ -107,6 +108,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 0
           TabStop = True
           ExplicitLeft = 1
@@ -129,10 +136,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 122
+            Width = 121
             Caption = 'Personal Reminder Dialog'
             ExplicitLeft = 46
-            ExplicitWidth = 122
+            ExplicitWidth = 121
           end
         end
         inline fraImgText10: TfraImgText
@@ -142,6 +149,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 1
           TabStop = True
           ExplicitLeft = 1
@@ -177,6 +190,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 2
           TabStop = True
           ExplicitLeft = 1
@@ -218,6 +237,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 3
           TabStop = True
           ExplicitLeft = 1
@@ -246,10 +271,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 127
+            Width = 129
             Caption = 'Personal Group Template *'
             ExplicitLeft = 46
-            ExplicitWidth = 127
+            ExplicitWidth = 129
           end
         end
         inline fraImgText17: TfraImgText
@@ -259,6 +284,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 4
           TabStop = True
           ExplicitLeft = 1
@@ -287,10 +318,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 120
+            Width = 121
             Caption = 'Personal Template Folder'
             ExplicitLeft = 46
-            ExplicitWidth = 120
+            ExplicitWidth = 121
           end
         end
         inline fraImgText13: TfraImgText
@@ -300,6 +331,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 5
           TabStop = True
           ExplicitLeft = 1
@@ -328,10 +365,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 121
+            Width = 120
             Caption = 'Personal Template Dialog'
             ExplicitLeft = 46
-            ExplicitWidth = 121
+            ExplicitWidth = 120
           end
         end
         inline fraImgText14: TfraImgText
@@ -341,6 +378,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 6
           TabStop = True
           ExplicitLeft = 1
@@ -369,10 +412,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 128
+            Width = 129
             Caption = 'Personal Template Dialog *'
             ExplicitLeft = 46
-            ExplicitWidth = 128
+            ExplicitWidth = 129
           end
         end
         inline fraImgText23: TfraImgText
@@ -382,6 +425,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 7
           TabStop = True
           ExplicitLeft = 1
@@ -404,10 +453,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 95
+            Width = 97
             Caption = 'Personal Template *'
             ExplicitLeft = 46
-            ExplicitWidth = 95
+            ExplicitWidth = 97
           end
         end
       end
@@ -416,7 +465,6 @@ inherited frmIconLegend: TfrmIconLegend
         Top = 60
         Width = 173
         Height = 189
-        Caption = 'Panel2'
         TabOrder = 2
         object Label1: TLabel
           Left = 1
@@ -442,6 +490,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 0
           TabStop = True
           ExplicitLeft = 1
@@ -470,10 +524,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 121
+            Width = 122
             Caption = 'Shared Template Dialog *'
             ExplicitLeft = 46
-            ExplicitWidth = 121
+            ExplicitWidth = 122
           end
         end
         inline fraImgText20: TfraImgText
@@ -483,6 +537,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 1
           TabStop = True
           ExplicitLeft = 1
@@ -511,10 +571,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 113
+            Width = 114
             Caption = 'Shared Template Folder'
             ExplicitLeft = 46
-            ExplicitWidth = 113
+            ExplicitWidth = 114
           end
         end
         inline fraImgText19: TfraImgText
@@ -524,6 +584,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 2
           TabStop = True
           ExplicitLeft = 1
@@ -552,10 +618,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 120
+            Width = 122
             Caption = 'Shared Group Template *'
             ExplicitLeft = 46
-            ExplicitWidth = 120
+            ExplicitWidth = 122
           end
         end
         inline fraImgText18: TfraImgText
@@ -565,6 +631,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 3
           TabStop = True
           ExplicitLeft = 1
@@ -606,6 +678,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 4
           TabStop = True
           ExplicitLeft = 1
@@ -634,10 +712,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 114
+            Width = 113
             Caption = 'Shared Template Dialog'
             ExplicitLeft = 46
-            ExplicitWidth = 114
+            ExplicitWidth = 113
           end
         end
         inline fraImgText11: TfraImgText
@@ -647,6 +725,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 5
           TabStop = True
           ExplicitLeft = 1
@@ -682,6 +766,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 6
           TabStop = True
           ExplicitLeft = 1
@@ -704,10 +794,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 115
+            Width = 114
             Caption = 'Shared Reminder Dialog'
             ExplicitLeft = 46
-            ExplicitWidth = 115
+            ExplicitWidth = 114
           end
         end
         inline fraImgText24: TfraImgText
@@ -717,6 +807,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 20
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 7
           TabStop = True
           ExplicitLeft = 1
@@ -739,10 +835,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 46
-            Width = 88
+            Width = 90
             Caption = 'Shared Template *'
             ExplicitLeft = 46
-            ExplicitWidth = 88
+            ExplicitWidth = 90
           end
         end
       end
@@ -753,6 +849,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 3
         TabStop = True
         ExplicitTop = 20
@@ -774,10 +876,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 64
-          Width = 291
+          Width = 293
           Caption = 'COM Object Template (external application linked into CPRS) '
           ExplicitLeft = 64
-          ExplicitWidth = 291
+          ExplicitWidth = 293
         end
       end
       inline fraImgText57: TfraImgText
@@ -787,6 +889,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 4
         TabStop = True
         ExplicitTop = 40
@@ -808,10 +916,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 64
-          Width = 236
+          Width = 240
           Caption = 'COM Object Template not installed on workstation'
           ExplicitLeft = 64
-          ExplicitWidth = 236
+          ExplicitWidth = 240
         end
       end
     end
@@ -829,6 +937,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 0
         TabStop = True
         ExplicitTop = 8
@@ -856,10 +970,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 90
+          Width = 93
           Caption = 'Reminder Category'
           ExplicitLeft = 118
-          ExplicitWidth = 90
+          ExplicitWidth = 93
         end
       end
       inline fraImgText2: TfraImgText
@@ -869,6 +983,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 1
         TabStop = True
         ExplicitTop = 34
@@ -890,10 +1010,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 78
+          Width = 77
           Caption = 'Reminder is Due'
           ExplicitLeft = 118
-          ExplicitWidth = 78
+          ExplicitWidth = 77
         end
       end
       inline fraImgText3: TfraImgText
@@ -903,6 +1023,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 2
         TabStop = True
         ExplicitTop = 60
@@ -924,10 +1050,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 177
+          Width = 179
           Caption = 'Reminder is not due, but is Applicable'
           ExplicitLeft = 118
-          ExplicitWidth = 177
+          ExplicitWidth = 179
         end
       end
       inline fraImgText4: TfraImgText
@@ -937,6 +1063,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 3
         TabStop = True
         ExplicitTop = 86
@@ -958,10 +1090,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 127
+          Width = 126
           Caption = 'Reminder is Not Applicable'
           ExplicitLeft = 118
-          ExplicitWidth = 127
+          ExplicitWidth = 126
         end
       end
       inline fraImgText5: TfraImgText
@@ -971,6 +1103,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 4
         TabStop = True
         ExplicitTop = 112
@@ -997,10 +1135,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 208
+          Width = 214
           Caption = 'Reminder status has not yet been evaluated'
           ExplicitLeft = 118
-          ExplicitWidth = 208
+          ExplicitWidth = 214
         end
       end
       inline fraImgText6: TfraImgText
@@ -1010,6 +1148,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 5
         TabStop = True
         ExplicitTop = 138
@@ -1051,10 +1195,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 215
+          Width = 214
           Caption = 'Reminder has an associated Reminder Dialog'
           ExplicitLeft = 118
-          ExplicitWidth = 215
+          ExplicitWidth = 214
         end
       end
       inline fraImgText7: TfraImgText
@@ -1064,6 +1208,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 40
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 6
         TabStop = True
         ExplicitTop = 164
@@ -1107,12 +1257,12 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 118
-          Width = 210
+          Width = 209
           Height = 26
           Caption = 'Reminder'#39's associated Reminder Dialog has been processed'
           WordWrap = True
           ExplicitLeft = 118
-          ExplicitWidth = 210
+          ExplicitWidth = 209
           ExplicitHeight = 26
         end
       end
@@ -1131,6 +1281,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 0
         TabStop = True
         ExplicitTop = 40
@@ -1165,6 +1321,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 1
         TabStop = True
         ExplicitTop = 60
@@ -1199,6 +1361,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 2
         TabStop = True
         ExplicitTop = 80
@@ -1230,10 +1398,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 145
+          Width = 147
           Caption = 'Standalone note with addenda'
           ExplicitLeft = 150
-          ExplicitWidth = 145
+          ExplicitWidth = 147
         end
       end
       inline fraImgText28: TfraImgText
@@ -1243,6 +1411,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 3
         TabStop = True
         ExplicitTop = 100
@@ -1269,10 +1443,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 98
+          Width = 102
           Caption = 'Interdisciplinary Note'
           ExplicitLeft = 150
-          ExplicitWidth = 98
+          ExplicitWidth = 102
         end
       end
       inline fraImgText29: TfraImgText
@@ -1282,6 +1456,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 4
         TabStop = True
         ExplicitTop = 120
@@ -1309,10 +1489,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 165
+          Width = 170
           Caption = 'Interdisciplinary Note with addenda'
           ExplicitLeft = 150
-          ExplicitWidth = 165
+          ExplicitWidth = 170
         end
       end
       inline fraImgText30: TfraImgText
@@ -1322,6 +1502,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 5
         TabStop = True
         ExplicitTop = 140
@@ -1353,10 +1539,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 98
+          Width = 105
           Caption = 'Interdisciplinary entry'
           ExplicitLeft = 150
-          ExplicitWidth = 98
+          ExplicitWidth = 105
         end
       end
       inline fraImgText31: TfraImgText
@@ -1366,6 +1552,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 6
         TabStop = True
         ExplicitTop = 160
@@ -1405,10 +1597,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 165
+          Width = 173
           Caption = 'Interdisciplinary entry with addenda'
           ExplicitLeft = 150
-          ExplicitWidth = 165
+          ExplicitWidth = 173
         end
       end
       inline fraImgText32: TfraImgText
@@ -1418,6 +1610,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 7
         TabStop = True
         ExplicitTop = 180
@@ -1442,11 +1640,11 @@ inherited frmIconLegend: TfrmIconLegend
         inherited lblText: TLabel
           Left = 150
           Top = 3
-          Width = 130
+          Width = 133
           Caption = 'Note has attached image(s)'
           ExplicitLeft = 150
           ExplicitTop = 3
-          ExplicitWidth = 130
+          ExplicitWidth = 133
         end
       end
       inline fraImgText33: TfraImgText
@@ -1456,6 +1654,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 8
         TabStop = True
         ExplicitWidth = 358
@@ -1501,6 +1705,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 9
         TabStop = True
         ExplicitTop = 20
@@ -1542,6 +1752,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 10
         TabStop = True
         ExplicitTop = 220
@@ -1580,6 +1796,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 11
         TabStop = True
         ExplicitTop = 200
@@ -1649,6 +1871,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 0
           TabStop = True
           ExplicitLeft = 1
@@ -1697,6 +1925,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 1
           TabStop = True
           ExplicitLeft = 1
@@ -1740,6 +1974,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 36
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 2
           TabStop = True
           ExplicitLeft = 1
@@ -1782,13 +2022,13 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 50
             Top = 5
-            Width = 91
+            Width = 76
             Height = 26
             Caption = 'Interfacility Consult request'
             WordWrap = True
             ExplicitLeft = 50
             ExplicitTop = 5
-            ExplicitWidth = 91
+            ExplicitWidth = 76
             ExplicitHeight = 26
           end
         end
@@ -1799,6 +2039,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 35
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 3
           TabStop = True
           ExplicitLeft = 1
@@ -1841,14 +2087,14 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 50
             Top = 5
-            Width = 87
-            Height = 26
+            Width = 58
+            Height = 39
             Caption = 'Interfacility Procedure request'
             WordWrap = True
             ExplicitLeft = 50
             ExplicitTop = 5
-            ExplicitWidth = 87
-            ExplicitHeight = 26
+            ExplicitWidth = 58
+            ExplicitHeight = 39
           end
         end
         inline fraImgText60: TfraImgText
@@ -1858,6 +2104,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 4
           TabStop = True
           ExplicitLeft = 1
@@ -1882,11 +2134,11 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 50
             Top = 5
-            Width = 73
+            Width = 76
             Caption = 'Consult request'
             ExplicitLeft = 50
             ExplicitTop = 5
-            ExplicitWidth = 73
+            ExplicitWidth = 76
           end
         end
         inline fraImgText61: TfraImgText
@@ -1896,6 +2148,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 5
           TabStop = True
           ExplicitLeft = 1
@@ -1954,11 +2212,11 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 50
             Top = 5
-            Width = 87
+            Width = 89
             Caption = 'Procedure request'
             ExplicitLeft = 50
             ExplicitTop = 5
-            ExplicitWidth = 87
+            ExplicitWidth = 89
           end
         end
       end
@@ -1991,6 +2249,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 33
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 0
           TabStop = True
           ExplicitLeft = 1
@@ -2025,13 +2289,13 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 51
             Top = -1
-            Width = 101
+            Width = 100
             Height = 26
             Caption = 'Top level - all related documents'
             WordWrap = True
             ExplicitLeft = 51
             ExplicitTop = -1
-            ExplicitWidth = 101
+            ExplicitWidth = 100
             ExplicitHeight = 26
           end
         end
@@ -2042,6 +2306,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 1
           TabStop = True
           ExplicitLeft = 1
@@ -2065,10 +2335,10 @@ inherited frmIconLegend: TfrmIconLegend
           end
           inherited lblText: TLabel
             Left = 51
-            Width = 49
+            Width = 48
             Caption = 'Document'
             ExplicitLeft = 51
-            ExplicitWidth = 49
+            ExplicitWidth = 48
           end
         end
         inline fraImgText38: TfraImgText
@@ -2078,6 +2348,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 2
           TabStop = True
           ExplicitLeft = 1
@@ -2114,6 +2390,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 22
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 3
           TabStop = True
           ExplicitLeft = 1
@@ -2160,6 +2442,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 35
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 4
           TabStop = True
           ExplicitLeft = 1
@@ -2186,13 +2474,13 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 51
             Top = 3
-            Width = 104
+            Width = 102
             Height = 26
             Caption = 'Document'#39's child has attached images'
             WordWrap = True
             ExplicitLeft = 51
             ExplicitTop = 3
-            ExplicitWidth = 104
+            ExplicitWidth = 102
             ExplicitHeight = 26
           end
         end
@@ -2203,6 +2491,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 38
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 5
           TabStop = True
           ExplicitLeft = 1
@@ -2246,6 +2540,12 @@ inherited frmIconLegend: TfrmIconLegend
           Height = 34
           Align = alTop
           AutoScroll = True
+          Font.Charset = DEFAULT_CHARSET
+          Font.Color = clWindowText
+          Font.Height = -11
+          Font.Name = 'Tahoma'
+          Font.Style = []
+          ParentFont = False
           TabOrder = 6
           TabStop = True
           ExplicitLeft = 1
@@ -2272,13 +2572,13 @@ inherited frmIconLegend: TfrmIconLegend
           inherited lblText: TLabel
             Left = 51
             Top = 1
-            Width = 95
+            Width = 94
             Height = 26
             Caption = 'Document'#39's images cannot be viewed'
             WordWrap = True
             ExplicitLeft = 51
             ExplicitTop = 1
-            ExplicitWidth = 95
+            ExplicitWidth = 94
             ExplicitHeight = 26
           end
         end
@@ -2298,6 +2598,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 0
         TabStop = True
         ExplicitWidth = 358
@@ -2344,6 +2650,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 1
         TabStop = True
         ExplicitTop = 22
@@ -2386,6 +2698,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 2
         TabStop = True
         ExplicitTop = 162
@@ -2408,8 +2726,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
+          Width = 33
           Caption = 'Report'
           ExplicitLeft = 150
+          ExplicitWidth = 33
         end
       end
       inline fraImgText47: TfraImgText
@@ -2419,6 +2739,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 3
         TabStop = True
         ExplicitTop = 181
@@ -2454,6 +2780,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 4
         TabStop = True
         ExplicitTop = 201
@@ -2486,10 +2818,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 99
+          Width = 101
           Caption = 'Report with addenda'
           ExplicitLeft = 150
-          ExplicitWidth = 99
+          ExplicitWidth = 101
         end
       end
       inline fraImgText49: TfraImgText
@@ -2499,6 +2831,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 26
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 5
         TabStop = True
         ExplicitTop = 237
@@ -2524,11 +2862,11 @@ inherited frmIconLegend: TfrmIconLegend
         inherited lblText: TLabel
           Left = 150
           Top = 3
-          Width = 139
+          Width = 143
           Caption = 'Report has attached image(s)'
           ExplicitLeft = 150
           ExplicitTop = 3
-          ExplicitWidth = 139
+          ExplicitWidth = 143
         end
       end
       inline fraImgText50: TfraImgText
@@ -2538,6 +2876,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 20
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 6
         TabStop = True
         ExplicitTop = 77
@@ -2565,10 +2909,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 144
+          Width = 147
           Caption = 'OR case with attached reports'
           ExplicitLeft = 150
-          ExplicitWidth = 144
+          ExplicitWidth = 147
         end
       end
       inline fraImgText51: TfraImgText
@@ -2578,6 +2922,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 21
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 7
         TabStop = True
         ExplicitTop = 57
@@ -2600,10 +2950,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 159
+          Width = 162
           Caption = 'OR case with no attached reports'
           ExplicitLeft = 150
-          ExplicitWidth = 159
+          ExplicitWidth = 162
         end
       end
       inline fraImgText58: TfraImgText
@@ -2613,6 +2963,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 21
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 8
         TabStop = True
         ExplicitTop = 107
@@ -2635,10 +2991,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 182
+          Width = 186
           Caption = 'Non-OR case without attached reports'
           ExplicitLeft = 150
-          ExplicitWidth = 182
+          ExplicitWidth = 186
         end
       end
       inline fraImgText59: TfraImgText
@@ -2648,6 +3004,12 @@ inherited frmIconLegend: TfrmIconLegend
         Height = 21
         Align = alTop
         AutoScroll = True
+        Font.Charset = DEFAULT_CHARSET
+        Font.Color = clWindowText
+        Font.Height = -11
+        Font.Name = 'Tahoma'
+        Font.Style = []
+        ParentFont = False
         TabOrder = 9
         TabStop = True
         ExplicitTop = 126
@@ -2676,10 +3038,10 @@ inherited frmIconLegend: TfrmIconLegend
         end
         inherited lblText: TLabel
           Left = 150
-          Width = 167
+          Width = 170
           Caption = 'Non-OR case with attached reports'
           ExplicitLeft = 150
-          ExplicitWidth = 167
+          ExplicitWidth = 170
         end
       end
     end
